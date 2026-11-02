@@ -1081,6 +1081,7 @@
     "recover_failed": "Não foi possível recuperar o depósito",
     "collect_failed": "Não foi possível recolher as taxas das pools",
     "claims_locked_for": "As reclamações ficam bloqueadas durante {time} após o último staking.",
+    "viewing_other_wallet_claims": "Você está a ver outra carteira. Limpe a pesquisa por endereço para reivindicar as suas próprias recompensas.",
     "column_token": "Token",
     "column_address_erc20": "Endereço ERC-20",
     "column_address_erc223": "Endereço ERC-223",

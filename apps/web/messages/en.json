@@ -1029,6 +1029,7 @@
     "recover_failed": "Could not recover the deposit",
     "collect_failed": "Could not collect the pool fees",
     "claims_locked_for": "Claims stay locked for {time} after the last stake.",
+    "viewing_other_wallet_claims": "You are viewing another wallet. Clear the address search to claim your own rewards.",
     "column_token": "Token",
     "column_address_erc20": "Address ERC-20",
     "column_address_erc223": "Address ERC-223",

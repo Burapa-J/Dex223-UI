@@ -1081,6 +1081,7 @@
     "recover_failed": "예치금을 회수하지 못했습니다",
     "collect_failed": "풀 수수료를 모으지 못했습니다",
     "claims_locked_for": "마지막 스테이킹 후 {time} 동안 수령이 잠깁니다.",
+    "viewing_other_wallet_claims": "다른 지갑을 보고 있습니다. 주소 검색을 지운 뒤 내 보상을 수령하세요.",
     "column_token": "토큰",
     "column_address_erc20": "ERC-20 주소",
     "column_address_erc223": "ERC-223 주소",

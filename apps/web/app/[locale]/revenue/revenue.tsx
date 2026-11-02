@@ -228,6 +228,12 @@ export function Revenue() {
     setError(null);
   }, [searchValue, claimRewardsSearchValue]);
 
+  useEffect(() => {
+    if (searchAddress) {
+      setSelectedTokens(new Set());
+    }
+  }, [searchAddress]);
+
   const formatStakedAmount = (amount: unknown) => {
     if (!amount || typeof amount !== "bigint") return "0";
     const divisor = BigInt(10 ** 18);
@@ -593,6 +599,7 @@ export function Revenue() {
               selectedTokens={selectedTokens}
               setSelectedTokens={handleSelectedTokens}
               isLoading={isLoadingUserData}
+              readOnly={Boolean(searchAddress)}
             />
           )}
         </div>

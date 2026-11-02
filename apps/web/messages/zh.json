@@ -1081,6 +1081,7 @@
     "recover_failed": "无法取回存款",
     "collect_failed": "无法收取池子手续费",
     "claims_locked_for": "上次质押后，领取将锁定 {time}。",
+    "viewing_other_wallet_claims": "您正在查看其他钱包。清除地址搜索后即可领取自己的奖励。",
     "column_token": "代币",
     "column_address_erc20": "ERC-20 地址",
     "column_address_erc223": "ERC-223 地址",

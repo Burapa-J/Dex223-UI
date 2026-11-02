@@ -48,11 +48,13 @@ export const Claims = ({
   selectedTokens,
   setSelectedTokens,
   isLoading = false,
+  readOnly = false,
 }: {
   tableData: any;
   selectedTokens: Set<number>;
   setSelectedTokens: (tokenId: number) => void;
   isLoading?: boolean;
+  readOnly?: boolean;
 }) => {
   const t = useTranslations("Revenue");
   const {
@@ -65,7 +67,7 @@ export const Claims = ({
 
   const chainId = useCurrentChainId();
   const { canUnstake, unstakeCountdown } = useRevenueContract();
-  const claimLocked = !canUnstake;
+  const claimLocked = readOnly || !canUnstake;
   const { estimatedGas, customGasLimit, setEstimatedGas, setCustomGasLimit } =
     useClaimGasLimitStore();
   const [isOpenedFee, setIsOpenedFee] = useState(false);
@@ -109,6 +111,7 @@ export const Claims = ({
   }, [claimState, isClaimDialogOpen, resetClaim]);
 
   const handleTokenSelect = (tokenId: number) => {
+    if (readOnly) return;
     setSelectedTokens(tokenId);
   };
 
@@ -117,7 +120,7 @@ export const Claims = ({
   };
 
   const handleClaimSingle = (token: any) => {
-    if (claimLocked) return;
+    if (readOnly || claimLocked) return;
     const selectedTokensData = [
       {
         id: token.id,
@@ -148,7 +151,7 @@ export const Claims = ({
   };
 
   const handleClaimSelected = () => {
-    if (claimLocked) return;
+    if (readOnly || claimLocked) return;
     const selectedTokensData = tableData
       .filter((item: any) => selectedTokens.has(item.id))
       .map((item: any) => ({
@@ -205,7 +208,9 @@ export const Claims = ({
     <>
       <SingleClaimDialog />
       <MultipleClaimDialog />
-      {claimLocked && unstakeCountdown ? (
+      {readOnly ? (
+        <p className="text-14 text-secondary-text px-1 pb-3">{t("viewing_other_wallet_claims")}</p>
+      ) : claimLocked && unstakeCountdown ? (
         <p className="text-14 text-secondary-text px-1 pb-3">
           {t("claims_locked_for", { time: unstakeCountdown })}
         </p>
@@ -300,7 +305,7 @@ export const Claims = ({
                         checked={isSelected}
                         handleChange={() => handleTokenSelect(o.id)}
                         id={`claim-token-${o.id}`}
-                        disabled={hasClaimInProgress || isTokenBeingClaimed(o.id)}
+                        disabled={readOnly || hasClaimInProgress || isTokenBeingClaimed(o.id)}
                       />
                       <Image
                         src={o.logoURI || "/images/tokens/placeholder.svg"}
@@ -421,7 +426,7 @@ export const Claims = ({
           )}
         </div>
 
-        {selectedCount > 0 && !isLoading && (
+        {selectedCount > 0 && !isLoading && !readOnly && (
           <div className="relative z-20 p-4 bg-tertiary-bg rounded-b-3 flex items-center justify-between gap-4 border border-quaternary-bg">
             <div className="flex items-center gap-4">
               <span className="text-tertiary-text text-14">
@@ -525,7 +530,7 @@ export const Claims = ({
           </SkeletonTheme>
         ) : (
           <>
-            {selectedCount > 0 && !isLoading && (
+            {selectedCount > 0 && !isLoading && !readOnly && (
               <div className="bg-tertiary-bg rounded-3 p-4 xl:col-span-2">
                 <div className="flex items-center mb-3 gap-2">
                   <div className="flex items-center gap-1.5">
@@ -610,7 +615,7 @@ export const Claims = ({
                       checked={isSelected}
                       handleChange={() => handleTokenSelect(o.id)}
                       id={`claim-token-mobile-${o.id}`}
-                      disabled={hasClaimInProgress || isTokenBeingClaimed(o.id)}
+                      disabled={readOnly || hasClaimInProgress || isTokenBeingClaimed(o.id)}
                     />
                     <Image
                       src={o.logoURI || "/images/tokens/placeholder.svg"}

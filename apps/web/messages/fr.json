@@ -1081,6 +1081,7 @@
     "recover_failed": "Impossible de récupérer le dépôt",
     "collect_failed": "Impossible de percevoir les frais des pools",
     "claims_locked_for": "Les réclamations restent verrouillées pendant {time} après le dernier staking.",
+    "viewing_other_wallet_claims": "Vous consultez un autre portefeuille. Effacez la recherche d’adresse pour réclamer vos propres récompenses.",
     "column_token": "Jeton",
     "column_address_erc20": "Adresse ERC-20",
     "column_address_erc223": "Adresse ERC-223",
