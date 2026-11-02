@@ -1152,7 +1152,12 @@
     "split_position_notice": "Vos {total} D223 sont stakés en {erc20} ERC-20 et {erc223} ERC-223. Chaque part revient dans la version où vous l’avez stakée. Tout retirer rend les deux en une seule transaction.",
     "gas_too_low_hint": "La transaction a échoué car la limite de gaz est trop basse. Ajustez les réglages de votre portefeuille.",
     "still_have_issues_discord": "Si le problème persiste, posez votre question sur notre <discord>Discord</discord>.",
-    "save": "Enregistrer"
+    "save": "Enregistrer",
+    "confirm_claim": "Confirmer la réclamation",
+    "executing_claim": "Exécution de la réclamation",
+    "paid_in_standard_single": "{symbol} est versé dans le standard détenu par le contrat Revenue.",
+    "paid_in_standard_multiple": "Chaque jeton est versé dans le standard détenu par le contrat Revenue.",
+    "tokens_count": "{count, plural, =1 {# jeton} other {# jetons}}"
   },
   "Governance": {
     "title": "Gouvernance",

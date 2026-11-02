@@ -1152,7 +1152,12 @@
     "split_position_notice": "您的 {total} D223 以 {erc20} ERC-20 和 {erc223} ERC-223 质押。每部分都会以您质押时的版本返还。全部取消质押会在一笔交易中返还两者。",
     "gas_too_low_hint": "交易失败，因为 Gas 上限太低。请调整钱包设置。",
     "still_have_issues_discord": "如果问题仍然存在，请在我们的 <discord>Discord</discord> 中提问。",
-    "save": "保存"
+    "save": "保存",
+    "confirm_claim": "确认领取",
+    "executing_claim": "正在领取",
+    "paid_in_standard_single": "{symbol} 按 Revenue 合约持有的标准发放。",
+    "paid_in_standard_multiple": "每个代币按 Revenue 合约持有的标准发放。",
+    "tokens_count": "{count, plural, other {# 个代币}}"
   },
   "Governance": {
     "title": "治理",

@@ -1152,7 +1152,12 @@
     "split_position_notice": "Os seus {total} D223 estão em staking como {erc20} ERC-20 e {erc223} ERC-223. Cada parte volta na versão em que a depositou. Retirar tudo devolve ambas numa só transação.",
     "gas_too_low_hint": "A transação falhou porque o limite de gás é demasiado baixo. Ajuste as definições da carteira.",
     "still_have_issues_discord": "Se o problema persistir, pergunte no nosso <discord>Discord</discord>.",
-    "save": "Guardar"
+    "save": "Guardar",
+    "confirm_claim": "Confirmar reivindicação",
+    "executing_claim": "A executar reivindicação",
+    "paid_in_standard_single": "{symbol} é pago no standard em que o contrato Revenue o detém.",
+    "paid_in_standard_multiple": "Cada token é pago no standard em que o contrato Revenue o detém.",
+    "tokens_count": "{count, plural, =1 {# token} other {# tokens}}"
   },
   "Governance": {
     "title": "Governação",
