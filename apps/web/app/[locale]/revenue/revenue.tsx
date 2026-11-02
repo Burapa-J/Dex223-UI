@@ -10,7 +10,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import { Address, formatUnits, isAddress } from "viem";
-import { useAccount, useSwitchChain } from "wagmi";
+import { useAccount } from "wagmi";
 
 import { useRevenueStore } from "@/app/[locale]/revenue/stores/useRevenueStore";
 import Container from "@/components/atoms/Container";
@@ -89,7 +89,6 @@ export function Revenue() {
     isOpen: isStakeDialogOpen,
     dialogType,
   } = useStakeDialogStore();
-  const { switchChain } = useSwitchChain();
   const { setIsOpened: setWalletConnectOpened } = useConnectWalletDialogStateStore();
 
   const allAvailableTokens = useTokens();

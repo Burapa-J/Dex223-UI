@@ -301,6 +301,8 @@ export const Claims = ({
                         handleChange={() => handleTokenSelect(o.id)}
                         id={`claim-token-${o.id}`}
                         disabled={hasClaimInProgress || isTokenBeingClaimed(o.id)}
+                        label={t("select_claim_token", { symbol: o.symbol })}
+                        labelClassName="sr-only"
                       />
                       <Image
                         src={o.logoURI || "/images/tokens/placeholder.svg"}
@@ -611,6 +613,8 @@ export const Claims = ({
                       handleChange={() => handleTokenSelect(o.id)}
                       id={`claim-token-mobile-${o.id}`}
                       disabled={hasClaimInProgress || isTokenBeingClaimed(o.id)}
+                      label={t("select_claim_token", { symbol: o.symbol })}
+                      labelClassName="sr-only"
                     />
                     <Image
                       src={o.logoURI || "/images/tokens/placeholder.svg"}

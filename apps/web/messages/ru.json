@@ -1092,6 +1092,7 @@
     "total_reward": "Всего наград: ${amount}",
     "claiming": "Получение...",
     "claim_selected": "Получить выбранные токены",
+    "select_claim_token": "Выбрать {symbol}",
     "max_tokens": "Не больше 15 токенов за раз",
     "unselect_all": "Снять выбор",
     "total_claim": "Всего к получению: {count} {count, plural, one {токен} few {токена} many {токенов} other {токена}}",

@@ -1092,6 +1092,7 @@
     "total_reward": "奖励合计：${amount}",
     "claiming": "领取中...",
     "claim_selected": "领取所选代币",
+    "select_claim_token": "选择 {symbol}",
     "max_tokens": "一次最多 15 个代币",
     "unselect_all": "取消全选",
     "total_claim": "合计领取：{count} 个代币",

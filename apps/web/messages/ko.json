@@ -1092,6 +1092,7 @@
     "total_reward": "총 보상: ${amount}",
     "claiming": "수령 중...",
     "claim_selected": "선택한 토큰 수령",
+    "select_claim_token": "{symbol} 선택",
     "max_tokens": "한 번에 최대 15개 토큰",
     "unselect_all": "선택 해제",
     "total_claim": "총 수령: 토큰 {count}개",

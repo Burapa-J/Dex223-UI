@@ -1092,6 +1092,7 @@
     "total_reward": "Récompense totale : {amount} $",
     "claiming": "Réclamation...",
     "claim_selected": "Réclamer les jetons sélectionnés",
+    "select_claim_token": "Sélectionner {symbol}",
     "max_tokens": "15 jetons maximum à la fois",
     "unselect_all": "Tout désélectionner",
     "total_claim": "Réclamation totale : {count} {count, plural, one {jeton} other {jetons}}",
