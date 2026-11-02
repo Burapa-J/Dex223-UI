@@ -77,7 +77,7 @@ export function Revenue() {
   const [claimRewardsSearchValue, setClaimRewardsSearchValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const { address } = useAccount();
-  const [selectedTokens, setSelectedTokens] = useState<Set<number>>(new Set());
+  const [selectedTokens, setSelectedTokens] = useState<Set<string>>(new Set());
   const chainId = useCurrentChainId();
   const [selectedTokenLists, setSelectedTokenLists] = useState<Set<TokenListId>>(
     new Set([`default-${chainId}` as TokenListId]),
@@ -135,16 +135,16 @@ export function Revenue() {
     }
   }, [tokensFromSelectedLists, setRewardTokens]);
 
-  // Rows are the tokens the Revenue contract on this chain actually holds, with the
-  // amounts claim() would pay right now.
+  // Rows are tokens the connected/searched wallet can claim() right now (earned > 0).
   const mappedClaimsData = useMemo(() => {
     return claimableRewards
-      .filter((reward) => reward.heldERC20 > 0n || reward.heldERC223 > 0n)
-      .map((reward, index) => {
+      .filter((reward) => reward.amount > 0n && reward.claimAddresses.length > 0)
+      .map((reward) => {
         const price = usdPrices[reward.token.address0.toLowerCase()];
         const amount = Number(reward.amountFormatted);
+        const id = reward.token.address0.toLowerCase();
         return {
-          id: index + 1,
+          id,
           name: reward.token.name || "Unknown",
           symbol: reward.token.symbol || "???",
           logoURI: reward.token.logoURI || "/images/tokens/placeholder.svg",
@@ -180,20 +180,20 @@ export function Revenue() {
     [mappedClaimsData],
   );
 
-  const handleSelectedTokens = (tokenId: number) => {
-    if (tokenId === 0) {
+  const handleSelectedTokens = (tokenId: string) => {
+    if (!tokenId) {
       setSelectedTokens(new Set());
-    } else {
-      setSelectedTokens((prev) => {
-        const newSet = new Set(prev);
-        if (newSet.has(tokenId)) {
-          newSet.delete(tokenId);
-        } else {
-          newSet.add(tokenId);
-        }
-        return newSet;
-      });
+      return;
     }
+    setSelectedTokens((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(tokenId)) {
+        newSet.delete(tokenId);
+      } else {
+        newSet.add(tokenId);
+      }
+      return newSet;
+    });
   };
 
   const isStakeActionLocked = useMemo(() => {
