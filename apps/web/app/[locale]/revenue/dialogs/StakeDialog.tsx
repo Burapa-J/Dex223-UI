@@ -9,7 +9,7 @@ import { useTranslations } from "next-intl";
 import React, { PropsWithChildren, useCallback, useEffect, useMemo, useState } from "react";
 import { NumericFormat } from "react-number-format";
 import { Address, formatUnits, parseUnits } from "viem";
-import { useAccount } from "wagmi";
+import { useAccount, usePublicClient, useReadContract } from "wagmi";
 
 import DialogHeader from "@/components/atoms/DialogHeader";
 import DrawerDialog from "@/components/atoms/DrawerDialog";
@@ -24,6 +24,8 @@ import TokenStandardSelector from "@/components/common/TokenStandardSelector";
 import NetworkFeeConfigDialog from "@/components/dialogs/NetworkFeeConfigDialog";
 import { useConnectWalletDialogStateStore } from "@/components/dialogs/stores/useConnectWalletStore";
 import { useTransactionSpeedUpDialogStore } from "@/components/dialogs/stores/useTransactionSpeedUpDialogStore";
+import { ERC20_ABI } from "@/config/abis/erc20";
+import { REVENUE_ABI } from "@/config/abis/revenue";
 import { ThemeColors } from "@/config/theme/colors";
 import { clsxMerge } from "@/functions/clsxMerge";
 import { durationMessageKey, formatDuration } from "@/functions/formatDuration";
@@ -44,6 +46,10 @@ import {
   useClaimGasPriceStore,
 } from "../stores/useClaimGasSettingsStore";
 import { StakeError, StakeStatus, useStakeDialogStore } from "../stores/useStakeDialogStore";
+
+/** Safe display/send fallbacks when eth_estimateGas fails (wrong network, zero balance, etc.). */
+const STAKE_GAS_FALLBACK = BigInt(180_000);
+const UNSTAKE_GAS_FALLBACK = BigInt(150_000);
 
 export function useStakeStatus() {
   const { status: stakeStatus } = useStakeDialogStore();
@@ -354,6 +360,7 @@ const StakeDialog = () => {
 
   const tWallet = useTranslations("Wallet");
   const { address: connectedAddress } = useAccount();
+  const publicClient = usePublicClient();
   const { setIsOpened: setWalletConnectOpened } = useConnectWalletDialogStateStore();
 
   // Maps a failed transaction to the error type and the message the dialog shows.
@@ -402,6 +409,7 @@ const StakeDialog = () => {
     stakingTokenERC223,
     claimDelay,
     hasStaked,
+    contractAddress: revenueAddress,
   } = useRevenueContract();
 
   // claim_delay is configurable per deployment (10 days on mainnet, 5 minutes on Sepolia),
@@ -437,9 +445,9 @@ const StakeDialog = () => {
 
   const { baseFee, gasPrice } = useGlobalFees();
 
-  // Dynamic gas limit estimation based on selected standard
-
-  const gasToUse = customGasLimit || estimatedGas;
+  // Same as swap: only a user custom limit is forced into writeContract.
+  // executeTransaction always re-estimates at send time when customGasLimit is unset.
+  const gasToUse = customGasLimit;
 
   const formattedGasPrice = useMemo(() => {
     return getFormattedGasPrice({
@@ -453,7 +461,7 @@ const StakeDialog = () => {
 
   // Dynamic gas display values (similar to swap module pattern)
   const gasERC20Display = useMemo(() => {
-    if (!amount || parseFloat(amount) === 0) {
+    if (!amount || parseFloat(amount) === 0 || estimatedGas <= BigInt(0)) {
       return "—";
     }
     const gasInK = Math.round(Number(estimatedGas) / 1000);
@@ -461,7 +469,7 @@ const StakeDialog = () => {
   }, [amount, estimatedGas]);
 
   const gasERC223Display = useMemo(() => {
-    if (!amount || parseFloat(amount) === 0) {
+    if (!amount || parseFloat(amount) === 0 || estimatedGas <= BigInt(0)) {
       return "—";
     }
     const gasInK = Math.round(Number(estimatedGas) / 1000);
@@ -491,11 +499,147 @@ const StakeDialog = () => {
   useEffect(() => {
     if (!isOpen) {
       setAmount("");
+      setEstimatedGas(BigInt(0));
     }
-  }, [isOpen]);
+  }, [isOpen, setEstimatedGas]);
 
   const isStaking = dialogType === "stake";
   const title = isStaking ? t("stake_action") : t("unstake_action");
+
+  // Mirror swap/list-token: skip eth_estimateGas for ERC-20 stake until allowance covers the amount.
+  const amountWeiForAllowance = useMemo(() => {
+    if (!amount || parseFloat(amount) <= 0) return null;
+    try {
+      return parseUnits(amount, 18);
+    } catch {
+      return null;
+    }
+  }, [amount]);
+
+  const { data: stakeAllowance } = useReadContract({
+    abi: ERC20_ABI,
+    address: stakingTokenERC20,
+    functionName: "allowance",
+    args:
+      connectedAddress && revenueAddress
+        ? [connectedAddress, revenueAddress]
+        : undefined,
+    query: {
+      enabled: Boolean(
+        isOpen &&
+          isStaking &&
+          selectedStandard === Standard.ERC20 &&
+          connectedAddress &&
+          revenueAddress &&
+          stakingTokenERC20 &&
+          amountWeiForAllowance,
+      ),
+    },
+  });
+
+  // Estimate gas for the UI — same shape as useSwapEstimatedGas / useCollectFeesEstimatedGas:
+  // fallback when the call can't be simulated, estimated + 10k on success.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fallback = isStaking ? STAKE_GAS_FALLBACK : UNSTAKE_GAS_FALLBACK;
+    const parsedAmount = amount && parseFloat(amount) > 0 ? amount : "";
+
+    if (!parsedAmount) {
+      setEstimatedGas(BigInt(0));
+      return;
+    }
+
+    // Keep a non-zero UI value while the RPC estimate runs (swap always has a fallback).
+    setEstimatedGas(fallback);
+
+    if (
+      !publicClient ||
+      !connectedAddress ||
+      !revenueAddress ||
+      !isRevenueDeployed ||
+      !isCorrectNetwork
+    ) {
+      return;
+    }
+
+    // Swap: if ERC-20 allowance is missing, don't call estimateContractGas — use fallback.
+    if (
+      isStaking &&
+      selectedStandard === Standard.ERC20 &&
+      amountWeiForAllowance &&
+      (stakeAllowance === undefined || stakeAllowance < amountWeiForAllowance)
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        const amountWei = parseUnits(parsedAmount, 18);
+        let estimated: bigint;
+
+        if (isStaking) {
+          if (selectedStandard === Standard.ERC20) {
+            estimated = await publicClient.estimateContractGas({
+              address: revenueAddress,
+              abi: REVENUE_ABI,
+              functionName: "stake",
+              args: [stakingTokenERC20, amountWei],
+              account: connectedAddress,
+            });
+          } else {
+            estimated = await publicClient.estimateContractGas({
+              address: stakingTokenERC223,
+              abi: ERC20_ABI,
+              functionName: "transfer",
+              args: [revenueAddress, amountWei],
+              account: connectedAddress,
+            });
+          }
+        } else {
+          const withdrawToken =
+            selectedStandard === Standard.ERC223 ? stakingTokenERC223 : stakingTokenERC20;
+          estimated = await publicClient.estimateContractGas({
+            address: revenueAddress,
+            abi: REVENUE_ABI,
+            functionName: "withdraw",
+            args: [withdrawToken, amountWei],
+            account: connectedAddress,
+          });
+        }
+
+        if (!cancelled && estimated) {
+          setEstimatedGas(estimated + BigInt(10_000));
+        }
+      } catch {
+        if (!cancelled) {
+          setEstimatedGas(fallback);
+        }
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isOpen,
+    isStaking,
+    amount,
+    amountWeiForAllowance,
+    selectedStandard,
+    stakeAllowance,
+    publicClient,
+    connectedAddress,
+    revenueAddress,
+    isRevenueDeployed,
+    isCorrectNetwork,
+    stakingTokenERC20,
+    stakingTokenERC223,
+    setEstimatedGas,
+  ]);
 
   // RevenueV2 returns each stake in the version it was staked in, so the most a user can
   // unstake in one version is what they staked in it.
@@ -1364,7 +1508,13 @@ const StakeDialog = () => {
       <NetworkFeeConfigDialog
         isAdvanced={isAdvanced}
         setIsAdvanced={setIsAdvanced}
-        estimatedGas={estimatedGas > BigInt(0) ? estimatedGas : gasToUse}
+        estimatedGas={
+          estimatedGas > BigInt(0)
+            ? estimatedGas
+            : isStaking
+              ? STAKE_GAS_FALLBACK
+              : UNSTAKE_GAS_FALLBACK
+        }
         setEstimatedGas={setEstimatedGas}
         gasPriceSettings={gasPriceSettings}
         gasPriceOption={gasPriceOption}
