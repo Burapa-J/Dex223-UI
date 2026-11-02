@@ -163,7 +163,7 @@ export default function TradingChart({
             {market.status === "ready" && (
               <span
                 className={clsx(
-                  "inline-flex items-center gap-1.5 h-6 px-2 rounded-full text-12",
+                  "inline-flex items-center gap-1.5 h-6 px-2 rounded-2 text-12 font-medium",
                   isFallback ? "bg-orange-bg text-orange" : accent.soft,
                 )}
                 title={isFallback ? t("interval_unavailable") : undefined}
@@ -299,8 +299,9 @@ function FeeTierSelect({ market }: { market: ReturnType<typeof useChartMarket> }
   const t = useTranslations("TradingChart");
   if (!market.pool) return null;
   const label = (fee: number) => t("fee_tier", { fee: fee / 10_000 });
+  // Same chip shell as ChangePill / Live: h-6, px-2, rounded-2.
   const chip =
-    "inline-flex items-center h-6 px-2 rounded-full bg-tertiary-bg text-12 text-secondary-text";
+    "inline-flex items-center h-6 px-2 rounded-2 bg-tertiary-bg text-12 text-secondary-text font-medium";
   if (market.pools.length < 2) {
     return <span className={chip}>{label(market.pool.fee)}</span>;
   }

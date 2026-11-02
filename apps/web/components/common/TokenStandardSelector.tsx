@@ -43,7 +43,7 @@ function StandardOption({
         type="button"
         onClick={() => handleStandardSelect(standard)}
         className={clsxMerge(
-          "*:z-10 flex flex-col gap-1 px-3 pt-10 pb-2.5 @[340px]:py-2.5 rounded-2 before:absolute before:rounded-3 before:w-full before:h-full before:left-0 before:top-0 before:duration-200 relative before:bg-gradient-to-r hocus:cursor-pointer text-12 group",
+          "*:z-10 flex flex-col gap-1 px-3 pt-10 pb-2.5 @[480px]:py-2.5 rounded-2 before:absolute before:rounded-3 before:w-full before:h-full before:left-0 before:top-0 before:duration-200 relative before:bg-gradient-to-r hocus:cursor-pointer text-12 group",
           gradientColorMap[colorScheme],
           isActive ? "before:opacity-100" : "before:opacity-0 hocus:before:opacity-100",
           standard === Standard.ERC223 &&
@@ -53,13 +53,13 @@ function StandardOption({
             "before:opacity-0 hocus:before:opacity-0 before:cursor-default cursor-default pointer-events-none",
           gas &&
             standard === Standard.ERC20 &&
-            "@[340px]:rounded-b-0 @[340px]:before:rounded-b-0",
+            "@[480px]:rounded-b-0 @[480px]:before:rounded-b-0",
           gas &&
             standard === Standard.ERC223 &&
-            "@[340px]:rounded-b-0 @[340px]:before:rounded-t-0",
+            "@[480px]:rounded-b-0 @[480px]:before:rounded-t-0",
         )}
       >
-        <div className="hidden @[340px]:flex items-center gap-1 cursor-default">
+        <div className="hidden @[480px]:flex items-center gap-1 cursor-default">
           <span
             className={clsxMerge(
               "text-12 text-secondary-text",
@@ -92,13 +92,13 @@ function StandardOption({
         ) : (
           <span
             className={clsx(
-              "w-full @[340px]:w-[calc(100%-55px)] table table-fixed",
+              "w-full @[480px]:w-[calc(100%-55px)] table table-fixed",
               standard === active ? "text-secondary-text" : "text-tertiary-text",
             )}
           >
             <span
               className={clsx(
-                "flex flex-col text-12 whitespace-nowrap overflow-ellipsis overflow-hidden @[340px]:table-cell",
+                "flex flex-col text-12 whitespace-nowrap overflow-ellipsis overflow-hidden @[480px]:table-cell",
                 standard === active ? "text-primary-text" : "text-tertiary-text",
                 standard === Standard.ERC223 ? "text-right" : "text-left",
               )}
@@ -114,7 +114,7 @@ function StandardOption({
       {gas && (
         <div
           className={clsx(
-            "py-1 px-3 text-12 bg-swap-gas-gradient hidden @[340px]:flex items-center text-tertiary-text w-fit",
+            "py-1 px-3 text-12 bg-swap-gas-gradient hidden @[480px]:flex items-center text-tertiary-text w-fit",
             standard === Standard.ERC20 &&
               "bg-gradient-to-r from-primary-bg to-secondary-bg rounded-bl-2",
             standard === Standard.ERC223 &&
@@ -141,7 +141,6 @@ export function StandardButton({
   selectedStandard: Standard;
   colorScheme?: ThemeColors;
 }) {
-  const t = useTranslations("Swap");
   const activeColorMap: Record<ThemeColors, string> = {
     [ThemeColors.GREEN]: "bg-green text-black shadow shadow-green/60",
     [ThemeColors.PURPLE]: "bg-purple text-black shadow shadow-purple/60",
@@ -156,14 +155,13 @@ export function StandardButton({
     <button
       type="button"
       className={clsxMerge(
-        "h-6 rounded-3 duration-200 flex items-center justify-center gap-1 px-2 min-w-[58px] w-full @[340px]:w-auto whitespace-nowrap text-secondary-text",
+        "h-6 rounded-3 duration-200 flex items-center justify-center gap-1 px-2 min-w-[58px] w-auto whitespace-nowrap text-secondary-text",
         selectedStandard === standard ? activeColorMap[colorScheme] : inactiveColorMap[colorScheme],
         disabled && standard === Standard.ERC20 && "bg-primary-bg shadow-none",
         disabled && "text-tertiary-text pointer-events-none",
       )}
       onClick={() => handleStandardSelect(standard)}
     >
-      <span className="hidden xs:inline md:hidden @[340px]:!hidden">{t("standard")}</span>
       {standard}
     </button>
   );
@@ -192,12 +190,13 @@ export default function TokenStandardSelector({
   colorScheme?: ThemeColors;
   allowedErc223?: boolean;
 }) {
-  // Follow this control's width, not the window. The home preview is 440px on a
-  // desktop page, so a viewport `md:` rule paints the wide layout there and the
-  // toggle covers the labels. 340px sits above that preview and under the swap form.
+  // Follow this control's width, not the window. Above ~1280px the swap+chart
+  // layout pins the form at 480/540px, so viewport `md:` (and a 340px container
+  // query) still paint the wide layout and the toggle covers the labels. 480px
+  // stays above the home preview and swap+chart form, under the full 600px forms.
   return (
     <div className="@container min-w-0 w-full">
-      <div className="gap-1 @[340px]:gap-3 relative @[340px]:pb-2 grid grid-cols-2">
+      <div className="gap-1 @[480px]:gap-3 relative @[480px]:pb-2 grid grid-cols-2">
         <StandardOption
           active={selectedStandard}
           standard={Standard.ERC20}
@@ -210,7 +209,7 @@ export default function TokenStandardSelector({
         />
         <div
           className={clsxMerge(
-            "mx-auto z-10 text-10 w-[calc(100%-24px)] h-[32px] top-1 left-1/2 -translate-x-1/2 rounded-20 border p-1 flex gap-1 items-center absolute @[340px]:w-auto @[340px]:top-[14px]",
+            "mx-auto z-10 text-10 w-auto h-[32px] top-1 left-1/2 -translate-x-1/2 rounded-20 border p-1 flex gap-1 items-center absolute @[480px]:top-[14px]",
             colorScheme === ThemeColors.GREEN ? "border-green" : "border-purple",
             disabled && "border-secondary-border",
           )}
