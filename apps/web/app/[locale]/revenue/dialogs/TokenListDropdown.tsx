@@ -59,6 +59,9 @@ export default function TokenListDropdown({
 }: TokenListDropdownProps) {
   const [searchValue, setSearchValue] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [draftSelection, setDraftSelection] = useState<Set<TokenListId>>(
+    () => new Set(selectedOptions),
+  );
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [listToDelete, setListToDelete] = useState<TokenListOption | null>(null);
   const ref = useRef<HTMLButtonElement>(null);
@@ -130,31 +133,49 @@ export default function TokenListDropdown({
     option.name.toLowerCase().includes(searchValue.toLowerCase()),
   );
 
-  const handleSelectAll = () => {
-    if (selectedOptions.size === filteredOptions.length) {
-      const newSelection = new Set(selectedOptions);
-      filteredOptions.forEach((option) => option.id && newSelection.delete(option.id));
-      onSelectionChange(newSelection);
-    } else {
-      const newSelection = new Set(selectedOptions);
-      filteredOptions.forEach((option) => option.id && newSelection.add(option.id));
-      onSelectionChange(newSelection);
+  useEffect(() => {
+    if (isDropdownOpen) {
+      setDraftSelection(new Set(selectedOptions));
     }
+  }, [isDropdownOpen, selectedOptions]);
+
+  const handleSelectAll = () => {
+    setDraftSelection((prev) => {
+      const newSelection = new Set(prev);
+      const allSelected = filteredOptions.every((option) => option.id && newSelection.has(option.id));
+      if (allSelected) {
+        filteredOptions.forEach((option) => option.id && newSelection.delete(option.id));
+      } else {
+        filteredOptions.forEach((option) => option.id && newSelection.add(option.id));
+      }
+      return newSelection;
+    });
   };
 
   const handleOptionSelect = (optionId: TokenListId) => {
     if (!optionId) return;
-    const newSelection = new Set(selectedOptions);
-    if (newSelection.has(optionId)) {
-      newSelection.delete(optionId);
-    } else {
-      newSelection.add(optionId);
-    }
-    onSelectionChange(newSelection);
+    setDraftSelection((prev) => {
+      const newSelection = new Set(prev);
+      if (newSelection.has(optionId)) {
+        newSelection.delete(optionId);
+      } else {
+        newSelection.add(optionId);
+      }
+      return newSelection;
+    });
+  };
+
+  const handleApply = () => {
+    onSelectionChange(new Set(draftSelection));
+    setIsDropdownOpen(false);
+  };
+
+  const handleCancel = () => {
+    setIsDropdownOpen(false);
   };
 
   const allFilteredSelected = filteredOptions.every(
-    (option) => option.id && selectedOptions.has(option.id),
+    (option) => option.id && draftSelection.has(option.id),
   );
 
   const getSelectedOptions = () => {
@@ -222,7 +243,7 @@ export default function TokenListDropdown({
           </div>
         ) : (
           filteredOptions.map((option) => {
-            const isSelected = selectedOptions.has(option.id);
+            const isSelected = Boolean(option.id && draftSelection.has(option.id));
             return (
               <div
                 key={option.id}
@@ -268,7 +289,7 @@ export default function TokenListDropdown({
             colorScheme={ButtonColor.LIGHT_GREEN}
             size={ButtonSize.MEDIUM}
             fullWidth
-            onClick={() => setIsDropdownOpen(false)}
+            onClick={handleCancel}
           >
             {t("cancel")}
           </Button>
@@ -276,7 +297,7 @@ export default function TokenListDropdown({
             colorScheme={ButtonColor.GREEN}
             size={ButtonSize.MEDIUM}
             fullWidth
-            onClick={() => setIsDropdownOpen(false)}
+            onClick={handleApply}
           >
             {t("apply")}
           </Button>
@@ -356,7 +377,7 @@ export default function TokenListDropdown({
       {/* Mobile modal */}
       <DrawerDialog isOpen={isMobile && isDropdownOpen} setIsOpen={setIsDropdownOpen}>
         <div className="w-full md:w-[600px] max-md:rounded-t-5 max-md:rounded-b-none">
-          <DialogHeader onClose={() => setIsDropdownOpen(false)} title={tNav("token_lists")} />
+          <DialogHeader onClose={handleCancel} title={tNav("token_lists")} />
           <div className="pb-4">{renderDropdownContent()}</div>
         </div>
       </DrawerDialog>
