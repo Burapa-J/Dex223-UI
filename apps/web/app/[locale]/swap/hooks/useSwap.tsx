@@ -436,6 +436,7 @@ export default function useSwap() {
 
           if (!approveReceipt) {
             setIsReceiptUnavailable(true);
+            setSwapStatus(SwapStatus.APPROVE_ERROR);
             return;
           }
 

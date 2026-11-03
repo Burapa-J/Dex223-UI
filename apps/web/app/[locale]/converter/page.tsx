@@ -6,6 +6,7 @@ import React, { useEffect } from "react";
 import ConverterForm from "@/app/[locale]/converter/components/ConverterForm";
 import ConfirmConvertDialog from "@/app/[locale]/swap/components/ConfirmConvertDialog";
 import { useSwapAmountsStore } from "@/app/[locale]/swap/stores/useSwapAmountsStore";
+import { SwapStatus, useSwapStatusStore } from "@/app/[locale]/swap/stores/useSwapStatusStore";
 import { useSwapTokensStore } from "@/app/[locale]/swap/stores/useSwapTokensStore";
 import Container from "@/components/atoms/Container";
 import { ThemeColors } from "@/config/theme/colors";
@@ -17,11 +18,13 @@ export default function ConverterPage() {
   const chainId = useCurrentChainId();
   const { reset: resetTokens } = useSwapTokensStore();
   const { reset: resetAmount } = useSwapAmountsStore();
+  const { setStatus: setSwapStatus } = useSwapStatusStore();
 
   useEffect(() => {
     resetTokens();
     resetAmount();
-  }, [chainId, resetAmount, resetTokens]);
+    setSwapStatus(SwapStatus.INITIAL);
+  }, [chainId, resetAmount, resetTokens, setSwapStatus]);
 
   return (
     <ColorSchemeProvider value={ThemeColors.GREEN}>
