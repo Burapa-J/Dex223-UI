@@ -17,6 +17,8 @@ interface FeedbackDialogStore {
   tags: Array<FeedbackTag>;
   addTag: (tag: FeedbackTag) => void;
   removeTag: (tag: FeedbackTag) => void;
+  /** Forget the draft once it has been sent, so it is not shown again. */
+  clearDraft: () => void;
 }
 
 export const useFeedbackDialogStore = create<FeedbackDialogStore>((set, get) => ({
@@ -30,4 +32,5 @@ export const useFeedbackDialogStore = create<FeedbackDialogStore>((set, get) => 
   setDescription: (description) => set({ description }),
   setEmail: (email) => set({ email }),
   setIsOpen: (isOpen) => set({ isOpen }),
+  clearDraft: () => set({ email: "", description: "", tags: [] }),
 }));
