@@ -48,6 +48,7 @@ export const CHAIN_SUBGRAPH_URL: Record<DexChainId, string> = {
 
 const httpLink = new HttpLink({ uri: CHAIN_SUBGRAPH_URL[DexChainId.MAINNET] });
 const httpLinkSep = new HttpLink({ uri: CHAIN_SUBGRAPH_URL[DexChainId.SEPOLIA] });
+const httpLinkBscTestnet = new HttpLink({ uri: CHAIN_SUBGRAPH_URL[DexChainId.BSC_TESTNET] });
 
 export function getAuthMiddleware(chainId: DexChainId) {
   return new ApolloLink((operation, forward) => {
@@ -114,7 +115,9 @@ export const chainToApolloClient: Record<DexChainId, ApolloClient<NormalizedCach
   }),
   [DexChainId.BSC_TESTNET]: new ApolloClient({
     cache: new InMemoryCache(),
-    uri: CHAIN_SUBGRAPH_URL[DexChainId.SEPOLIA],
+    link: authLink.concat(
+      concat(getAuthMiddleware(DexChainId.BSC_TESTNET), httpLinkBscTestnet),
+    ),
   }),
   [DexChainId.EOS]: new ApolloClient({
     cache: new InMemoryCache(),
