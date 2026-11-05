@@ -763,6 +763,7 @@
     "transactions": "Transactions",
     "top_pools": "Meilleures pools par TVL",
     "view_all_pools": "Voir toutes les pools",
+    "open_pools": "Ouvrir les pools",
     "loading": "Chargement des pools…",
     "no_pools": "Aucune pool trouvée sur ce réseau.",
     "unavailable": "Les statistiques sont indisponibles sur ce réseau pour le moment.",
