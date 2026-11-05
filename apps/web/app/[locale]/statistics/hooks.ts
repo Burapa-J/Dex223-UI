@@ -157,8 +157,14 @@ export function useTokenDetail(
     const rows = data?.tokenDayDatas ?? [];
     return [...rows]
       .map((row: { date: number; priceUSD: string; close: string }) => {
-        const value = Number(row.priceUSD) || Number(row.close) || 0;
-        if (!Number.isFinite(value) || value <= 0) return null;
+        const fromPrice = Number(row.priceUSD);
+        const fromClose = Number(row.close);
+        const value = Number.isFinite(fromPrice)
+          ? fromPrice
+          : Number.isFinite(fromClose)
+            ? fromClose
+            : NaN;
+        if (!Number.isFinite(value)) return null;
         return { date: row.date, value };
       })
       .filter((p): p is { date: number; value: number } => p !== null)
