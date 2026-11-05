@@ -8,6 +8,7 @@ import ChartRangeToggle from "@/app/[locale]/statistics/components/ChartRangeTog
 import PoolRows from "@/app/[locale]/statistics/components/PoolRows";
 import StatisticsShell from "@/app/[locale]/statistics/components/StatisticsShell";
 import ValueChart, { ValuePoint } from "@/app/[locale]/statistics/components/ValueChart";
+import { formatUsdOrEth, sortPoolsByTvl } from "@/app/[locale]/statistics/formatLiquidity";
 import { useDex223DayData, useFactoryStats } from "@/app/[locale]/statistics/hooks";
 import { formatNumberKilos } from "@/functions/formatFloat";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
@@ -133,7 +134,7 @@ export default function StatisticsOverviewPage() {
   });
 
   const factory = factoryData?.factories?.[0];
-  const pools = useMemo(() => poolsData?.pools ?? [], [poolsData?.pools]);
+  const pools = useMemo(() => sortPoolsByTvl(poolsData?.pools ?? []), [poolsData?.pools]);
   const loading = factoryLoading || poolsLoading;
   const hasError = Boolean(factoryError || poolsError);
   const hasFactory = Boolean(factory);
@@ -152,7 +153,7 @@ export default function StatisticsOverviewPage() {
               value={
                 loading && !factory
                   ? "—"
-                  : `$${formatNumberKilos(Number(factory?.totalValueLockedUSD ?? 0))}`
+                  : formatUsdOrEth(factory?.totalValueLockedUSD, factory?.totalValueLockedETH)
               }
             />
             <StatCard
@@ -160,7 +161,7 @@ export default function StatisticsOverviewPage() {
               value={
                 loading && !factory
                   ? "—"
-                  : `$${formatNumberKilos(Number(factory?.totalVolumeUSD ?? 0))}`
+                  : formatUsdOrEth(factory?.totalVolumeUSD, factory?.totalVolumeETH)
               }
             />
             <StatCard

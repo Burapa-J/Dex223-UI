@@ -7,6 +7,7 @@ import ChartRangeToggle from "@/app/[locale]/statistics/components/ChartRangeTog
 import PoolRows from "@/app/[locale]/statistics/components/PoolRows";
 import StatisticsShell from "@/app/[locale]/statistics/components/StatisticsShell";
 import ValueChart, { ValuePoint } from "@/app/[locale]/statistics/components/ValueChart";
+import { formatTokenTvl } from "@/app/[locale]/statistics/formatLiquidity";
 import { useTokenDetail } from "@/app/[locale]/statistics/hooks";
 import { useTokenMeta } from "@/app/[locale]/statistics/tokenMeta";
 import TokenLogo from "@/components/atoms/TokenLogo";
@@ -103,13 +104,19 @@ export default function StatisticsTokenDetailPage({
             <div className="bg-primary-bg rounded-5 px-5 py-4">
               <div className="text-14 text-secondary-text">{t("tvl")}</div>
               <div className="text-20 font-medium">
-                ${formatNumberKilos(Number(token.totalValueLockedUSD))}
+                {formatTokenTvl(
+                  token.totalValueLockedUSD,
+                  token.totalValueLocked,
+                  token.derivedETH,
+                )}
               </div>
             </div>
             <div className="bg-primary-bg rounded-5 px-5 py-4">
               <div className="text-14 text-secondary-text">{t("col_volume")}</div>
               <div className="text-20 font-medium">
-                ${formatNumberKilos(Number(token.volumeUSD))}
+                {Number(token.volumeUSD) > 0
+                  ? `$${formatNumberKilos(Number(token.volumeUSD))}`
+                  : "—"}
               </div>
             </div>
             <div className="bg-primary-bg rounded-5 px-5 py-4">

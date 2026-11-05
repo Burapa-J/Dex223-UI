@@ -6,6 +6,7 @@ import React, { useMemo } from "react";
 import { usePoolsData } from "@/app/[locale]/pools/hooks";
 import PoolRows from "@/app/[locale]/statistics/components/PoolRows";
 import StatisticsShell from "@/app/[locale]/statistics/components/StatisticsShell";
+import { sortPoolsByTvl } from "@/app/[locale]/statistics/formatLiquidity";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
 import { Link } from "@/i18n/routing";
 
@@ -17,7 +18,7 @@ export default function StatisticsPoolsPage() {
     orderDirection: "desc",
     chainId,
   });
-  const pools = useMemo(() => data?.pools ?? [], [data?.pools]);
+  const pools = useMemo(() => sortPoolsByTvl(data?.pools ?? []), [data?.pools]);
 
   return (
     <StatisticsShell>

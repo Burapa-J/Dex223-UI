@@ -1,9 +1,9 @@
 "use client";
 
+import { formatUsdOrEth } from "@/app/[locale]/statistics/formatLiquidity";
 import { useTokenMeta } from "@/app/[locale]/statistics/tokenMeta";
 import TokenLogo from "@/components/atoms/TokenLogo";
 import { FEE_AMOUNT_DETAIL } from "@/config/constants/liquidityFee";
-import { formatNumberKilos } from "@/functions/formatFloat";
 import { Link } from "@/i18n/routing";
 import { FeeAmount } from "@/sdk_bi/constants";
 
@@ -50,7 +50,7 @@ export default function PoolRows({
             </div>
             <div className="text-right shrink-0">
               <div className="text-14 md:text-16 font-medium">
-                ${formatNumberKilos(Number(pool.totalValueLockedUSD))}
+                {formatUsdOrEth(pool.totalValueLockedUSD, pool.totalValueLockedETH)}
               </div>
               <div className="text-12 text-secondary-text">{tvlLabel}</div>
             </div>

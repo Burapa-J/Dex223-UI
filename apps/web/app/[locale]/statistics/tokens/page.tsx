@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import React, { useMemo } from "react";
 
 import StatisticsShell from "@/app/[locale]/statistics/components/StatisticsShell";
+import { formatTokenTvl } from "@/app/[locale]/statistics/formatLiquidity";
 import { useTokensData } from "@/app/[locale]/statistics/hooks";
 import { useTokenMeta } from "@/app/[locale]/statistics/tokenMeta";
 import TokenLogo from "@/components/atoms/TokenLogo";
@@ -60,10 +61,16 @@ export default function StatisticsTokensPage() {
                       </div>
                     </div>
                     <div className="text-right text-14">
-                      ${formatNumberKilos(Number(token.totalValueLockedUSD))}
+                      {formatTokenTvl(
+                        token.totalValueLockedUSD,
+                        token.totalValueLocked,
+                        token.derivedETH,
+                      )}
                     </div>
                     <div className="hidden md:block text-right text-14">
-                      ${formatNumberKilos(Number(token.volumeUSD))}
+                      {Number(token.volumeUSD) > 0
+                        ? `$${formatNumberKilos(Number(token.volumeUSD))}`
+                        : "—"}
                     </div>
                     <div className="hidden md:block text-right text-14">
                       {price > 0 ? `$${formatNumberKilos(price)}` : "—"}
