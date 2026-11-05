@@ -29,7 +29,9 @@ export const CHAIN_SUBGRAPH_URL: Record<DexChainId, string> = {
   [DexChainId.SEPOLIA]:
     "https://api.studio.thegraph.com/query/1760635/dex-223-v-1-sepolia/version/latest",
   // [DexChainId.CALLISTO]: "",
-  [DexChainId.BSC_TESTNET]: "https://api.studio.thegraph.com/query/56540/dex223-v1-chapel/1.0.82",
+  // Chapel Studio deploy 1.0.82 is gone ("Not found"). Leave empty until a live
+  // BSC Testnet subgraph URL is published; callers must skip when unset.
+  [DexChainId.BSC_TESTNET]: "",
   [DexChainId.EOS]: "",
   [DexChainId.BASE]: "",
   [DexChainId.BSC]: "",
@@ -48,6 +50,11 @@ export const CHAIN_SUBGRAPH_URL: Record<DexChainId, string> = {
 
 const httpLink = new HttpLink({ uri: CHAIN_SUBGRAPH_URL[DexChainId.MAINNET] });
 const httpLinkSep = new HttpLink({ uri: CHAIN_SUBGRAPH_URL[DexChainId.SEPOLIA] });
+
+/** True when this chain has a non-empty core subgraph query URL. */
+export function isSubgraphConfigured(chainId: DexChainId): boolean {
+  return Boolean(CHAIN_SUBGRAPH_URL[chainId]);
+}
 
 export function getAuthMiddleware(chainId: DexChainId) {
   return new ApolloLink((operation, forward) => {
@@ -112,10 +119,21 @@ export const chainToApolloClient: Record<DexChainId, ApolloClient<NormalizedCach
     cache: new InMemoryCache(),
     link: authLink.concat(concat(getAuthMiddleware(DexChainId.SEPOLIA), httpLinkSep)),
   }),
-  [DexChainId.BSC_TESTNET]: new ApolloClient({
-    cache: new InMemoryCache(),
-    uri: CHAIN_SUBGRAPH_URL[DexChainId.SEPOLIA],
-  }),
+  // Do not fall back to Sepolia. When a Chapel URL is restored, wire it like SEPOLIA.
+  [DexChainId.BSC_TESTNET]: CHAIN_SUBGRAPH_URL[DexChainId.BSC_TESTNET]
+    ? new ApolloClient({
+        cache: new InMemoryCache(),
+        link: authLink.concat(
+          concat(
+            getAuthMiddleware(DexChainId.BSC_TESTNET),
+            new HttpLink({ uri: CHAIN_SUBGRAPH_URL[DexChainId.BSC_TESTNET] }),
+          ),
+        ),
+      })
+    : new ApolloClient({
+        cache: new InMemoryCache(),
+        uri: "",
+      }),
   [DexChainId.EOS]: new ApolloClient({
     cache: new InMemoryCache(),
     uri: CHAIN_SUBGRAPH_URL[DexChainId.EOS],

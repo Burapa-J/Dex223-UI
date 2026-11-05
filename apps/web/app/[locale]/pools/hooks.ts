@@ -5,9 +5,11 @@ import { Address, isAddress } from "viem";
 
 import { getUSDAnchorTokens } from "@/config/constants/usdAnchors";
 import { buildTokenPriceIndex, PoolDepthBalances, TokenPriceIndex } from "@/functions/poolTvl";
-import { chainToApolloClient } from "@/graphql/thegraph/apollo";
+import { chainToApolloClient, isSubgraphConfigured } from "@/graphql/thegraph/apollo";
 import { usePoolsOnChainBalances } from "@/hooks/usePoolOnChainBalances";
 import { DexChainId } from "@/sdk_bi/chains";
+
+const SUBGRAPH_UNAVAILABLE = new Error("Subgraph not configured for this network");
 
 export const PoolsDataDocument = gql`
   query PoolsDataQuery(
@@ -115,8 +117,9 @@ export function usePoolsData({
   };
 }) {
   const apolloClient = chainToApolloClient[chainId];
+  const configured = isSubgraphConfigured(chainId);
 
-  return useQuery<any, any>(PoolsDataDocument, {
+  const result = useQuery<any, any>(PoolsDataDocument, {
     variables: {
       skip,
       first,
@@ -166,10 +169,16 @@ export function usePoolsData({
             ],
           },
     },
-    skip: !apolloClient,
+    skip: !apolloClient || !configured,
     pollInterval: 30000,
     client: apolloClient || chainToApolloClient[DexChainId.SEPOLIA],
   });
+
+  if (!configured) {
+    return { ...result, data: undefined, loading: false, error: SUBGRAPH_UNAVAILABLE };
+  }
+
+  return result;
 }
 
 export const usePoolData = ({

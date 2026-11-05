@@ -1,9 +1,11 @@
 import { gql, useQuery } from "@apollo/client";
 import { useMemo } from "react";
 
-import { chainToApolloClient } from "@/graphql/thegraph/apollo";
+import { chainToApolloClient, isSubgraphConfigured } from "@/graphql/thegraph/apollo";
 import { ChartRange } from "@/hooks/usePoolPriceChart";
 import { DexChainId } from "@/sdk_bi/chains";
+
+const SUBGRAPH_UNAVAILABLE = new Error("Subgraph not configured for this network");
 
 export const FactoryStatsDocument = gql`
   query FactoryStatsQuery {
@@ -20,12 +22,19 @@ export const FactoryStatsDocument = gql`
 
 export function useFactoryStats(chainId: DexChainId) {
   const apolloClient = chainToApolloClient[chainId];
+  const configured = isSubgraphConfigured(chainId);
 
-  return useQuery(FactoryStatsDocument, {
+  const result = useQuery(FactoryStatsDocument, {
     client: apolloClient,
-    skip: !apolloClient,
+    skip: !apolloClient || !configured,
     fetchPolicy: "cache-and-network",
   });
+
+  if (!configured) {
+    return { ...result, data: undefined, loading: false, error: SUBGRAPH_UNAVAILABLE };
+  }
+
+  return result;
 }
 
 export const Dex223DayDataDocument = gql`
@@ -43,11 +52,12 @@ export const Dex223DayDataDocument = gql`
 
 export function useDex223DayData(chainId: DexChainId, days: ChartRange = 30) {
   const apolloClient = chainToApolloClient[chainId];
+  const configured = isSubgraphConfigured(chainId);
 
   const { data, loading, error } = useQuery(Dex223DayDataDocument, {
     variables: { days },
     client: apolloClient,
-    skip: !apolloClient,
+    skip: !apolloClient || !configured,
     fetchPolicy: "cache-and-network",
   });
 
@@ -62,7 +72,11 @@ export function useDex223DayData(chainId: DexChainId, days: ChartRange = 30) {
       .sort((a, b) => a.date - b.date);
   }, [data]);
 
-  return { series, loading, error };
+  return {
+    series,
+    loading: configured ? loading : false,
+    error: configured ? error : SUBGRAPH_UNAVAILABLE,
+  };
 }
 
 export const TokensDataDocument = gql`
@@ -85,13 +99,20 @@ export const TokensDataDocument = gql`
 
 export function useTokensData(chainId: DexChainId, first = 50) {
   const apolloClient = chainToApolloClient[chainId];
+  const configured = isSubgraphConfigured(chainId);
 
-  return useQuery(TokensDataDocument, {
+  const result = useQuery(TokensDataDocument, {
     variables: { first },
     client: apolloClient,
-    skip: !apolloClient,
+    skip: !apolloClient || !configured,
     fetchPolicy: "cache-and-network",
   });
+
+  if (!configured) {
+    return { ...result, data: undefined, loading: false, error: SUBGRAPH_UNAVAILABLE };
+  }
+
+  return result;
 }
 
 export const TokenDetailDocument = gql`
@@ -145,11 +166,12 @@ export function useTokenDetail(
 ) {
   const apolloClient = chainToApolloClient[chainId];
   const id = address?.toLowerCase();
+  const configured = isSubgraphConfigured(chainId);
 
   const { data, loading, error } = useQuery(TokenDetailDocument, {
     variables: { id, days },
     client: apolloClient,
-    skip: !apolloClient || !id,
+    skip: !apolloClient || !id || !configured,
     fetchPolicy: "cache-and-network",
   });
 
@@ -179,7 +201,7 @@ export function useTokenDetail(
     token: data?.token ?? null,
     priceSeries,
     volumeSeries,
-    loading,
-    error,
+    loading: configured ? loading : false,
+    error: configured ? error : SUBGRAPH_UNAVAILABLE,
   };
 }
