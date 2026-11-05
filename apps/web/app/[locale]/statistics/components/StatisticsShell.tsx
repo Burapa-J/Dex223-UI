@@ -32,6 +32,7 @@ export default function StatisticsShell({ children }: { children: React.ReactNod
 
         <div
           role="tablist"
+          aria-label={t("title")}
           className="grid grid-cols-3 bg-secondary-bg p-1 gap-1 rounded-3 mb-5 max-w-md"
         >
           {TABS.map((tab) => {

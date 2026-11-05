@@ -14,22 +14,27 @@ export default function ChartRangeToggle({
   onChange: (days: ChartRange) => void;
 }) {
   return (
-    <div className="flex gap-1">
-      {RANGES.map((days) => (
-        <button
-          key={days}
-          type="button"
-          onClick={() => onChange(days)}
-          className={clsx(
-            "px-2 h-7 rounded-2 text-12 duration-200",
-            value === days
-              ? "bg-green-bg text-primary-text border border-green"
-              : "text-secondary-text hocus:text-primary-text",
-          )}
-        >
-          {days}D
-        </button>
-      ))}
+    <div className="flex gap-1" role="group" aria-label="Chart range">
+      {RANGES.map((days) => {
+        const selected = value === days;
+        return (
+          <button
+            key={days}
+            type="button"
+            aria-pressed={selected}
+            aria-label={`${days} day chart range`}
+            onClick={() => onChange(days)}
+            className={clsx(
+              "px-2 h-7 rounded-2 text-12 duration-200",
+              selected
+                ? "bg-green-bg text-primary-text border border-green"
+                : "text-secondary-text hocus:text-primary-text",
+            )}
+          >
+            {days}D
+          </button>
+        );
+      })}
     </div>
   );
 }

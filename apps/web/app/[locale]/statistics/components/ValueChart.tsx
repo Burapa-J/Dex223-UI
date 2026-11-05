@@ -82,32 +82,45 @@ export default function ValueChart({
     );
   }
 
+  const pickNearest = (clientX: number, currentTarget: Element) => {
+    const rect = currentTarget.getBoundingClientRect();
+    const px = clientX - rect.left - MARGIN.left;
+    const t = xScale.invert(px).getTime() / 1000;
+    let best = 0;
+    let bestDist = Infinity;
+    series.forEach((p, i) => {
+      const d = Math.abs(p.date - t);
+      if (d < bestDist) {
+        bestDist = d;
+        best = i;
+      }
+    });
+    setHoverIndex(best);
+    onHover?.(series[best]);
+  };
+
+  const clearHover = () => {
+    setHoverIndex(null);
+    onHover?.(null);
+  };
+
   const hoverPoint = hoverIndex !== null ? series[hoverIndex] : null;
 
   return (
     <svg
       width={width}
       height={height}
-      onMouseLeave={() => {
-        setHoverIndex(null);
-        onHover?.(null);
+      style={{ touchAction: "none" }}
+      onMouseLeave={clearHover}
+      onMouseMove={(e) => pickNearest(e.clientX, e.currentTarget)}
+      onTouchStart={(e) => {
+        if (e.touches[0]) pickNearest(e.touches[0].clientX, e.currentTarget);
       }}
-      onMouseMove={(e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        const px = e.clientX - rect.left - MARGIN.left;
-        const t = xScale.invert(px).getTime() / 1000;
-        let best = 0;
-        let bestDist = Infinity;
-        series.forEach((p, i) => {
-          const d = Math.abs(p.date - t);
-          if (d < bestDist) {
-            bestDist = d;
-            best = i;
-          }
-        });
-        setHoverIndex(best);
-        onHover?.(series[best]);
+      onTouchMove={(e) => {
+        if (e.touches[0]) pickNearest(e.touches[0].clientX, e.currentTarget);
       }}
+      onTouchEnd={clearHover}
+      onTouchCancel={clearHover}
     >
       <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
         <line x1={0} y1={innerHeight} x2={innerWidth} y2={innerHeight} stroke={CHART_GUIDE} />
