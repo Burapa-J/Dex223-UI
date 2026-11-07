@@ -7,7 +7,7 @@ import React, { ReactNode, useCallback, useEffect, useMemo, useState } from "rea
 import { formatUnits, parseUnits } from "viem";
 import { useAccount, usePublicClient } from "wagmi";
 
-import { useMarginSwapPositionStore } from "@/app/[locale]/margin-swap/stores/useMarginSwapPositionStore";
+import { useOpenMarginSwapForPosition } from "@/app/[locale]/margin-swap/hooks/useOpenMarginSwapForPosition";
 import FrozenBadge from "@/app/[locale]/margin-trading/components/FrozenBadge";
 import FrozenPositionActions from "@/app/[locale]/margin-trading/components/FrozenPositionActions";
 import PositionProgressBar from "@/app/[locale]/margin-trading/components/PositionProgressBar";
@@ -30,7 +30,7 @@ import getExplorerLink, { ExplorerLinkType } from "@/functions/getExplorerLink";
 import truncateMiddle from "@/functions/truncateMiddle";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
 import { useNativeCurrency } from "@/hooks/useNativeCurrency";
-import { Link, useRouter } from "@/i18n/routing";
+import { Link } from "@/i18n/routing";
 
 import PositionAsset from "./widgets/PositionAsset";
 
@@ -351,8 +351,7 @@ export function calcLeverageFormattedFromBigints({
 
 export function LendingPositionCard({ position }: Props) {
   const t = useTranslations("Margin");
-  const router = useRouter();
-  const { setMarginSwapPositionId } = useMarginSwapPositionStore();
+  const openMarginSwap = useOpenMarginSwapForPosition();
   const { expectedBalance, actualBalance } = usePositionStatus(position);
   const { isFrozen, isLiquidatable, isLiquidatableKnown, refetch } =
     usePositionLiquidationState(position);
@@ -628,8 +627,7 @@ export function LendingPositionCard({ position }: Props) {
                 isKnown={isLiquidatableKnown}
                 tradeDisabled={false}
                 onTrade={() => {
-                  setMarginSwapPositionId(position.id);
-                  router.push("/margin-swap");
+                  openMarginSwap(position);
                 }}
                 onClose={() => setPositionToClose(position)}
                 onUnfrozen={refetch}
@@ -641,8 +639,7 @@ export function LendingPositionCard({ position }: Props) {
                   fullWidth
                   colorScheme={buttonsColor}
                   onClick={() => {
-                    setMarginSwapPositionId(position.id);
-                    router.push("/margin-swap");
+                    openMarginSwap(position);
                   }}
                 >
                   {t("trade")}
