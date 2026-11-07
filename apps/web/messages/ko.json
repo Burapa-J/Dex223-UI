@@ -1220,7 +1220,12 @@
     "create_pool": "풀 만들기",
     "list_token": "토큰 상장",
     "issuing_tooltip": "허용하면 나중에 토큰을 더 발행할 수 있습니다.",
-    "erc20_tooltip": "이 토큰의 ERC-20 래퍼도 함께 배포합니다."
+    "erc20_tooltip": "이 토큰의 ERC-20 래퍼도 함께 배포합니다.",
+    "token_contracts": "토큰 컨트랙트",
+    "token_symbol_decimals": "{symbol} · 소수점 {decimals}자리",
+    "erc223_contract_address": "ERC-223 주소",
+    "erc20_contract_address": "ERC-20 주소",
+    "view_on_explorer": "탐색기에서 보기"
   },
   "TokenListing": {
     "title": "토큰 상장",

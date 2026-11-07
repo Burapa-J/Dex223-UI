@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getAbiItem, getContractAddress, parseEventLogs, parseUnits } from "viem";
+import { Address, getAbiItem, getContractAddress, parseEventLogs, parseUnits } from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 
 import {
@@ -128,6 +128,8 @@ export default function useCreateToken(createTokenSettings: {
     useCreateTokenStatusStore();
   const { addRecentTransaction } = useRecentTransactionsStore();
   const [tokenAddress, setTokenAddress] = useState<string | null>(null);
+  // ERC-20 version of the new token, when "create ERC-20" ran and its wrapper was deployed.
+  const [erc20Address, setErc20Address] = useState<Address | null>(null);
   const [isReceiptUnavailable, setIsReceiptUnavailable] = useState(false);
   const { handleImport } = useImportToken();
   const { baseFee, priorityFee, gasPrice } = useGlobalFees();
@@ -260,6 +262,7 @@ export default function useCreateToken(createTokenSettings: {
         console.log(deployTokenLog);
         if (deployTokenLog) {
           setTokenAddress(deployTokenLog.args.token);
+          setErc20Address(null);
           try {
             await handleImport(deployTokenLog.args.token, chainId, createTokenSettings.imageURL);
           } catch (e) {
@@ -292,6 +295,18 @@ export default function useCreateToken(createTokenSettings: {
               const receipt = await publicClient.waitForTransactionReceipt({ hash: wrapperHash });
 
               if (receipt.status === "success") {
+                try {
+                  const wrapper = await publicClient.readContract({
+                    abi: TOKEN_CONVERTER_ABI,
+                    address: CONVERTER_ADDRESS[chainId],
+                    functionName: "getERC20WrapperFor",
+                    args: [deployTokenLog.args.token],
+                  });
+                  if (wrapper && wrapper !== ZERO_ADDRESS) setErc20Address(wrapper as Address);
+                } catch (e) {
+                  // Address display only; the token and its wrapper exist either way.
+                  console.error(e);
+                }
                 setStatus(CreateTokenStatus.SUCCESS);
               }
 
@@ -345,6 +360,7 @@ export default function useCreateToken(createTokenSettings: {
   return {
     handleCreateToken,
     tokenAddress,
+    erc20Address,
     setTokenAddress,
     isReceiptUnavailable,
     setIsReceiptUnavailable,

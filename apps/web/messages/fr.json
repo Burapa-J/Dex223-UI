@@ -1220,7 +1220,12 @@
     "create_pool": "Créer un pool",
     "list_token": "Lister le jeton",
     "issuing_tooltip": "Si c’est autorisé, vous pourrez émettre d’autres jetons plus tard.",
-    "erc20_tooltip": "Déploie aussi un wrapper ERC-20 pour ce jeton."
+    "erc20_tooltip": "Déploie aussi un wrapper ERC-20 pour ce jeton.",
+    "token_contracts": "Contrats du jeton",
+    "token_symbol_decimals": "{symbol} · {decimals} décimales",
+    "erc223_contract_address": "Adresse ERC-223",
+    "erc20_contract_address": "Adresse ERC-20",
+    "view_on_explorer": "Voir dans l'explorateur"
   },
   "TokenListing": {
     "title": "Listing de jetons",
