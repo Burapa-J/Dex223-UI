@@ -1104,7 +1104,12 @@
     "split_position_notice": "Your {total} D223 is staked as {erc20} ERC-20 and {erc223} ERC-223. Each comes back in the version you staked it in. Unstake all returns both in one transaction.",
     "gas_too_low_hint": "Transaction failed because the gas limit is too low. Adjust your wallet settings.",
     "still_have_issues_discord": "If you still have issues, ask in our <discord>Discord</discord>.",
-    "save": "Save"
+    "save": "Save",
+    "confirm_claim": "Confirm claim",
+    "executing_claim": "Executing claim",
+    "paid_in_standard_single": "{symbol} is paid in the standard the Revenue contract holds it in.",
+    "paid_in_standard_multiple": "Each token is paid in the standard the Revenue contract holds it in.",
+    "tokens_count": "{count, plural, =1 {# token} other {# tokens}}"
   },
   "Governance": {
     "title": "Governance",

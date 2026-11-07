@@ -38,6 +38,7 @@ import {
 
 const SingleClaimDialog = () => {
   const t = useTranslations("Revenue");
+  const tSwap = useTranslations("Swap");
   const tLiq = useTranslations("Liquidity");
   const { isOpen, state, data, closeDialog, setState, setError, setData, setClaimTransactionHash } =
     useClaimDialogStore();
@@ -231,7 +232,7 @@ const SingleClaimDialog = () => {
 
         <div className="bg-tertiary-bg rounded-3 p-4">
           <p className="text-secondary-text text-14 mb-3">
-            {token.symbol} is paid in the standard the Revenue contract holds it in.
+            {t("paid_in_standard_single", { symbol: token.symbol })}
           </p>
           <div className="flex gap-2">
             {[
@@ -309,7 +310,7 @@ const SingleClaimDialog = () => {
             <Svg iconName="collect" size={20} className="text-green" />
           </div>
           <span className="text-primary-text text-14 md:text-16 whitespace-nowrap">
-            Confirm claim
+            {t("confirm_claim")}
           </span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -317,7 +318,7 @@ const SingleClaimDialog = () => {
             <Preloader type="linear" />
           </div>
           <span className="text-secondary-text text-12 md:text-14 whitespace-nowrap max-md:hidden">
-            Proceed in your wallet
+            {tSwap("proceed_in_your_wallet")}
           </span>
           <div className="md:hidden">
             <Preloader size={16} />
@@ -362,7 +363,7 @@ const SingleClaimDialog = () => {
             <Svg iconName="collect" size={20} className="text-green" />
           </div>
           <span className="text-primary-text text-14 md:text-16 whitespace-nowrap">
-            Executing claim
+            {t("executing_claim")}
           </span>
         </div>
         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">

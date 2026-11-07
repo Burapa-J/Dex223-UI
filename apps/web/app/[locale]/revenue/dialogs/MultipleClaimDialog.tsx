@@ -40,6 +40,7 @@ import {
 
 const MultipleClaimDialog = () => {
   const t = useTranslations("Revenue");
+  const tSwap = useTranslations("Swap");
   const tLiq = useTranslations("Liquidity");
   const { isOpen, state, data, closeDialog, setState, setError, setData, setClaimTransactionHash } =
     useClaimDialogStore();
@@ -124,7 +125,7 @@ const MultipleClaimDialog = () => {
     } = {
       template: RecentTransactionTitleTemplate.WITHDRAW,
       standard: data.selectedStandard === "ERC-20" ? Standard.ERC20 : Standard.ERC223,
-      symbol: tokenCount > 1 ? `${tokenCount} tokens` : firstToken.symbol,
+      symbol: tokenCount > 1 ? t("tokens_count", { count: tokenCount }) : firstToken.symbol,
       amount: tokenCount > 1 ? data.totalReward.toFixed(2) : firstToken.amount,
       logoURI: firstToken.logoURI || "/images/tokens/placeholder.svg",
     };
@@ -134,7 +135,7 @@ const MultipleClaimDialog = () => {
     } else if (state === "error") {
       addNotification(notificationTitle, RecentTransactionStatus.ERROR);
     }
-  }, [state, data]);
+  }, [state, data, t]);
 
   // Only show this dialog for multiple token claims
   if (!isOpen || !data || !data.isMultiple) return null;
@@ -213,7 +214,9 @@ const MultipleClaimDialog = () => {
       <div className="bg-tertiary-bg rounded-3 px-4 h-12 flex items-center">
         <div className="flex items-center gap-1 flex-wrap">
           <span className="text-tertiary-text text-14">{t("rewards_to_receive")}</span>
-          <span className="text-primary-text text-14 font-bold">{tokenCount} tokens</span>
+          <span className="text-primary-text text-14 font-bold">
+            {t("tokens_count", { count: tokenCount })}
+          </span>
           <span className="text-secondary-text text-14">(${data.totalReward.toFixed(2)})</span>
         </div>
       </div>
@@ -229,9 +232,7 @@ const MultipleClaimDialog = () => {
 
       {filteredTokens.length > 0 ? (
         <div className="bg-tertiary-bg rounded-3 p-4">
-          <p className="text-secondary-text text-14 mb-3">
-            Each token is paid in the standard the Revenue contract holds it in.
-          </p>
+          <p className="text-secondary-text text-14 mb-3">{t("paid_in_standard_multiple")}</p>
 
           <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar">
             {filteredTokens.map((token) => {
@@ -343,7 +344,9 @@ const MultipleClaimDialog = () => {
       <div className="bg-tertiary-bg rounded-3 p-4 md:p-5 min-h-[88px] flex flex-col justify-center">
         <div className="text-secondary-text text-14 mb-1">{t("claim_amount")}</div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="text-20 font-normal text-primary-text">{tokenCount} tokens</div>
+          <div className="text-20 font-normal text-primary-text">
+            {t("tokens_count", { count: tokenCount })}
+          </div>
           <div className="flex items-center gap-1">
             <Badge variant={BadgeVariant.STANDARD} standard={Standard.ERC20} size="small" />
             <Badge variant={BadgeVariant.STANDARD} standard={Standard.ERC223} size="small" />
@@ -363,7 +366,7 @@ const MultipleClaimDialog = () => {
             <Svg iconName="collect" size={20} className="text-green" />
           </div>
           <span className="text-primary-text text-14 md:text-16 whitespace-nowrap">
-            Confirm claim
+            {t("confirm_claim")}
           </span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -371,7 +374,7 @@ const MultipleClaimDialog = () => {
             <Preloader type="linear" />
           </div>
           <span className="text-secondary-text text-12 md:text-14 whitespace-nowrap max-md:hidden">
-            Proceed in your wallet
+            {tSwap("proceed_in_your_wallet")}
           </span>
           <div className="md:hidden">
             <Preloader size={16} />
@@ -387,7 +390,9 @@ const MultipleClaimDialog = () => {
       <div className="bg-tertiary-bg rounded-3 p-4 md:p-5 min-h-[88px] flex flex-col justify-center">
         <div className="text-secondary-text text-14 mb-1">{t("claim_amount")}</div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="text-20 font-normal text-primary-text">{tokenCount} tokens</div>
+          <div className="text-20 font-normal text-primary-text">
+            {t("tokens_count", { count: tokenCount })}
+          </div>
           <div className="flex items-center gap-1">
             <Badge variant={BadgeVariant.STANDARD} standard={Standard.ERC20} size="small" />
             <Badge variant={BadgeVariant.STANDARD} standard={Standard.ERC223} size="small" />
@@ -407,7 +412,7 @@ const MultipleClaimDialog = () => {
             <Svg iconName="collect" size={20} className="text-green" />
           </div>
           <span className="text-primary-text text-14 md:text-16 whitespace-nowrap">
-            Executing claim
+            {t("executing_claim")}
           </span>
         </div>
         <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
@@ -454,7 +459,7 @@ const MultipleClaimDialog = () => {
           {t("success_claimed")}
         </h3>
         <p className="text-14 md:text-16 text-primary-text mb-4 md:mb-6">
-          {tokenCount} tokens (${data.totalReward.toFixed(2)})
+          {t("tokens_count", { count: tokenCount })} (${data.totalReward.toFixed(2)})
         </p>
       </div>
 
@@ -498,7 +503,7 @@ const MultipleClaimDialog = () => {
         </div>
         <h3 className="text-16 md:text-20 font-bold text-red-light mb-2">{t("claim_failed")}</h3>
         <p className="text-14 md:text-16 text-primary-text mb-4 md:mb-6">
-          {tokenCount} tokens (${data.totalReward.toFixed(2)})
+          {t("tokens_count", { count: tokenCount })} (${data.totalReward.toFixed(2)})
         </p>
       </div>
 
