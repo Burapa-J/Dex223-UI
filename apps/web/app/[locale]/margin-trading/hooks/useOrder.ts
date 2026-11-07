@@ -20,6 +20,7 @@ import daysToSeconds from "@/functions/daysToSeconds";
 import { chainToApolloClient } from "@/graphql/thegraph/apollo";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
 import useMarginModuleApolloClient from "@/hooks/useMarginModuleApolloClient";
+import { useTokenListLogos } from "@/hooks/useTokenListLogos";
 import { DexChainId } from "@/sdk_bi/chains";
 
 const queryAllOrders = gql`
@@ -63,6 +64,7 @@ export function useOrder({ id }: { id: number }): {
 } {
   const apolloClient = useMarginModuleApolloClient();
   const chainId = useCurrentChainId();
+  const logos = useTokenListLogos();
 
   const { data, loading, refetch, error } = useQuery<any, any>(queryId, {
     variables: {
@@ -120,14 +122,14 @@ export function useOrder({ id }: { id: number }): {
     }
 
     return {
-      ...serializeGqlOrder(data.order, chainId),
+      ...serializeGqlOrder(data.order, chainId, logos),
       positions: (completePages?.positions ?? data.order.positions ?? []).map(
         (position: GqlPosition) => {
-          return serializeGqlPosition(position, chainId);
+          return serializeGqlPosition(position, chainId, logos);
         },
       ),
     };
-  }, [chainId, completePages?.positions, data]);
+  }, [chainId, logos, completePages?.positions, data]);
 
   return {
     loading: loading || loadingPages,
@@ -188,6 +190,7 @@ export function useOrders({
 } {
   const apolloClient = useMarginModuleApolloClient();
   const chainId = useCurrentChainId();
+  const logos = useTokenListLogos();
   const requestTimeRef = useRef<number>(Date.now());
 
   const where = useMemo(() => {
@@ -271,13 +274,13 @@ export function useOrders({
 
     return data.orders.map((order: GqlOrder) => {
       return {
-        ...serializeGqlOrder(order, chainId),
+        ...serializeGqlOrder(order, chainId, logos),
         positions: order.positions.map((position: GqlPosition) => {
-          return serializeGqlPosition(position, chainId);
+          return serializeGqlPosition(position, chainId, logos);
         }),
       };
     });
-  }, [chainId, data]);
+  }, [chainId, logos, data]);
 
   const isFilterActive = Object.keys(where).some((key) => key !== "alive" && key !== "deadline_gt");
 
@@ -290,6 +293,7 @@ export function useOrdersByOwner({ owner }: { owner: Address | undefined }): {
 } {
   const apolloClient = useMarginModuleApolloClient();
   const chainId = useCurrentChainId();
+  const logos = useTokenListLogos();
 
   const { data, loading } = useQuery<any, any>(queryOwner, {
     variables: {
@@ -307,13 +311,13 @@ export function useOrdersByOwner({ owner }: { owner: Address | undefined }): {
 
     return data.orders.map((order: GqlOrder) => {
       return {
-        ...serializeGqlOrder(order, chainId),
+        ...serializeGqlOrder(order, chainId, logos),
         positions: order.positions.map((position: GqlPosition) => {
-          return serializeGqlPosition(position, chainId);
+          return serializeGqlPosition(position, chainId, logos);
         }),
       };
     });
-  }, [chainId, data]);
+  }, [chainId, logos, data]);
 
   return { loading, orders };
 }
