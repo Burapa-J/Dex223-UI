@@ -766,6 +766,7 @@
     "transactions": "트랜잭션",
     "top_pools": "TVL 상위 풀",
     "view_all_pools": "모든 풀 보기",
+    "open_pools": "풀 페이지 열기",
     "loading": "풀 불러오는 중…",
     "no_pools": "이 네트워크에서 풀을 찾을 수 없습니다.",
     "unavailable": "지금은 이 네트워크의 통계를 사용할 수 없습니다.",

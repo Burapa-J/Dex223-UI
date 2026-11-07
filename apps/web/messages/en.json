@@ -771,6 +771,7 @@
     "transactions": "Transactions",
     "top_pools": "Top pools by TVL",
     "view_all_pools": "View all pools",
+    "open_pools": "Open Pools",
     "loading": "Loading pools…",
     "loading_tokens": "Loading tokens…",
     "no_pools": "No pools found for this network.",

@@ -30,7 +30,7 @@ export default function StatisticsPoolsPage() {
           <div className="px-5 py-4 border-b border-secondary-border flex items-center justify-between">
             <h2 className="text-18 md:text-20 font-medium">{t("top_pools")}</h2>
             <Link href="/pools" className="text-14 text-green hocus:text-green-hover duration-200">
-              {t("view_all_pools")}
+              {t("open_pools")}
             </Link>
           </div>
 

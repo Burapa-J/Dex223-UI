@@ -766,6 +766,7 @@
     "transactions": "Transações",
     "top_pools": "Principais pools por TVL",
     "view_all_pools": "Ver todas as pools",
+    "open_pools": "Abrir Pools",
     "loading": "A carregar pools…",
     "no_pools": "Nenhuma pool encontrada nesta rede.",
     "unavailable": "As estatísticas estão indisponíveis nesta rede neste momento.",
