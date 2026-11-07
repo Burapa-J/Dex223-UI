@@ -6,12 +6,8 @@ import { formatEther, formatGwei } from "viem";
 import * as Yup from "yup";
 
 import LiquidationFeeConfig from "@/app/[locale]/margin-trading/lending-order/create/components/LiquidationFeeConfig";
-import LiquidationInitiatorSelect from "@/app/[locale]/margin-trading/lending-order/create/components/LiquidationInitiatorSelect";
 import LiquidationOracleSelect from "@/app/[locale]/margin-trading/lending-order/create/components/LiquidationOracleSelect";
-import {
-  LiquidationMode,
-  LiquidationType,
-} from "@/app/[locale]/margin-trading/lending-order/create/steps/types";
+import { LiquidationType } from "@/app/[locale]/margin-trading/lending-order/create/steps/types";
 import { ThirdStepValues } from "@/app/[locale]/margin-trading/lending-order/create/stores/useCreateOrderConfigStore";
 import { OrderActionMode, OrderActionStep } from "@/app/[locale]/margin-trading/types";
 import { InputWithArrows } from "@/components/atoms/Input";
@@ -82,11 +78,6 @@ export default function ThirdStep({
     >
       {({ handleSubmit, values, errors, touched, setFieldValue }) => (
         <form onSubmit={handleSubmit}>
-          <LiquidationInitiatorSelect
-            values={values.liquidationMode}
-            setValue={(values: LiquidationMode) => setFieldValue("liquidationMode", values)}
-          />
-
           <TextField
             label={t("order_currency_limit")}
             placeholder={t("order_currency_limit")}

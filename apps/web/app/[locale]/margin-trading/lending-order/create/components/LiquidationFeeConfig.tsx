@@ -1,21 +1,14 @@
 import { FormikErrors, FormikTouched } from "formik";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { ThirdStepValues } from "@/app/[locale]/margin-trading/lending-order/create/stores/useCreateOrderConfigStore";
 import { InputSize } from "@/components/atoms/Input";
-import Select from "@/components/atoms/Select";
 import SelectButton from "@/components/atoms/SelectButton";
 import TextField, { InputLabel } from "@/components/atoms/TextField";
-import RadioButton from "@/components/buttons/RadioButton";
 import PickTokenDialog from "@/components/dialogs/PickTokenDialog";
 import { Currency } from "@/sdk_bi/entities/currency";
-import { Standard } from "@/sdk_bi/standard";
-
-type LiquidationFeePayer = "borrower" | "lender";
-
-const feePayers: LiquidationFeePayer[] = ["borrower", "lender"];
 
 export default function LiquidationFeeConfig({
   values,
@@ -33,7 +26,6 @@ export default function LiquidationFeeConfig({
   touched: FormikTouched<ThirdStepValues>;
 }) {
   const t = useTranslations("Margin");
-  const [feePayer, setFeePayer] = React.useState<LiquidationFeePayer>("borrower");
   const [isOpenedTokenPick, setIsOpenedTokenPick] = useState(false);
 
   const handlePick = useCallback(
@@ -46,26 +38,7 @@ export default function LiquidationFeeConfig({
   );
 
   return (
-    <div className="bg-tertiary-bg rounded-3 py-4 px-5 mt-4 mb-6">
-      <InputLabel inputSize={InputSize.LARGE} label={t("pays_liquidation_deposit")} />
-      <div className="grid grid-cols-2 gap-2 mb-4 mt-1">
-        {feePayers.map((_feePayer) => {
-          return (
-            <RadioButton
-              type="button"
-              disabled={_feePayer === "lender"}
-              isActive={feePayer === _feePayer}
-              onClick={() => {
-                setFeePayer(_feePayer);
-              }}
-              key={_feePayer}
-            >
-              {_feePayer === "borrower" ? t("borrower") : t("lender")}
-            </RadioButton>
-          );
-        })}
-      </div>
-
+    <div className="mt-4 mb-6">
       <InputLabel inputSize={InputSize.LARGE} label={t("liquidation_fee_token")} />
       <SelectButton
         type="button"
