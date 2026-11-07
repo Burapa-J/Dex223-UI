@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 import React, { useEffect, useMemo, useState } from "react";
 import { formatEther, formatGwei, formatUnits, parseUnits } from "viem";
+import { useAccount } from "wagmi";
 
 import useOrderWithdraw from "@/app/[locale]/margin-trading/lending-order/[id]/hooks/useOrderWithdraw";
 import {
@@ -17,6 +18,7 @@ import Svg from "@/components/atoms/Svg";
 import TextField, { InputLabel } from "@/components/atoms/TextField";
 import Button, { ButtonColor, ButtonSize } from "@/components/buttons/Button";
 import RadioButton from "@/components/buttons/RadioButton";
+import Erc223ReceiveWarning from "@/components/common/Erc223ReceiveWarning";
 import GasSettingsBlock from "@/components/common/GasSettingsBlock";
 import OperationStepRow, {
   OperationRows,
@@ -25,6 +27,7 @@ import OperationStepRow, {
 } from "@/components/common/OperationStepRow";
 import { IconName } from "@/config/types/IconName";
 import { formatFloat } from "@/functions/formatFloat";
+import useCanReceiveERC223 from "@/hooks/useCanReceiveERC223";
 import { Standard } from "@/sdk_bi/standard";
 
 type StepTextMap = {
@@ -65,6 +68,11 @@ function OrderWithdrawActionButton({
   amountToWithdraw: string;
   disabled?: boolean;
 }) {
+  const tSwap = useTranslations("Swap");
+  const { address } = useAccount();
+  const canReceiveERC223 = useCanReceiveERC223(address);
+  // The order pays out in its base-asset standard; ERC-223 can't reach a smart account (EIP-7702).
+  const cannotReceive = order.baseAssetStandard === Standard.ERC223 && !canReceiveERC223;
   const { handleOrderWithdraw } = useOrderWithdraw({
     order,
     amountToWithdraw,
@@ -95,6 +103,17 @@ function OrderWithdrawActionButton({
           />
         ))}
       </OperationRows>
+    );
+  }
+
+  if (cannotReceive) {
+    return (
+      <>
+        <Erc223ReceiveWarning className="mb-4" />
+        <Button disabled fullWidth>
+          {tSwap("wallet_cannot_receive_erc223")}
+        </Button>
+      </>
     );
   }
 

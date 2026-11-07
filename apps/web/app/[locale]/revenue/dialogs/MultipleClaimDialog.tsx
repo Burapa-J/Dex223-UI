@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Address, isAddress } from "viem";
+import { useAccount } from "wagmi";
 
 import DialogHeader from "@/components/atoms/DialogHeader";
 import DrawerDialog from "@/components/atoms/DrawerDialog";
@@ -13,12 +14,14 @@ import Svg from "@/components/atoms/Svg";
 import Badge, { BadgeVariant } from "@/components/badges/Badge";
 import Button, { ButtonColor, ButtonSize } from "@/components/buttons/Button";
 import IconButton from "@/components/buttons/IconButton";
+import Erc223ReceiveWarning from "@/components/common/Erc223ReceiveWarning";
 import GasSettingsBlock from "@/components/common/GasSettingsBlock";
 import NetworkFeeConfigDialog from "@/components/dialogs/NetworkFeeConfigDialog";
 import { useTransactionSpeedUpDialogStore } from "@/components/dialogs/stores/useTransactionSpeedUpDialogStore";
 import { clsxMerge } from "@/functions/clsxMerge";
 import { getFormattedGasPrice } from "@/functions/gasSettings";
 import getExplorerLink, { ExplorerLinkType } from "@/functions/getExplorerLink";
+import useCanReceiveERC223 from "@/hooks/useCanReceiveERC223";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
 import { addNotification } from "@/other/notification";
 import { Standard } from "@/sdk_bi/standard";
@@ -41,6 +44,8 @@ import {
 const MultipleClaimDialog = () => {
   const t = useTranslations("Revenue");
   const tSwap = useTranslations("Swap");
+  const { address: connectedAddress } = useAccount();
+  const canReceiveERC223 = useCanReceiveERC223(connectedAddress);
   const tLiq = useTranslations("Liquidity");
   const { isOpen, state, data, closeDialog, setState, setError, setData, setClaimTransactionHash } =
     useClaimDialogStore();
@@ -142,6 +147,14 @@ const MultipleClaimDialog = () => {
 
   const tokens = data.selectedTokens;
   const tokenCount = tokens.length;
+  // Revenue pays each token in the version it holds; any ERC-223 part arrives as ERC-223, which a
+  // smart account (EIP-7702) can't receive.
+  const deliversErc223 = tokens.some((token) =>
+    (token.claimAddresses ?? []).some(
+      (a) => a.toLowerCase() !== token.fullErc20Address?.toLowerCase(),
+    ),
+  );
+  const cannotReceive = deliversErc223 && !canReceiveERC223;
 
   // Filter tokens based on search query
   const filteredTokens = tokens.filter(
@@ -327,14 +340,20 @@ const MultipleClaimDialog = () => {
         handleClick={() => setIsOpenedFee(true)}
       />
 
+      {cannotReceive && <Erc223ReceiveWarning />}
+
       <Button
         fullWidth
         size={ButtonSize.LARGE}
         colorScheme={ButtonColor.GREEN}
         onClick={handleClaim}
-        disabled={!canUnstake}
+        disabled={!canUnstake || cannotReceive}
       >
-        {canUnstake ? t("claim_action") : t("claim_locked")}
+        {cannotReceive
+          ? tSwap("wallet_cannot_receive_erc223")
+          : canUnstake
+            ? t("claim_action")
+            : t("claim_locked")}
       </Button>
     </div>
   );
