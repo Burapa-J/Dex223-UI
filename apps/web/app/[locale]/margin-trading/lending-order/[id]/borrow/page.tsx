@@ -901,7 +901,9 @@ export default function BorrowPage({
                     <div className="flex items-center gap-2 min-w-0 text-14 sm:text-16">
                       <Image
                         className="shrink-0"
-                        src="/images/tokens/placeholder.svg"
+                        src={
+                          order?.liquidationRewardAsset.logoURI || "/images/tokens/placeholder.svg"
+                        }
                         alt=""
                         width={24}
                         height={24}
@@ -1062,7 +1064,7 @@ export default function BorrowPage({
                                           +tradingToken.decimals,
                                           tradingToken.symbol,
                                           tradingToken.name,
-                                          "/images/tokens/placeholder.svg",
+                                          tradingToken.logoURI || "/images/tokens/placeholder.svg",
                                           tokenLists
                                             ?.filter((tokenList) => {
                                               return !!tokenList.list.tokens.find(

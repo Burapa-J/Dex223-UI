@@ -9,6 +9,7 @@ import {
 import { chainToApolloClient } from "@/graphql/thegraph/apollo";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
 import useMarginModuleApolloClient from "@/hooks/useMarginModuleApolloClient";
+import { useTokenListLogos } from "@/hooks/useTokenListLogos";
 import { DexChainId } from "@/sdk_bi/chains";
 
 const queryById = gql(`
@@ -94,6 +95,7 @@ export default function useMarginPositionRecentTransactionsById({ id }: { id: st
 } {
   const apolloClient = useMarginModuleApolloClient();
   const chainId = useCurrentChainId();
+  const logos = useTokenListLogos();
 
   const { data, loading } = useQuery<any, any>(queryById, {
     variables: {
@@ -109,8 +111,8 @@ export default function useMarginPositionRecentTransactionsById({ id }: { id: st
       return data;
     }
 
-    return serializeGqlRecentTransactions(data.position.transactions, chainId);
-  }, [chainId, data]);
+    return serializeGqlRecentTransactions(data.position.transactions, chainId, logos);
+  }, [chainId, logos, data]);
 
   return { loading, recentTransactions };
 }

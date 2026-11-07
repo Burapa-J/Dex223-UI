@@ -185,10 +185,10 @@ export function usePositionFromPositionInfo(positionDetails: PositionInfo) {
   const tokenAFromLists = useMemo(() => {
     let tokenStandard: Standard | undefined = undefined;
     const token = tokens.find((t) => {
-      if (t.wrapped.address0 === positionDetails?.token0) {
+      if (t.wrapped.address0.toLowerCase() === positionDetails?.token0?.toLowerCase()) {
         tokenStandard = Standard.ERC20;
         return true;
-      } else if (t.wrapped.address1 === positionDetails?.token0) {
+      } else if (t.wrapped.address1.toLowerCase() === positionDetails?.token0?.toLowerCase()) {
         tokenStandard = Standard.ERC223;
         return true;
       }
@@ -199,10 +199,10 @@ export function usePositionFromPositionInfo(positionDetails: PositionInfo) {
   const tokenBFromLists = useMemo(() => {
     let tokenStandard: Standard | undefined = undefined;
     const token = tokens.find((t) => {
-      if (t.wrapped.address0 === positionDetails?.token1) {
+      if (t.wrapped.address0.toLowerCase() === positionDetails?.token1?.toLowerCase()) {
         tokenStandard = Standard.ERC20;
         return true;
-      } else if (t.wrapped.address1 === positionDetails?.token1) {
+      } else if (t.wrapped.address1.toLowerCase() === positionDetails?.token1?.toLowerCase()) {
         tokenStandard = Standard.ERC223;
         return true;
       }
