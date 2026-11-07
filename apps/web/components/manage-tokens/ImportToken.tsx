@@ -456,7 +456,7 @@ export default function ImportToken({ setContent, handleClose }: Props) {
                                   text={truncateMiddle(erc223AddressToImport)}
                                   href={getExplorerLink(
                                     ExplorerLinkType.ADDRESS,
-                                    erc20AddressToImport,
+                                    erc223AddressToImport,
                                     chainId,
                                   )}
                                   className="justify-between"
