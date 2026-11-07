@@ -11,6 +11,7 @@ import React, { PropsWithChildren, use, useEffect, useMemo, useState } from "rea
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import { useMediaQuery } from "react-responsive";
 import { Address, formatUnits } from "viem";
+import { useAccount } from "wagmi";
 
 import PositionLiquidityCard from "@/app/[locale]/pool/[tokenId]/components/PositionLiquidityCard";
 import PositionPriceRangeCard from "@/app/[locale]/pool/[tokenId]/components/PositionPriceRangeCard";
@@ -31,6 +32,7 @@ import RangeBadge, { PositionRangeStatus } from "@/components/badges/RangeBadge"
 import Button, { ButtonColor, ButtonSize } from "@/components/buttons/Button";
 import IconButton, { IconButtonSize, IconButtonVariant } from "@/components/buttons/IconButton";
 import RadioButton from "@/components/buttons/RadioButton";
+import Erc223ReceiveWarning from "@/components/common/Erc223ReceiveWarning";
 import RecentTransactions from "@/components/common/RecentTransactions";
 import SelectedTokensInfo from "@/components/common/SelectedTokensInfo";
 import TokensPair from "@/components/common/TokensPair";
@@ -39,6 +41,7 @@ import { clsxMerge } from "@/functions/clsxMerge";
 import { formatFloat } from "@/functions/formatFloat";
 import getExplorerLink, { ExplorerLinkType } from "@/functions/getExplorerLink";
 import truncateMiddle from "@/functions/truncateMiddle";
+import useCanReceiveERC223 from "@/hooks/useCanReceiveERC223";
 import { useCollectFeesEstimatedGas, usePositionFees } from "@/hooks/useCollectFees";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
 import {
@@ -265,8 +268,16 @@ function Rows({ children }: PropsWithChildren<{}>) {
 
 function CollectActionButton() {
   const tL = useTranslations("Liquidity");
+  const tSwap = useTranslations("Swap");
 
   const { handleCollectFees, isETHPool } = usePositionFees();
+  const { address } = useAccount();
+  const canReceiveERC223 = useCanReceiveERC223(address);
+  const { token0Standard, token1Standard, setToken0Standard, setToken1Standard } =
+    useCollectFeesStore();
+  // A native-ETH side has no standard choice in the dialog and stays at the ERC-20 default.
+  const wantsErc223 = token0Standard === Standard.ERC223 || token1Standard === Standard.ERC223;
+  const cannotReceive = wantsErc223 && !canReceiveERC223;
 
   const { status, hash } = useCollectFeesStatusStore();
 
@@ -276,6 +287,23 @@ function CollectActionButton() {
         <CollectRow isETHPool={isETHPool} hash={hash} status={status} />
         {isETHPool && <UnwrapWETH9Row status={status} />}
       </Rows>
+    );
+  }
+
+  if (cannotReceive) {
+    return (
+      <>
+        <Erc223ReceiveWarning
+          className="mb-4"
+          onUseErc20={() => {
+            setToken0Standard(Standard.ERC20);
+            setToken1Standard(Standard.ERC20);
+          }}
+        />
+        <Button disabled fullWidth>
+          {tSwap("wallet_cannot_receive_erc223")}
+        </Button>
+      </>
     );
   }
 

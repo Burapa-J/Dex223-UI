@@ -121,6 +121,8 @@
     "eip7702_title": "Ce portefeuille ne peut pas recevoir la version ERC-223",
     "eip7702_warning": "Votre compte est un compte intelligent (EIP-7702), par exemple un compte intelligent MetaMask. Les comptes intelligents peuvent détenir et envoyer des tokens ERC-223, y compris ceux que vous avez déjà, mais ne peuvent pas en recevoir de nouveaux. Rien n'a été envoyé et vos fonds sont en sécurité.",
     "eip7702_fix": "<receive>Recevez plutôt la version ERC-20</receive>, ou repassez votre portefeuille en compte standard pour recevoir de l'ERC-223.",
+    "eip7702_fix_switch": "Pour continuer, repassez votre portefeuille en compte standard sur ce réseau (MetaMask : détails du compte → Compte intelligent), puis réessayez.",
+    "wallet_cannot_receive_erc223": "Ce portefeuille ne peut pas recevoir d'ERC-223",
     "swap_no_liquidity": "Échange indisponible. L'un des jetons n'a pas de liquidité. Réessayez plus tard ou choisissez une autre paire.",
     "deadline_empty": "Saisissez un délai",
     "deadline_min": "Le délai doit être d’au moins 1 minute",
