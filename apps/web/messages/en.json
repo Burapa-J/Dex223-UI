@@ -1228,7 +1228,12 @@
     "create_pool": "Create pool",
     "list_token": "List token",
     "issuing_tooltip": "If allowed, you can mint more tokens later.",
-    "erc20_tooltip": "Also deploy an ERC-20 wrapper for this token."
+    "erc20_tooltip": "Also deploy an ERC-20 wrapper for this token.",
+    "token_contracts": "Token contracts",
+    "token_symbol_decimals": "{symbol} · {decimals} decimals",
+    "erc223_contract_address": "ERC-223 address",
+    "erc20_contract_address": "ERC-20 address",
+    "view_on_explorer": "View on explorer"
   },
   "TokenListing": {
     "title": "Token listing",
