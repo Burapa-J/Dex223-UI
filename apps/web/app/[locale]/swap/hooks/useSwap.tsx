@@ -1,5 +1,5 @@
 import { useTranslations } from "next-intl";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   Address,
   encodeAbiParameters,
@@ -51,6 +51,7 @@ import { useComputePoolAddressDex } from "@/sdk_bi/utils/computePoolAddress";
 import { TickMath } from "@/sdk_bi/utils/tickMath";
 import { useGlobalFees } from "@/shared/hooks/useGlobalFees";
 import { useConfirmInWalletAlertStore } from "@/stores/useConfirmInWalletAlertStore";
+import { _usePoolsStore } from "@/stores/usePoolsStore";
 import {
   RecentTransactionTitleTemplate,
   stringifyObject,
@@ -352,6 +353,13 @@ export default function useSwap() {
     setErrorType,
     setIsReceiptUnavailable,
   } = useSwapStatusStore();
+
+  // A confirmed swap moves the pool's price and liquidity; mark cached pools stale so the next
+  // quote is computed against the new state instead of the pre-swap one.
+  const invalidatePools = _usePoolsStore((state) => state.invalidateAll);
+  useEffect(() => {
+    if (swapStatus === SwapStatus.SUCCESS) invalidatePools();
+  }, [swapStatus, invalidatePools]);
 
   const { openConfirmInWalletAlert, closeConfirmInWalletAlert } = useConfirmInWalletAlertStore();
 
