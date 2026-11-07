@@ -1095,6 +1095,7 @@
     "total_reward": "Recompensa total: ${amount}",
     "claiming": "A reclamar...",
     "claim_selected": "Reclamar tokens selecionados",
+    "select_claim_token": "Selecionar {symbol}",
     "max_tokens": "Máximo de 15 tokens de cada vez",
     "unselect_all": "Desmarcar tudo",
     "total_claim": "Reclamação total: {count} {count, plural, one {token} other {tokens}}",
