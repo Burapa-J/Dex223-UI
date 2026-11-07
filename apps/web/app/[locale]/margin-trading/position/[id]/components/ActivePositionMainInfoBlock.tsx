@@ -86,7 +86,12 @@ export default function ActivePositionMainInfoBlock({
       <div className="grid grid-cols-1 lg:grid-cols-2 items-center mb-3 gap-3">
         <div className="flex items-center gap-2 justify-between">
           <div className="flex items-center gap-2">
-            <Image width={32} height={32} src="/images/tokens/placeholder.svg" alt="" />
+            <Image
+              width={32}
+              height={32}
+              src={position.loanAsset.logoURI || "/images/tokens/placeholder.svg"}
+              alt=""
+            />
             <span className="text-secondary-text text-18 font-bold">{position.loanAsset.name}</span>
             <div className="flex items-center gap-3 text-green">
               {t("status_active")}
