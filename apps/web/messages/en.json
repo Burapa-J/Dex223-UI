@@ -435,6 +435,8 @@
     "eip7702_title": "This wallet can't receive the ERC-223 version",
     "eip7702_warning": "Your wallet account is a smart account (EIP-7702), for example a MetaMask smart account. Smart accounts can hold and send ERC-223 tokens, including the ones you already have, but can't receive new ones. Nothing has been sent and your funds are safe.",
     "eip7702_fix": "<receive>Receive the ERC-20 version instead</receive>, or switch your wallet back to a standard account to receive ERC-223.",
+    "eip7702_fix_switch": "To continue, switch your wallet back to a standard account for this network (MetaMask: account details → Smart account), then try again.",
+    "wallet_cannot_receive_erc223": "This wallet can't receive ERC-223",
     "swap_no_liquidity": "Swap unavailable. One of the tokens lacks liquidity. Please try again later or choose another pair.",
     "deadline_empty": "Enter a deadline",
     "deadline_min": "Deadline must be at least 1 minute",

@@ -12,10 +12,12 @@ import { Field, useSwapAmountsStore } from "@/app/[locale]/swap/stores/useSwapAm
 import { useSwapTokensStore } from "@/app/[locale]/swap/stores/useSwapTokensStore";
 import Button, { ButtonSize } from "@/components/buttons/Button";
 import SwapButton from "@/components/buttons/SwapButton";
+import Erc223ReceiveWarning from "@/components/common/Erc223ReceiveWarning";
 import TokenInput from "@/components/common/TokenInput";
 import PickTokenDialog from "@/components/dialogs/PickTokenDialog";
 import { useConnectWalletDialogStateStore } from "@/components/dialogs/stores/useConnectWalletStore";
 import { formatFloat } from "@/functions/formatFloat";
+import useCanReceiveERC223 from "@/hooks/useCanReceiveERC223";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
 import useTokenBalances from "@/hooks/useTokenBalances";
 import { useTokens } from "@/hooks/useTokenLists";
@@ -26,8 +28,15 @@ import { useGlobalBlockNumber } from "@/shared/hooks/useGlobalBlockNumber";
 const ActionButtonSize = ButtonSize.EXTRA_LARGE;
 const MobileActionButtonSize = ButtonSize.LARGE;
 
-function ConvertActionButton({ isSufficientBalance }: { isSufficientBalance: boolean }) {
+function ConvertActionButton({
+  isSufficientBalance,
+  cannotReceiveOutput,
+}: {
+  isSufficientBalance: boolean;
+  cannotReceiveOutput: boolean;
+}) {
   const t = useTranslations("Converter");
+  const tSwap = useTranslations("Swap");
   const { isConnected } = useAccount();
   const { tokenA, tokenB, tokenBStandard } = useSwapTokensStore();
   const { typedValue } = useSwapAmountsStore();
@@ -83,6 +92,16 @@ function ConvertActionButton({ isSufficientBalance }: { isSufficientBalance: boo
     );
   }
 
+  // The warning above explains it: an EIP-7702 smart account can't receive ERC-223, so the
+  // conversion would revert on chain.
+  if (cannotReceiveOutput) {
+    return (
+      <Button fullWidth disabled size={ActionButtonSize} mobileSize={MobileActionButtonSize}>
+        {tSwap("wallet_cannot_receive_erc223")}
+      </Button>
+    );
+  }
+
   return (
     <Button
       size={ActionButtonSize}
@@ -110,6 +129,10 @@ export default function ConverterForm() {
   } = useSwapTokensStore();
   const { setTypedValue, typedValue, reset: resetAmount } = useSwapAmountsStore();
   const [isOpenedTokenPick, setIsOpenedTokenPick] = useState(false);
+  const { address } = useAccount();
+  const canReceiveERC223 = useCanReceiveERC223(address);
+  const cannotReceiveOutput =
+    Boolean(tokenB) && tokenBStandard === Standard.ERC223 && !canReceiveERC223;
 
   // Convert params do not need a trade route; keep gas store updated for the review dialog.
   useSwapEstimatedGas({ trade: null });
@@ -288,8 +311,13 @@ export default function ConverterForm() {
         }}
       />
 
+      {cannotReceiveOutput && <Erc223ReceiveWarning className="mt-5" />}
+
       <div className="mt-5">
-        <ConvertActionButton isSufficientBalance={Boolean(isSufficientBalance)} />
+        <ConvertActionButton
+          isSufficientBalance={Boolean(isSufficientBalance)}
+          cannotReceiveOutput={cannotReceiveOutput}
+        />
       </div>
 
       <PickTokenDialog
