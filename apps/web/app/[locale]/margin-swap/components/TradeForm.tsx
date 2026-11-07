@@ -8,6 +8,11 @@ import { formatEther, formatGwei, formatUnits, parseUnits } from "viem";
 import { useAccount } from "wagmi";
 
 import ConfirmMarginSwapDialog from "@/app/[locale]/margin-swap/components/ConfirmMarginSwapDialog";
+import {
+  getPositionAllowedOutputAssets,
+  getPositionAllowedOutputStandard,
+  getPositionHeldStandard,
+} from "@/app/[locale]/margin-swap/hooks/useOpenMarginSwapForPosition";
 import { useMarginSwapAmountsStore } from "@/app/[locale]/margin-swap/stores/useMarginSwapAmountsStore";
 import { useMarginSwapPositionStore } from "@/app/[locale]/margin-swap/stores/useMarginSwapPositionStore";
 import { useMarginSwapSettingsDialogStore } from "@/app/[locale]/margin-swap/stores/useMarginSwapSettingsDialogStore";
@@ -385,11 +390,21 @@ export default function TradeForm({
 
   const [isOpenedTokenPick, setIsOpenedTokenPick] = useState(false);
 
+  const { marginSwapPositionId } = useMarginSwapPositionStore();
+
+  const {
+    loading,
+    position: marginSwapPosition,
+    refetch,
+  } = useMarginPositionById({
+    id: marginSwapPositionId?.toString(),
+  });
+
   const handlePick = useCallback(
     (token: Currency) => {
       if (currentlyPicking === "tokenA") {
         setTokenA(token);
-        setTokenAStandard(Standard.ERC20);
+        setTokenAStandard(getPositionHeldStandard(marginSwapPosition, token));
 
         if (token.isNative || tokenB?.isNative) {
           if (tokenB && tokenB.equals(token)) {
@@ -409,7 +424,7 @@ export default function TradeForm({
 
       if (currentlyPicking === "tokenB") {
         setTokenB(token);
-        setTokenBStandard(Standard.ERC20);
+        setTokenBStandard(getPositionAllowedOutputStandard(marginSwapPosition, token));
 
         if (token.isNative || tokenA?.isNative) {
           if (tokenA && tokenA.equals(token)) {
@@ -431,6 +446,7 @@ export default function TradeForm({
     },
     [
       currentlyPicking,
+      marginSwapPosition,
       setTokenA,
       setTokenAStandard,
       setTokenB,
@@ -471,16 +487,6 @@ export default function TradeForm({
 
   const { setIsOpen: setConfirmSwapDialogOpen } = useConfirmSwapDialogStore();
   const { baseFee, priorityFee, gasPrice } = useGlobalFees();
-
-  const { marginSwapPositionId } = useMarginSwapPositionStore();
-
-  const {
-    loading,
-    position: marginSwapPosition,
-    refetch,
-  } = useMarginPositionById({
-    id: marginSwapPositionId?.toString(),
-  });
 
   const { blockNumber } = useGlobalBlockNumber();
 
@@ -973,7 +979,9 @@ export default function TradeForm({
         availableTokens={
           currentlyPicking === "tokenA"
             ? marginSwapPosition?.assets
-            : marginSwapPosition?.order.allowedTradingAssets
+            : marginSwapPosition
+              ? getPositionAllowedOutputAssets(marginSwapPosition)
+              : undefined
         }
       />
       <MarginSwapSettingsDialog />
