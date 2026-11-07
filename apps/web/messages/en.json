@@ -360,6 +360,9 @@
   "Swap": {
     "high_price_impact_warning": "High price impact ({impact}%). You will receive noticeably less than the current market price.",
     "very_high_price_impact_warning": "Very high price impact ({impact}%). You would lose a large part of the value of this trade. Try a smaller amount.",
+    "price_impact_above_slippage": "This is also above your {slippage}% max slippage: max slippage only protects you from price moves after this review, it does not limit price impact. You can change it in Settings (gear icon on the swap card), or swap a smaller amount.",
+    "price_impact_acknowledge": "I understand I will receive about {impact}% less than the market price.",
+    "swap_anyway": "Swap anyway",
     "swap": "Swap",
     "review_swap": "Review swap",
     "tokens_in_two_standards_title": "Tokens in ERC-20 and ERC-223 standards",

@@ -46,6 +46,9 @@
   "Swap": {
     "high_price_impact_warning": "Impact sur le prix élevé ({impact} %). Vous recevrez nettement moins que le prix actuel du marché.",
     "very_high_price_impact_warning": "Impact sur le prix très élevé ({impact} %). Vous perdriez une grande partie de la valeur de cet échange. Essayez un montant plus faible.",
+    "price_impact_above_slippage": "Cela dépasse aussi votre glissement maximal de {slippage} % : le glissement maximal vous protège uniquement des variations de prix après cette vérification, il ne limite pas l'impact sur le prix. Vous pouvez le modifier dans les Paramètres (icône d'engrenage sur la carte d'échange) ou échanger un montant plus petit.",
+    "price_impact_acknowledge": "Je comprends que je recevrai environ {impact} % de moins que le prix du marché.",
+    "swap_anyway": "Échanger quand même",
     "swap": "Échanger",
     "review_swap": "Vérifier l’échange",
     "you_pay": "Vous payez",
