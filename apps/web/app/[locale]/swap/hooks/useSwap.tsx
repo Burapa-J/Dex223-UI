@@ -292,9 +292,12 @@ export function useSwapEstimatedGas({ trade }: { trade: Trade<any, any, any> | n
   const chainId = useCurrentChainId();
   const { typedValue } = useSwapAmountsStore();
 
+  const isConversion = Boolean(tokenA && tokenB && tokenA.equals(tokenB));
+  const allowanceTarget = isConversion ? CONVERTER_ADDRESS[chainId] : ROUTER_ADDRESS[chainId];
+
   const { isAllowed: isAllowedA } = useStoreAllowance({
     token: tokenA,
-    contractAddress: ROUTER_ADDRESS[chainId],
+    contractAddress: allowanceTarget,
     amountToCheck: parseUnits(typedValue, tokenA?.decimals ?? 18),
   });
 
