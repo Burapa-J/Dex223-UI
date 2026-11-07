@@ -30,6 +30,7 @@ import OperationStepRow, {
 } from "@/components/common/OperationStepRow";
 import { IconName } from "@/config/types/IconName";
 import { formatFloat } from "@/functions/formatFloat";
+import { getTokenAddressForStandard } from "@/sdk_bi/standard";
 
 type StepTextMap = {
   [key in OperationStepStatus]: string;
@@ -172,17 +173,36 @@ export default function PositionCloseDialog({
   }, [position, expectedBalance]);
 
   const baseAssetAmount = useMemo(() => {
+    if (position.assetAddresses?.length) {
+      const baseAssetAddress = getTokenAddressForStandard(
+        position.order.baseAsset,
+        position.order.baseAssetStandard,
+      ).toLowerCase();
+      return (
+        position.assetAddresses.find(
+          (asset) => asset.address.toLowerCase() === baseAssetAddress,
+        )?.balance ?? 0n
+      );
+    }
+
     const assetWithBalance = position.assetsWithBalances.find((asset) =>
       asset.asset.equals(position.order.baseAsset),
     );
     return assetWithBalance?.balance;
-  }, [position.assetsWithBalances, position.order.baseAsset]);
+  }, [
+    position.assetAddresses,
+    position.assetsWithBalances,
+    position.order.baseAsset,
+    position.order.baseAssetStandard,
+  ]);
 
   return (
     <DrawerDialog isOpen={isOpen} setIsOpen={setIsOpen}>
       <DialogHeader onClose={() => setIsOpen(false)} title={t("close_margin_position")} />
       <div className={clsx(" card-spacing-x card-spacing-b w-full md:w-[600px]")}>
-        {!!baseAssetAmount && !!expectedBalance && baseAssetAmount > expectedBalance ? (
+        {baseAssetAmount != null &&
+        expectedBalance != null &&
+        baseAssetAmount >= expectedBalance ? (
           <>
             <div>
               {isFinalStatus && (

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo } from "react";
-import { getAbiItem, parseUnits } from "viem";
+import { Address, parseUnits } from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 
 import { useMarginSwapAmountsStore } from "@/app/[locale]/margin-swap/stores/useMarginSwapAmountsStore";
@@ -21,12 +21,98 @@ import { refreshMarginQueries } from "@/hooks/useMarginModuleApolloClient";
 import { MARGIN_TRADING_ADDRESS } from "@/sdk_bi/addresses";
 import { Currency } from "@/sdk_bi/entities/currency";
 import { CurrencyAmount } from "@/sdk_bi/entities/fractions/currencyAmount";
-import { Percent } from "@/sdk_bi/entities/fractions/percent";
 import { ONE } from "@/sdk_bi/internalConstants";
+import { getTokenAddressForStandard, Standard } from "@/sdk_bi/standard";
 import { TickMath } from "@/sdk_bi/utils/tickMath";
 import { useGlobalBlockNumber } from "@/shared/hooks/useGlobalBlockNumber";
 import { _usePoolsStore } from "@/stores/usePoolsStore";
 import { useRecentTransactionsStore } from "@/stores/useRecentTransactionsStore";
+
+export function buildMarginSwapCallParams({
+  positionId,
+  positionAssets,
+  allowedTradingAddresses,
+  tokenA,
+  tokenB,
+  tokenAStandard,
+  tokenBStandard,
+  amountIn,
+  fee,
+  minimumAmountOut,
+  sqrtPriceLimitX96,
+  marginModuleAddress,
+}: {
+  positionId: number | bigint;
+  positionAssets: readonly Address[];
+  allowedTradingAddresses: readonly Address[];
+  tokenA: Currency;
+  tokenB: Currency;
+  tokenAStandard: Standard;
+  tokenBStandard: Standard;
+  amountIn: bigint;
+  fee: number;
+  minimumAmountOut: bigint;
+  sqrtPriceLimitX96: bigint;
+  marginModuleAddress: Address;
+}) {
+  const assetInAddress = getTokenAddressForStandard(tokenA, tokenAStandard);
+  const assetOutAddress = getTokenAddressForStandard(tokenB, tokenBStandard);
+
+  const assetId1 = positionAssets.findIndex(
+    (_asset) => _asset.toLowerCase() === assetInAddress.toLowerCase(),
+  );
+  if (assetId1 < 0) {
+    throw new Error("Input asset is not held in this position");
+  }
+
+  // On-chain _validateAsset checks:
+  //   whitelist.tokens[idInWhitelist] == asset || order.baseAsset == asset || positionInitialCollateral[positionId] == asset
+  // (or IDex223Autolisting.isListed(asset) when whitelist.isContract == true).
+  // When `asset` is order.baseAsset, initial collateral, or listed via Autolisting, `findIndex`
+  // returns -1; clamping to 0 keeps the uint256 argument valid and within whitelist.tokens bounds.
+  const whitelistIdx1 = allowedTradingAddresses.findIndex(
+    (_asset) => _asset.toLowerCase() === assetInAddress.toLowerCase(),
+  );
+  const whitelistIdx2 = allowedTradingAddresses.findIndex(
+    (_asset) => _asset.toLowerCase() === assetOutAddress.toLowerCase(),
+  );
+  const whitelistId1 = BigInt(Math.max(0, whitelistIdx1));
+  const whitelistId2 = BigInt(Math.max(0, whitelistIdx2));
+
+  if (tokenAStandard === Standard.ERC223) {
+    return {
+      abi: MARGIN_MODULE_ABI,
+      functionName: "marginSwap223" as const,
+      address: marginModuleAddress,
+      args: [
+        BigInt(positionId),
+        BigInt(assetId1),
+        whitelistId1,
+        whitelistId2,
+        amountIn,
+        assetOutAddress,
+        fee,
+      ] as const,
+    };
+  }
+
+  return {
+    abi: MARGIN_MODULE_ABI,
+    functionName: "marginSwap" as const,
+    address: marginModuleAddress,
+    args: [
+      BigInt(positionId),
+      BigInt(assetId1),
+      whitelistId1,
+      whitelistId2,
+      amountIn,
+      assetOutAddress,
+      fee,
+      minimumAmountOut,
+      sqrtPriceLimitX96,
+    ] as const,
+  };
+}
 
 export default function useMarginSwap() {
   const { data: walletClient } = useWalletClient();
@@ -47,7 +133,7 @@ export default function useMarginSwap() {
   useEffect(() => {
     refetch();
   }, [blockNumber, refetch]);
-  const { tokenA, tokenB, tokenAStandard } = useMarginSwapTokensStore();
+  const { tokenA, tokenB, tokenAStandard, tokenBStandard } = useMarginSwapTokensStore();
   const { typedValue } = useMarginSwapAmountsStore();
   const { trade } = useMarginTrade();
   const { slippage, deadline: _deadline } = useMarginSwapSettingsStore();
@@ -104,34 +190,20 @@ export default function useMarginSwap() {
         ? TickMath.MIN_SQRT_RATIO + ONE
         : TickMath.MAX_SQRT_RATIO - ONE;
 
-      const params = {
-        abi: MARGIN_MODULE_ABI,
-        functionName: "marginSwap" as const,
-        address: MARGIN_TRADING_ADDRESS[chainId],
-        args: [
-          BigInt(marginSwapPosition.id), // positionId
-          BigInt(
-            positionAssets.findIndex(
-              (_asset) => _asset.toLowerCase() === tokenA.wrapped.address0.toLowerCase(),
-            ),
-          ), // assetId_1
-          BigInt(
-            marginSwapPosition.order.allowedTradingAddresses.findIndex(
-              (_asset) => _asset.toLowerCase() === tokenA.wrapped.address0.toLowerCase(),
-            ),
-          ), //whitelistId_1
-          BigInt(
-            marginSwapPosition.order.allowedTradingAddresses.findIndex(
-              (_asset) => _asset.toLowerCase() === tokenB.wrapped.address0.toLowerCase(),
-            ), //whitelistId_1
-          ),
-          parseUnits(typedValue, tokenA.decimals),
-          tokenB?.wrapped.address0,
-          trade.swaps[0].route.pools[0].fee,
-          minimumAmountOut,
-          sqrtPriceLimitX96,
-        ] as const,
-      };
+      const params = buildMarginSwapCallParams({
+        positionId: marginSwapPosition.id,
+        positionAssets,
+        allowedTradingAddresses: marginSwapPosition.order.allowedTradingAddresses,
+        tokenA,
+        tokenB,
+        tokenAStandard,
+        tokenBStandard,
+        amountIn: parseUnits(typedValue, tokenA.decimals),
+        fee: trade.swaps[0].route.pools[0].fee,
+        minimumAmountOut,
+        sqrtPriceLimitX96,
+        marginModuleAddress: MARGIN_TRADING_ADDRESS[chainId],
+      });
 
       setStatus(MarginSwapStatus.PENDING_SWAP);
       const hash = await walletClient.writeContract({
@@ -149,31 +221,6 @@ export default function useMarginSwap() {
 
       const nonce = transaction.nonce;
 
-      // addRecentTransaction(
-      //   {
-      //     hash,
-      //     nonce,
-      //     chainId,
-      //     gas: {
-      //       model: GasFeeModel.EIP1559,
-      //       gas: "0",
-      //       maxFeePerGas: undefined,
-      //       maxPriorityFeePerGas: undefined,
-      //     },
-      //     params: {
-      //       ...stringifyObject(params),
-      //       abi: [getAbiItem({ name: "setOrderStatus", abi: MARGIN_MODULE_ABI })],
-      //     },
-      //     title: {
-      //       symbol: order.baseAsset.symbol!,
-      //       orderId,
-      //       template: RecentTransactionTitleTemplate.MARGIN_SWAP,
-      //       logoURI: order.baseAsset?.logoURI || "/images/tokens/placeholder.svg",
-      //     },
-      //   },
-      //   address,
-      // );
-
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
       if (receipt.status === "success") {
         _usePoolsStore.getState().invalidateAll();
@@ -183,7 +230,6 @@ export default function useMarginSwap() {
 
       if (receipt.status === "reverted") {
         setStatus(MarginSwapStatus.ERROR_SWAP);
-        // setErrorType(SwapError.UNKNOWN);
       }
     } catch (e) {
       setStatus(MarginSwapStatus.ERROR_SWAP);
@@ -198,7 +244,9 @@ export default function useMarginSwap() {
     setMarginSwapHash,
     setStatus,
     tokenA,
+    tokenAStandard,
     tokenB,
+    tokenBStandard,
     trade,
     typedValue,
     walletClient,
