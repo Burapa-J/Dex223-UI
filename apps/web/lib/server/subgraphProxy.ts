@@ -54,7 +54,15 @@ export async function proxySubgraph(
   try {
     const res = await fetchImpl(upstream, {
       method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+      // The gateway key is restricted to our production domains. Requests from the server carry no
+      // browser Origin, so the proxy names the production app itself; the gateway refuses
+      // origin-less calls with "domain not authorized by user".
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey}`,
+        origin: "https://app.dex223.io",
+        referer: "https://app.dex223.io/",
+      },
       body,
       cache: "no-store",
       signal: AbortSignal.timeout(15_000),
