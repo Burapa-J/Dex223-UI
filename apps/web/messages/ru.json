@@ -1735,7 +1735,11 @@
     "swap_positions_for_b": "{count, plural, one {# позиция} few {# позиции} many {# позиций} other {# позиции}} с разрешённой торговлей {symbolB}",
     "swap_positions_with_a_for_b": "{count, plural, one {# позиция} few {# позиции} many {# позиций} other {# позиции}} с {symbolA} и разрешённой торговлей {symbolB}",
     "swap_no_positions_for_tokens": "Нет позиций для выбранных токенов",
-    "swap_you_have_positions": "У вас {count, plural, one {# позиция} few {# позиции} many {# позиций} other {# позиции}}"
+    "swap_you_have_positions": "У вас {count, plural, one {# позиция} few {# позиции} many {# позиций} other {# позиции}}",
+    "liquidation_gas_hint": "Ликвидация сейчас стоит около {now} ETH газа ({gwei} gwei) и около {spike} ETH при {spikeGwei} gwei.",
+    "liquidation_gas_no_price": "Сравнить нельзя: нет цены для {symbol}.",
+    "liquidation_reward_below_spike": "Ваше вознаграждение ({reward}) меньше стоимости ликвидации при скачке газа (около {spike} ETH при {spikeGwei} gwei). Во время скачка ликвидаторы могут не действовать, а именно тогда цены движутся быстрее всего. Рассмотрите хотя бы {spike} ETH.",
+    "liquidation_reward_below_now": "Ваше вознаграждение ({reward}) меньше текущей стоимости ликвидации (около {now} ETH). Ликвидаторы потеряли бы деньги, поэтому вряд ли будут ликвидировать позиции по этому ордеру. Увеличьте вознаграждение или планируйте ликвидировать позиции сами."
   },
   "TradingChart": {
     "select_pair": "Выберите два токена, чтобы увидеть их график",

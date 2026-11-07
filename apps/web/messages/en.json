@@ -1746,7 +1746,11 @@
     "swap_positions_for_b": "{count, plural, one {# position} other {# positions}} allowed for {symbolB} trade",
     "swap_positions_with_a_for_b": "{count, plural, one {# position} other {# positions}} with {symbolA} allowed for {symbolB} trade",
     "swap_no_positions_for_tokens": "No positions for selected tokens",
-    "swap_you_have_positions": "You have {count, plural, one {# position} other {# positions}}"
+    "swap_you_have_positions": "You have {count, plural, one {# position} other {# positions}}",
+    "liquidation_gas_hint": "A liquidation costs about {now} ETH in gas now ({gwei} gwei) and about {spike} ETH at {spikeGwei} gwei.",
+    "liquidation_gas_no_price": "Can't compare: no price for {symbol}.",
+    "liquidation_reward_below_spike": "Your reward ({reward}) is below what a liquidation costs when gas spikes (about {spike} ETH at {spikeGwei} gwei). During a spike, liquidators may not act, and that's when prices move fastest. Consider at least {spike} ETH.",
+    "liquidation_reward_below_now": "Your reward ({reward}) is below what a liquidation costs right now (about {now} ETH). Liquidators would lose money, so they are unlikely to liquidate positions on this order. Raise the reward, or plan to liquidate positions yourself."
   },
   "TradingChart": {
     "select_pair": "Select two tokens to see their chart",

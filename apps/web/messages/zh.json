@@ -1735,7 +1735,11 @@
     "swap_positions_for_b": "{count} 个允许交易 {symbolB} 的仓位",
     "swap_positions_with_a_for_b": "{count} 个含 {symbolA} 且允许交易 {symbolB} 的仓位",
     "swap_no_positions_for_tokens": "所选代币没有对应仓位",
-    "swap_you_have_positions": "您有 {count} 个仓位"
+    "swap_you_have_positions": "您有 {count} 个仓位",
+    "liquidation_gas_hint": "当前一次清算约需 {now} ETH 的 Gas（{gwei} gwei），在 {spikeGwei} gwei 时约需 {spike} ETH。",
+    "liquidation_gas_no_price": "无法比较：{symbol} 没有价格。",
+    "liquidation_reward_below_spike": "您的奖励（{reward}）低于 Gas 飙升时的清算成本（{spikeGwei} gwei 时约 {spike} ETH）。飙升期间清算人可能不会行动，而这恰恰是价格变化最快的时候。建议至少 {spike} ETH。",
+    "liquidation_reward_below_now": "您的奖励（{reward}）低于当前的清算成本（约 {now} ETH）。清算人会亏钱，因此不太可能清算该订单的仓位。请提高奖励，或计划自行清算仓位。"
   },
   "TradingChart": {
     "select_pair": "选择两个代币以查看图表",
