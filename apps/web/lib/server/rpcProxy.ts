@@ -36,6 +36,12 @@ type Env = Record<string, string | undefined>;
 
 /** Keyed upstreams per chain, in the order they are tried. A provider without its key is skipped. */
 function upstreams(chain: string, env: Env): string[] | undefined {
+  if (chain === "mainnet") {
+    const urls: string[] = [];
+    if (env.ALCHEMY_API_KEY)
+      urls.push(`https://eth-mainnet.g.alchemy.com/v2/${env.ALCHEMY_API_KEY}`);
+    return urls;
+  }
   if (chain === "sepolia") {
     const urls: string[] = [];
     if (env.ALCHEMY_API_KEY)

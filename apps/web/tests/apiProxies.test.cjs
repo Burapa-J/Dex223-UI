@@ -135,6 +135,23 @@ test("rpc: disallowed method is refused before any upstream call", async () => {
   assert.equal(calls.length, 0);
 });
 
+test("rpc: mainnet goes to Alchemy mainnet only, and without a key it is 503", async () => {
+  const seen = [];
+  const fetchImpl = async (url) => {
+    seen.push(String(url));
+    return new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result: "0x1" }), { status: 200 });
+  };
+  const call = { jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] };
+  const env = { ALCHEMY_API_KEY: "k".repeat(32) };
+  const res = await proxyRpc("mainnet", post(call), { env, fetchImpl, limiter: roomy() });
+  assert.equal(res.status, 200);
+  assert.equal(seen.length, 1);
+  assert.match(seen[0], /^https:\/\/eth-mainnet\.g\.alchemy\.com\/v2\//);
+  assert.ok(!(await res.text()).includes("k".repeat(32)));
+  const none = await proxyRpc("mainnet", post(call), { env: {}, fetchImpl, limiter: roomy() });
+  assert.equal(none.status, 503);
+});
+
 test("rpc: unknown chain 404, oversized body 413, oversized batch 400", async () => {
   const { calls, fetchImpl } = recordingFetch(() => json({ jsonrpc: "2.0", id: 1, result: "0x1" }));
   const call = { jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] };
