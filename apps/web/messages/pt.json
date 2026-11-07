@@ -46,6 +46,9 @@
   "Swap": {
     "high_price_impact_warning": "Impacto no preço alto ({impact}%). Você receberá bem menos do que o preço atual de mercado.",
     "very_high_price_impact_warning": "Impacto no preço muito alto ({impact}%). Você perderia grande parte do valor desta operação. Tente um valor menor.",
+    "price_impact_above_slippage": "Isso também está acima do seu slippage máximo de {slippage}%: o slippage máximo só protege você de mudanças de preço após esta revisão, ele não limita o impacto no preço. Você pode alterá-lo em Configurações (ícone de engrenagem no cartão de troca) ou trocar um valor menor.",
+    "price_impact_acknowledge": "Entendo que receberei cerca de {impact}% a menos que o preço de mercado.",
+    "swap_anyway": "Trocar mesmo assim",
     "swap": "Trocar",
     "review_swap": "Rever a troca",
     "you_pay": "Você paga",

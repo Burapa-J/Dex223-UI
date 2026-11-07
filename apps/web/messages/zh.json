@@ -46,6 +46,9 @@
   "Swap": {
     "high_price_impact_warning": "价格影响较高（{impact}%）。你收到的数量将明显低于当前市场价格。",
     "very_high_price_impact_warning": "价格影响非常高（{impact}%）。这笔交易将损失很大一部分价值。请尝试较小的数量。",
+    "price_impact_above_slippage": "这也高于您设置的 {slippage}% 最大滑点：最大滑点只保护您免受本次确认之后的价格变动，并不限制价格影响。您可以在设置（兑换卡片上的齿轮图标）中更改，或兑换较小的数量。",
+    "price_impact_acknowledge": "我了解我将比市场价格少收到约 {impact}%。",
+    "swap_anyway": "仍然兑换",
     "swap": "兑换",
     "review_swap": "确认兑换",
     "you_pay": "支付",
