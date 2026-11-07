@@ -41,6 +41,7 @@ import getExplorerLink, { ExplorerLinkType } from "@/functions/getExplorerLink";
 import truncateMiddle from "@/functions/truncateMiddle";
 import { useCollectFeesEstimatedGas, usePositionFees } from "@/hooks/useCollectFees";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
+import usePositionPriceOrientation from "@/hooks/usePositionPriceOrientation";
 import {
   usePositionFromPositionInfo,
   usePositionFromTokenId,
@@ -307,7 +308,6 @@ export default function PoolPage({
   const router = useRouter();
 
   //TODO: make centralize function instead of boolean useState value to control invert
-  const [showFirst, setShowFirst] = useState(true);
 
   const { position: positionInfo, loading } = usePositionFromTokenId(BigInt(tokenId));
   let position = usePositionFromPositionInfo(positionInfo);
@@ -315,6 +315,8 @@ export default function PoolPage({
   const token0 = position?.pool.token0;
   const token1 = position?.pool.token1;
   const fee = position?.pool.fee;
+  // Remembered per position; the positions list reads the same choice.
+  const [showFirst, setShowFirst] = usePositionPriceOrientation({ tokenId, token0, token1 });
 
   const { poolAddress, poolAddressLoading } = useComputePoolAddressDex({
     tokenA: token0,
