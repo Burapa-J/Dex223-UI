@@ -130,7 +130,13 @@ export async function proxyRpc(
     try {
       const res = await fetchImpl(url, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        // Provider keys carry a domain allowlist, and a provider refuses origin-less calls once one
+        // is set, which is what a server-side request looks like. The proxy names the production app.
+        headers: {
+          "content-type": "application/json",
+          origin: "https://app.dex223.io",
+          referer: "https://app.dex223.io/",
+        },
         body,
         cache: "no-store",
         signal: AbortSignal.timeout(15_000),
