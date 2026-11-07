@@ -22,6 +22,7 @@ import { monad } from "@/config/chains/monad";
 import { plasma } from "@/config/chains/plasma";
 import { sepolia } from "@/config/chains/sepolia";
 import { receiptAwareFallback } from "@/config/wagmi/receiptAwareFallback";
+import { rpcProxyUrl } from "@/config/wagmi/rpcProxyUrl";
 import { DexChainId } from "@/sdk_bi/chains";
 
 const viemChains: Record<DexChainId, Chain> = {
@@ -120,9 +121,9 @@ export const config = createConfig({
       // rpc.ankr.com/eth_sepolia no longer answers either. Verified working, in order:
       webSocket("wss://ethereum-sepolia-rpc.publicnode.com"),
       http("https://ethereum-sepolia-rpc.publicnode.com"),
-      webSocket("wss://eth-sepolia.g.alchemy.com/v2/kvidqVpyVu4aivBEb55XXIzCHDqMm7CO"),
-      http("https://eth-sepolia.g.alchemy.com/v2/kvidqVpyVu4aivBEb55XXIzCHDqMm7CO"),
-      http("https://sepolia.infura.io/v3/6689c099b8d542589b1842e30dbc2027"),
+      // Keyed providers (Alchemy, then Infura) through our server: the keys never reach the bundle.
+      // Answers 503 when no key is configured, so the fallback moves on.
+      http(rpcProxyUrl("sepolia")),
       http(),
     ]),
     [bscTestnet.id]: receiptAwareFallback([
