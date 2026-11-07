@@ -206,9 +206,11 @@ export default function useMarginSwap() {
       });
 
       setStatus(MarginSwapStatus.PENDING_SWAP);
-      const hash = await walletClient.writeContract({
-        ...params,
-      });
+      // Narrowed per function: viem cannot type a union of the two argument lists.
+      const hash =
+        params.functionName === "marginSwap223"
+          ? await walletClient.writeContract(params)
+          : await walletClient.writeContract(params);
 
       setMarginSwapHash(hash);
 

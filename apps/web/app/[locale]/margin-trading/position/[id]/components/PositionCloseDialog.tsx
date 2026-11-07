@@ -179,9 +179,8 @@ export default function PositionCloseDialog({
         position.order.baseAssetStandard,
       ).toLowerCase();
       return (
-        position.assetAddresses.find(
-          (asset) => asset.address.toLowerCase() === baseAssetAddress,
-        )?.balance ?? 0n
+        position.assetAddresses.find((asset) => asset.address.toLowerCase() === baseAssetAddress)
+          ?.balance ?? 0n
       );
     }
 

@@ -93,10 +93,7 @@ const {
   getPositionAllowedOutputStandard,
   getPositionHeldStandard,
   getPositionTradePair,
-} = load(
-  "app/[locale]/margin-swap/hooks/useOpenMarginSwapForPosition.ts",
-  openMarginSwapMocks,
-);
+} = load("app/[locale]/margin-swap/hooks/useOpenMarginSwapForPosition.ts", openMarginSwapMocks);
 
 const marginSwapMocks = {
   ...openMarginSwapMocks,
@@ -127,7 +124,12 @@ const marginSwapMocks = {
   "@/sdk_bi/entities/currency": {},
   "@/sdk_bi/entities/fractions/currencyAmount": { CurrencyAmount: class {} },
   "@/sdk_bi/internalConstants": { ONE: 1n },
-  "@/sdk_bi/utils/tickMath": { TickMath: { MIN_SQRT_RATIO: 4295128739n, MAX_SQRT_RATIO: 1461446703485210103287273052203988822378723970342n } },
+  "@/sdk_bi/utils/tickMath": {
+    TickMath: {
+      MIN_SQRT_RATIO: 4295128739n,
+      MAX_SQRT_RATIO: 1461446703485210103287273052203988822378723970342n,
+    },
+  },
   "@/shared/hooks/useGlobalBlockNumber": { useGlobalBlockNumber: () => ({ blockNumber: 1n }) },
   "@/stores/usePoolsStore": { _usePoolsStore: { getState: () => ({ invalidateAll: () => {} }) } },
   "@/stores/useRecentTransactionsStore": {
@@ -346,7 +348,10 @@ test("PositionCloseDialog checks order.baseAssetStandard balance and allows clos
     path.join(root, "app/[locale]/margin-trading/position/[id]/components/PositionCloseDialog.tsx"),
     "utf8",
   );
-  assert.match(closeDialogSource, /getTokenAddressForStandard\(\s*position\.order\.baseAsset,\s*position\.order\.baseAssetStandard/);
+  assert.match(
+    closeDialogSource,
+    /getTokenAddressForStandard\(\s*position\.order\.baseAsset,\s*position\.order\.baseAssetStandard/,
+  );
   assert.match(closeDialogSource, /baseAssetAmount >= expectedBalance/);
 
   const tradeFormSource = fs.readFileSync(
@@ -357,4 +362,3 @@ test("PositionCloseDialog checks order.baseAssetStandard balance and allows clos
   assert.match(tradeFormSource, /getPositionAllowedOutputStandard\(marginSwapPosition,\s*token\)/);
   assert.match(tradeFormSource, /getPositionAllowedOutputAssets\(marginSwapPosition\)/);
 });
-
