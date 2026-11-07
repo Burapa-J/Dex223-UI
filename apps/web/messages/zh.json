@@ -121,6 +121,8 @@
     "eip7702_title": "此钱包无法接收 ERC-223 版本",
     "eip7702_warning": "您的钱包账户是智能账户（EIP-7702），例如 MetaMask 智能账户。智能账户可以持有和发送 ERC-223 代币（包括您已有的代币），但无法接收新的 ERC-223 代币。没有发送任何内容，您的资金是安全的。",
     "eip7702_fix": "<receive>改为接收 ERC-20 版本</receive>，或将钱包切换回标准账户以接收 ERC-223。",
+    "eip7702_fix_switch": "如需继续，请在此网络上将钱包切换回标准账户（MetaMask：账户详情 → 智能账户），然后重试。",
+    "wallet_cannot_receive_erc223": "此钱包无法接收 ERC-223",
     "swap_no_liquidity": "兑换不可用。其中一个代币缺少流动性。请稍后再试，或选择其他交易对。",
     "deadline_empty": "请输入期限",
     "deadline_min": "期限至少为 1 分钟",
