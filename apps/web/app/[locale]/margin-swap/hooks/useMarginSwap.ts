@@ -17,6 +17,7 @@ import { isMarginDeployed } from "@/config/modules";
 import { getTransactionWithRetries } from "@/functions/getTransactionWithRetries";
 import { slippageToPercent } from "@/functions/slippageToPercent";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
+import { refreshMarginQueries } from "@/hooks/useMarginModuleApolloClient";
 import { MARGIN_TRADING_ADDRESS } from "@/sdk_bi/addresses";
 import { Currency } from "@/sdk_bi/entities/currency";
 import { CurrencyAmount } from "@/sdk_bi/entities/fractions/currencyAmount";
@@ -24,6 +25,7 @@ import { Percent } from "@/sdk_bi/entities/fractions/percent";
 import { ONE } from "@/sdk_bi/internalConstants";
 import { TickMath } from "@/sdk_bi/utils/tickMath";
 import { useGlobalBlockNumber } from "@/shared/hooks/useGlobalBlockNumber";
+import { _usePoolsStore } from "@/stores/usePoolsStore";
 import { useRecentTransactionsStore } from "@/stores/useRecentTransactionsStore";
 
 export default function useMarginSwap() {
@@ -174,6 +176,8 @@ export default function useMarginSwap() {
 
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
       if (receipt.status === "success") {
+        _usePoolsStore.getState().invalidateAll();
+        refreshMarginQueries(chainId);
         setStatus(MarginSwapStatus.SUCCESS);
       }
 

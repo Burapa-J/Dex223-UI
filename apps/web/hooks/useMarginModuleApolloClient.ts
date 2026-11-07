@@ -58,3 +58,21 @@ export default function useMarginModuleApolloClient() {
   const chainId = useCurrentChainId();
   return useMemo(() => getMarginClient(chainId), [chainId]);
 }
+
+// The subgraph indexes a margin transaction a few seconds after it is mined, and the margin pages
+// only poll every 30 s (and serve cached results to pages opened later), so positions and lending
+// orders looked unchanged after a margin swap until a reload. Refetch every margin query now and
+// twice more while the subgraph catches up.
+const REFRESH_DELAYS_MS = [0, 4000, 12000];
+
+export function refreshMarginQueries(chainId: DexChainId) {
+  const client = getMarginClient(chainId);
+  if (!client) return;
+  REFRESH_DELAYS_MS.forEach((delay) => {
+    setTimeout(() => {
+      client.refetchQueries({ include: "all" }).catch(() => {
+        // A failed refetch only leaves the old data; the 30 s poll still runs.
+      });
+    }, delay);
+  });
+}
