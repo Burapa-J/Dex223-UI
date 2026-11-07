@@ -6,7 +6,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { formatUnits, parseUnits } from "viem";
 import { useAccount } from "wagmi";
 
-import { useSwapStatus } from "@/app/[locale]/swap/hooks/useSwap";
+import { useSwapEstimatedGas, useSwapStatus } from "@/app/[locale]/swap/hooks/useSwap";
 import { useConfirmConvertDialogStore } from "@/app/[locale]/swap/stores/useConfirmConvertDialogOpened";
 import { Field, useSwapAmountsStore } from "@/app/[locale]/swap/stores/useSwapAmountsStore";
 import { useSwapTokensStore } from "@/app/[locale]/swap/stores/useSwapTokensStore";
@@ -110,6 +110,9 @@ export default function ConverterForm() {
   } = useSwapTokensStore();
   const { setTypedValue, typedValue, reset: resetAmount } = useSwapAmountsStore();
   const [isOpenedTokenPick, setIsOpenedTokenPick] = useState(false);
+
+  // Convert params do not need a trade route; keep gas store updated for the review dialog.
+  useSwapEstimatedGas({ trade: null });
 
   const tokens = useTokens();
   const convertibleTokens = useMemo(() => tokens.filter((token) => !token.isNative), [tokens]);
