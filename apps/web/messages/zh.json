@@ -766,6 +766,7 @@
     "transactions": "交易笔数",
     "top_pools": "按 TVL 排名的池",
     "view_all_pools": "查看全部流动性池",
+    "open_pools": "打开流动性池",
     "loading": "正在加载流动性池…",
     "no_pools": "该网络暂无流动性池。",
     "unavailable": "该网络的统计数据暂时不可用。",
