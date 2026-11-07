@@ -12,7 +12,6 @@ import SwapDetailsRow from "@/app/[locale]/swap/components/SwapDetailsRow";
 import useSwap, { useSwapStatus } from "@/app/[locale]/swap/hooks/useSwap";
 import { feePerGasWei } from "@/app/[locale]/swap/lib/feePerGasWei";
 import { useConfirmConvertDialogStore } from "@/app/[locale]/swap/stores/useConfirmConvertDialogOpened";
-import { useConfirmSwapDialogStore } from "@/app/[locale]/swap/stores/useConfirmSwapDialogOpened";
 import { useSwapAmountsStore } from "@/app/[locale]/swap/stores/useSwapAmountsStore";
 import {
   useSwapGasLimitStore,
@@ -211,7 +210,7 @@ function ConvertActionButton({
   const t = useTranslations("Swap");
   const { tokenA, tokenB, tokenAStandard } = useSwapTokensStore();
   const { typedValue } = useSwapAmountsStore();
-  const { setIsOpen } = useConfirmSwapDialogStore();
+  const { setIsOpen } = useConfirmConvertDialogStore();
 
   const { handleSwap } = useSwap();
 
