@@ -1043,6 +1043,7 @@
     "total_reward": "Total reward: ${amount}",
     "claiming": "Claiming...",
     "claim_selected": "Claim selected tokens",
+    "select_claim_token": "Select {symbol}",
     "max_tokens": "Max 15 tokens at once",
     "unselect_all": "Unselect all",
     "total_claim": "Total claim: {count} {count, plural, =1 {token} other {tokens}}",
