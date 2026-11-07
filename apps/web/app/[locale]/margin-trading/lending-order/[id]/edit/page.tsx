@@ -6,6 +6,7 @@ import React, { use, useEffect } from "react";
 import { formatUnits } from "viem";
 import { useAccount } from "wagmi";
 
+import { useOrderLenderProtection } from "@/app/[locale]/margin-trading/hooks/useLenderProtection";
 import { useOrder } from "@/app/[locale]/margin-trading/hooks/useOrder";
 import OrderConfigurationPage from "@/app/[locale]/margin-trading/lending-order/[id]/components/OrderConfigurationPage";
 import ReviewEditOrderDialog from "@/app/[locale]/margin-trading/lending-order/[id]/edit/components/ReviewEditOrderDialog";
@@ -37,6 +38,7 @@ export default function EditLendingOrderPage({
   const t = useTranslations("Margin");
   const { id: orderId } = use(params);
   const { order, loading } = useOrder({ id: +orderId });
+  const lenderProtection = useOrderLenderProtection(+orderId);
 
   const { address } = useAccount();
 
@@ -50,7 +52,8 @@ export default function EditLendingOrderPage({
   const { setFirstStepValues, setSecondStepValues, setThirdStepValues } = config;
 
   useEffect(() => {
-    if (!order) {
+    // Wait for the on-chain lender protection settings so the form starts from them.
+    if (!order || lenderProtection.loading) {
       return;
     }
     if (isInitialized && initializedOrderId === order.id) {
@@ -95,12 +98,17 @@ export default function EditLendingOrderPage({
       liquidationMode: { type: LiquidationType.ANYONE, whitelistedLiquidators: [] },
       liquidationFeeForLiquidator: order.liquidationRewardAmount.formatted,
       priceSource: ORACLE_ADDRESS[DexChainId.SEPOLIA],
+      maintenanceMarginPercent: String(lenderProtection.marginPercent),
+      liquidationKeeper: lenderProtection.keeper,
     });
 
     setInitializedFor(order.id);
   }, [
     initializedOrderId,
     isInitialized,
+    lenderProtection.keeper,
+    lenderProtection.loading,
+    lenderProtection.marginPercent,
     order,
     setFirstStepValues,
     setInitializedFor,

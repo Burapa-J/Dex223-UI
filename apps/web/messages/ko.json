@@ -1739,7 +1739,15 @@
     "liquidation_gas_hint": "청산 1회의 가스비는 현재 약 {now} ETH({gwei} gwei)이고, {spikeGwei} gwei에서는 약 {spike} ETH입니다.",
     "liquidation_gas_no_price": "비교할 수 없음: {symbol} 가격 정보가 없습니다.",
     "liquidation_reward_below_spike": "보상({reward})이 가스비 급등 시 청산 비용(약 {spike} ETH, {spikeGwei} gwei)보다 낮습니다. 급등 시에는 청산인이 움직이지 않을 수 있는데, 바로 그때 가격이 가장 빠르게 움직입니다. 최소 {spike} ETH를 고려하세요.",
-    "liquidation_reward_below_now": "보상({reward})이 현재 청산 비용(약 {now} ETH)보다 낮습니다. 청산인이 손해를 보므로 이 주문의 포지션을 청산할 가능성이 낮습니다. 보상을 높이거나 직접 청산할 계획을 세우세요."
+    "liquidation_reward_below_now": "보상({reward})이 현재 청산 비용(약 {now} ETH)보다 낮습니다. 청산인이 손해를 보므로 이 주문의 포지션을 청산할 가능성이 낮습니다. 보상을 높이거나 직접 청산할 계획을 세우세요.",
+    "maintenance_margin": "유지 증거금",
+    "maintenance_margin_tooltip": "포지션이 부채보다 얼마나 더 가치가 있어야 하는지입니다. 그 아래로 내려가면 청산될 수 있습니다.",
+    "maintenance_margin_help": "포지션 가치가 부채의 {percent}%를 더한 금액보다 낮아지면 청산됩니다. 높을수록 더 보호되지만 레버리지는 낮아집니다({percent}%: 최대 {leverage}배).",
+    "liquidation_keeper": "청산 키퍼 (선택)",
+    "liquidation_keeper_tooltip": "포지션 가치가 부채보다 낮을 때 대신 청산을 완료할 수 있는 신뢰하는 주소입니다.",
+    "liquidation_keeper_placeholder": "대신 청산할 수 있는 0x… 주소",
+    "liquidation_keeper_help": "포지션이 부채 아래에 있는 동안(처음 24시간) 대신 청산을 완료할 수 있습니다. 직접 할 경우 비워 두세요.",
+    "lender_window_info": "포지션이 부채 아래로 떨어지면 처음 24시간 동안은 본인 또는 키퍼만 청산할 수 있어, 손실을 받아들일지 기다릴지 직접 결정합니다. 24시간 후에는 누구나 청산할 수 있습니다."
   },
   "TradingChart": {
     "select_pair": "두 토큰을 선택하면 차트가 표시됩니다",

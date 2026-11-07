@@ -11,6 +11,10 @@ import {
 } from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 
+import {
+  encodeLenderProtection,
+  useOrderLenderProtection,
+} from "@/app/[locale]/margin-trading/hooks/useLenderProtection";
 import { useEditOrderConfigStore } from "@/app/[locale]/margin-trading/lending-order/[id]/edit/stores/useEditOrderConfigStore";
 import {
   EditOrderStatus,
@@ -86,6 +90,7 @@ export default function useEditOrder() {
   const { data: walletClient } = useWalletClient();
   const params = useEditOrderParams();
   const publicClient = usePublicClient();
+  const { supported: lenderProtectionSupported } = useOrderLenderProtection();
   const chainId = useCurrentChainId();
 
   const { setStatus, setModifyOrderHash } = useEditOrderStatusStore();
@@ -214,9 +219,21 @@ export default function useEditOrder() {
         ],
       });
 
-      const actionsToUpdate = recreateTokenList
+      const baseActions = recreateTokenList
         ? [encodedAddTokenListParams, encodedModifyOrderParams, encodedCollateralTokens]
         : [encodedModifyOrderParams, encodedCollateralTokens];
+      // Always sent when supported, so returning a field to its default clears the old setting.
+      const encodedLenderProtection = lenderProtectionSupported
+        ? encodeLenderProtection(
+            BigInt(order.id),
+            params.maintenanceMarginPercent,
+            params.liquidationKeeper,
+            true,
+          )
+        : undefined;
+      const actionsToUpdate = encodedLenderProtection
+        ? [...baseActions, encodedLenderProtection]
+        : baseActions;
 
       try {
         const modifyOrderHash = await walletClient.writeContract({
@@ -279,6 +296,7 @@ export default function useEditOrder() {
       }
     },
     [
+      lenderProtectionSupported,
       addRecentTransaction,
       address,
       chainId,

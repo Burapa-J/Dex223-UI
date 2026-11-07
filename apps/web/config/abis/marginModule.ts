@@ -1206,6 +1206,38 @@ export const MARGIN_MODULE_ABI = [
     type: "function",
   },
   {
+    inputs: [
+      { internalType: "uint256", name: "_orderId", type: "uint256" },
+      { internalType: "uint256", name: "_maintenanceMarginBps", type: "uint256" },
+      { internalType: "address", name: "_keeper", type: "address" },
+    ],
+    name: "orderSetLenderProtection",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    name: "orderMaintenanceMarginBps",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    name: "orderLiquidationKeeper",
+    outputs: [{ internalType: "address", name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    name: "positionUnderwaterSince",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
     inputs: [],
     name: "orderIndex",
     outputs: [

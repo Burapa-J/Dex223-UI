@@ -1739,7 +1739,15 @@
     "liquidation_gas_hint": "Uma liquidação custa cerca de {now} ETH em gás agora ({gwei} gwei) e cerca de {spike} ETH a {spikeGwei} gwei.",
     "liquidation_gas_no_price": "Não é possível comparar: sem preço para {symbol}.",
     "liquidation_reward_below_spike": "Sua recompensa ({reward}) é menor que o custo de uma liquidação quando o gás dispara (cerca de {spike} ETH a {spikeGwei} gwei). Nesses momentos os liquidantes podem não agir, justamente quando os preços mudam mais rápido. Considere pelo menos {spike} ETH.",
-    "liquidation_reward_below_now": "Sua recompensa ({reward}) é menor que o custo atual de uma liquidação (cerca de {now} ETH). Os liquidantes perderiam dinheiro, então é improvável que liquidem posições desta ordem. Aumente a recompensa ou planeje liquidar as posições você mesmo."
+    "liquidation_reward_below_now": "Sua recompensa ({reward}) é menor que o custo atual de uma liquidação (cerca de {now} ETH). Os liquidantes perderiam dinheiro, então é improvável que liquidem posições desta ordem. Aumente a recompensa ou planeje liquidar as posições você mesmo.",
+    "maintenance_margin": "Margem de manutenção",
+    "maintenance_margin_tooltip": "Quanto a mais que a dívida uma posição deve valer. Abaixo disso ela pode ser liquidada.",
+    "maintenance_margin_help": "As posições são liquidadas quando valem menos que a dívida mais {percent}%. Mais alto protege mais, mas permite menos alavancagem (com {percent}%: até {leverage}x).",
+    "liquidation_keeper": "Keeper de liquidação (opcional)",
+    "liquidation_keeper_tooltip": "Um endereço de confiança que pode concluir liquidações por você enquanto uma posição vale menos que sua dívida.",
+    "liquidation_keeper_placeholder": "Endereço 0x… que pode liquidar por você",
+    "liquidation_keeper_help": "Pode concluir liquidações por você enquanto uma posição está abaixo da dívida (primeiras 24 horas). Deixe vazio se você mesmo fará isso.",
+    "lender_window_info": "Se uma posição cair abaixo da dívida, só você ou seu keeper podem liquidá-la nas primeiras 24 horas, então você decide se aceita a perda ou espera. Depois de 24 horas, qualquer pessoa pode."
   },
   "TradingChart": {
     "select_pair": "Selecione dois tokens para ver o gráfico",

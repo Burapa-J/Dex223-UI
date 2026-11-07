@@ -1739,7 +1739,15 @@
     "liquidation_gas_hint": "当前一次清算约需 {now} ETH 的 Gas（{gwei} gwei），在 {spikeGwei} gwei 时约需 {spike} ETH。",
     "liquidation_gas_no_price": "无法比较：{symbol} 没有价格。",
     "liquidation_reward_below_spike": "您的奖励（{reward}）低于 Gas 飙升时的清算成本（{spikeGwei} gwei 时约 {spike} ETH）。飙升期间清算人可能不会行动，而这恰恰是价格变化最快的时候。建议至少 {spike} ETH。",
-    "liquidation_reward_below_now": "您的奖励（{reward}）低于当前的清算成本（约 {now} ETH）。清算人会亏钱，因此不太可能清算该订单的仓位。请提高奖励，或计划自行清算仓位。"
+    "liquidation_reward_below_now": "您的奖励（{reward}）低于当前的清算成本（约 {now} ETH）。清算人会亏钱，因此不太可能清算该订单的仓位。请提高奖励，或计划自行清算仓位。",
+    "maintenance_margin": "维持保证金",
+    "maintenance_margin_tooltip": "仓位价值必须比债务高出多少。低于此值即可被清算。",
+    "maintenance_margin_help": "仓位价值低于债务加 {percent}% 时将被清算。越高保护越多，但杠杆越低（{percent}% 时：最高 {leverage} 倍）。",
+    "liquidation_keeper": "清算执行人（可选）",
+    "liquidation_keeper_tooltip": "在仓位价值低于债务时可代您完成清算的可信地址。",
+    "liquidation_keeper_placeholder": "可代您清算的 0x… 地址",
+    "liquidation_keeper_help": "在仓位低于债务期间（前 24 小时）可代您完成清算。如自行处理请留空。",
+    "lender_window_info": "如果仓位跌破债务，前 24 小时内只有您或您的执行人可以清算，由您决定接受损失还是等待。24 小时后任何人都可以清算。"
   },
   "TradingChart": {
     "select_pair": "选择两个代币以查看图表",

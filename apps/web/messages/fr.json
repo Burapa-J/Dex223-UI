@@ -1739,7 +1739,15 @@
     "liquidation_gas_hint": "Une liquidation coûte environ {now} ETH de gaz maintenant ({gwei} gwei) et environ {spike} ETH à {spikeGwei} gwei.",
     "liquidation_gas_no_price": "Comparaison impossible : aucun prix pour {symbol}.",
     "liquidation_reward_below_spike": "Votre récompense ({reward}) est inférieure au coût d'une liquidation lors d'un pic de gaz (environ {spike} ETH à {spikeGwei} gwei). Pendant un pic, les liquidateurs risquent de ne pas agir, alors que les prix bougent le plus vite. Prévoyez au moins {spike} ETH.",
-    "liquidation_reward_below_now": "Votre récompense ({reward}) est inférieure au coût actuel d'une liquidation (environ {now} ETH). Les liquidateurs perdraient de l'argent et liquideront donc peu probablement les positions de cet ordre. Augmentez la récompense ou prévoyez de liquider vous-même."
+    "liquidation_reward_below_now": "Votre récompense ({reward}) est inférieure au coût actuel d'une liquidation (environ {now} ETH). Les liquidateurs perdraient de l'argent et liquideront donc peu probablement les positions de cet ordre. Augmentez la récompense ou prévoyez de liquider vous-même.",
+    "maintenance_margin": "Marge de maintien",
+    "maintenance_margin_tooltip": "De combien une position doit valoir plus que la dette. En dessous, elle peut être liquidée.",
+    "maintenance_margin_help": "Les positions sont liquidées dès qu'elles valent moins que la dette plus {percent} %. Plus haut vous protège davantage mais réduit l'effet de levier (à {percent} % : jusqu'à {leverage}x).",
+    "liquidation_keeper": "Keeper de liquidation (facultatif)",
+    "liquidation_keeper_tooltip": "Une adresse de confiance qui peut finaliser des liquidations pour vous tant qu'une position vaut moins que sa dette.",
+    "liquidation_keeper_placeholder": "Adresse 0x… pouvant liquider pour vous",
+    "liquidation_keeper_help": "Peut finaliser des liquidations pour vous tant qu'une position est sous sa dette (24 premières heures). Laissez vide si vous le faites vous-même.",
+    "lender_window_info": "Si une position passe sous sa dette, seuls vous ou votre keeper pouvez la liquider pendant 24 heures : vous décidez d'accepter la perte ou d'attendre. Après 24 heures, n'importe qui le peut."
   },
   "TradingChart": {
     "select_pair": "Sélectionnez deux jetons pour voir leur graphique",

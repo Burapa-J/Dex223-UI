@@ -33,6 +33,8 @@ export type ThirdStepValues = {
   liquidationFeeToken: Currency | undefined;
   liquidationFeeForLiquidator: string;
   priceSource: any;
+  maintenanceMarginPercent: string;
+  liquidationKeeper: string;
 };
 
 interface CreateOrderConfig {
@@ -98,6 +100,8 @@ export const useEditOrderConfigStore = create<CreateOrderConfig>((set, get) => (
     liquidationFeeToken: undefined,
     liquidationFeeForLiquidator: "",
     priceSource: "",
+    maintenanceMarginPercent: "10",
+    liquidationKeeper: "",
   },
 
   setIsInitialized: (isInitialized: boolean) => set({ isInitialized }),

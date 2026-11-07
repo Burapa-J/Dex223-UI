@@ -1750,7 +1750,15 @@
     "liquidation_gas_hint": "A liquidation costs about {now} ETH in gas now ({gwei} gwei) and about {spike} ETH at {spikeGwei} gwei.",
     "liquidation_gas_no_price": "Can't compare: no price for {symbol}.",
     "liquidation_reward_below_spike": "Your reward ({reward}) is below what a liquidation costs when gas spikes (about {spike} ETH at {spikeGwei} gwei). During a spike, liquidators may not act, and that's when prices move fastest. Consider at least {spike} ETH.",
-    "liquidation_reward_below_now": "Your reward ({reward}) is below what a liquidation costs right now (about {now} ETH). Liquidators would lose money, so they are unlikely to liquidate positions on this order. Raise the reward, or plan to liquidate positions yourself."
+    "liquidation_reward_below_now": "Your reward ({reward}) is below what a liquidation costs right now (about {now} ETH). Liquidators would lose money, so they are unlikely to liquidate positions on this order. Raise the reward, or plan to liquidate positions yourself.",
+    "maintenance_margin": "Maintenance margin",
+    "maintenance_margin_tooltip": "How much more than the debt a position must stay worth. Below that it can be liquidated.",
+    "maintenance_margin_help": "Positions are liquidated once they are worth less than the debt plus {percent}%. Higher protects you more but allows less leverage (at {percent}%: up to {leverage}x).",
+    "liquidation_keeper": "Liquidation keeper (optional)",
+    "liquidation_keeper_tooltip": "An address you trust to complete liquidations for you while a position is worth less than its debt.",
+    "liquidation_keeper_placeholder": "0x… address that may liquidate for you",
+    "liquidation_keeper_help": "Can complete liquidations for you while a position is below its debt (first 24 hours). Leave empty if you'll do it yourself.",
+    "lender_window_info": "If a position falls below its debt, only you or your keeper can liquidate it for the first 24 hours, so you decide whether to take the loss or wait. After 24 hours anyone can."
   },
   "TradingChart": {
     "select_pair": "Select two tokens to see their chart",
