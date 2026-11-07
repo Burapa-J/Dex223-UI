@@ -1220,7 +1220,12 @@
     "create_pool": "创建资金池",
     "list_token": "上架代币",
     "issuing_tooltip": "若允许，你可以稍后增发更多代币。",
-    "erc20_tooltip": "同时为此代币部署 ERC-20 包装合约。"
+    "erc20_tooltip": "同时为此代币部署 ERC-20 包装合约。",
+    "token_contracts": "代币合约",
+    "token_symbol_decimals": "{symbol} · {decimals} 位小数",
+    "erc223_contract_address": "ERC-223 地址",
+    "erc20_contract_address": "ERC-20 地址",
+    "view_on_explorer": "在浏览器中查看"
   },
   "TokenListing": {
     "title": "代币上架",

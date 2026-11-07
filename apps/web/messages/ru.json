@@ -1220,7 +1220,12 @@
     "create_pool": "Создать пул",
     "list_token": "Добавить токен",
     "issuing_tooltip": "Если разрешено, позже можно выпустить ещё токены.",
-    "erc20_tooltip": "Также развернёт обёртку ERC-20 для этого токена."
+    "erc20_tooltip": "Также развернёт обёртку ERC-20 для этого токена.",
+    "token_contracts": "Контракты токена",
+    "token_symbol_decimals": "{symbol} · {decimals} знаков после запятой",
+    "erc223_contract_address": "Адрес ERC-223",
+    "erc20_contract_address": "Адрес ERC-20",
+    "view_on_explorer": "Открыть в обозревателе"
   },
   "TokenListing": {
     "title": "Листинг токенов",

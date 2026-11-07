@@ -1220,7 +1220,12 @@
     "create_pool": "Criar pool",
     "list_token": "Listar token",
     "issuing_tooltip": "Se for permitido, poderá emitir mais tokens mais tarde.",
-    "erc20_tooltip": "Também faz o deploy de um wrapper ERC-20 para este token."
+    "erc20_tooltip": "Também faz o deploy de um wrapper ERC-20 para este token.",
+    "token_contracts": "Contratos do token",
+    "token_symbol_decimals": "{symbol} · {decimals} casas decimais",
+    "erc223_contract_address": "Endereço ERC-223",
+    "erc20_contract_address": "Endereço ERC-20",
+    "view_on_explorer": "Ver no explorador"
   },
   "TokenListing": {
     "title": "Listagem de tokens",
