@@ -157,6 +157,37 @@ export function serializeGqlOrder(
   const { positions, duration, liquidationRewardAmount, balance, minLoan, createdAt, ...rest } =
     gqlOrder;
 
+  const baseAsset = gqlTokenToCurrency(gqlOrder.baseAssetToken, chainId, logos);
+  const baseAssetStandard =
+    gqlOrder.baseAsset.toLowerCase() === gqlOrder.baseAssetToken.addressERC20.toLowerCase()
+      ? Standard.ERC20
+      : Standard.ERC223;
+  const tradingErc223Set = new Set(
+    (gqlOrder.whitelist?.allowedForTradingTokens ?? [])
+      .map((token) => token.addressERC223?.toLowerCase())
+      .filter((addr): addr is string => Boolean(addr && addr !== ZERO_ADDRESS)),
+  );
+  const collateralErc223Set = new Set(
+    (gqlOrder.collateralTokens ?? [])
+      .map((token) => token.addressERC223?.toLowerCase())
+      .filter((addr): addr is string => Boolean(addr && addr !== ZERO_ADDRESS)),
+  );
+  const hasWhitelistedErc223 = Boolean(
+    gqlOrder.whitelist?.allowedForTrading?.some((addr) =>
+      tradingErc223Set.has(addr.toLowerCase()),
+    ) ||
+      (gqlOrder.whitelist?.allowedForTrading &&
+        gqlOrder.whitelist.allowedForTrading.length >
+          gqlOrder.whitelist.allowedForTradingTokens.length),
+  );
+  const hasCollateralErc223 = Boolean(
+    gqlOrder.collaterals?.some((addr) => collateralErc223Set.has(addr.toLowerCase())),
+  );
+  const hasAutolisting = Boolean(
+    gqlOrder.whitelist?.autolisting &&
+      gqlOrder.whitelist.autolisting.toLowerCase() !== ZERO_ADDRESS,
+  );
+
   return {
     ...rest,
     oracle: gqlOrder.oracle || ORACLE_ADDRESS[chainId],
@@ -176,17 +207,17 @@ export function serializeGqlOrder(
       chainId,
       logos,
     ),
-    baseAsset: gqlTokenToCurrency(gqlOrder.baseAssetToken, chainId, logos),
-    baseAssetStandard:
-      gqlOrder.baseAsset.toLowerCase() === gqlOrder.baseAssetToken.addressERC20.toLowerCase()
-        ? Standard.ERC20
-        : Standard.ERC223,
+    baseAsset,
+    baseAssetAddress: gqlOrder.baseAsset,
+    baseAssetStandard,
     collateralAddresses: gqlOrder.collaterals,
     allowedTradingAddresses: gqlOrder.whitelist.allowedForTrading,
+    whitelistAutoListing: gqlOrder.whitelist.autolisting,
     isErc223TradingAllowed:
-      gqlOrder.whitelist.allowedForTrading &&
-      gqlOrder.whitelist.allowedForTrading.length >
-        gqlOrder.whitelist.allowedForTradingTokens.length,
+      hasWhitelistedErc223 ||
+      hasCollateralErc223 ||
+      hasAutolisting ||
+      (!baseAsset.isNative && baseAssetStandard === Standard.ERC223),
     allowedCollateralAssets: gqlOrder.collateralTokens.map((collateralToken: GqlToken) =>
       gqlTokenToCurrency(collateralToken, chainId, logos),
     ),
