@@ -1518,6 +1518,7 @@
     "deposit_hint": "Al depositar aumentarás el saldo disponible de tu orden de préstamo",
     "deposit_success": "Depositado correctamente",
     "deposit_failed": "No se pudo depositar",
+    "deposit_no_oracle_price": "No se puede añadir {symbol} a esta posición: el oráculo de precios no tiene un pool {symbol}/{loan} para valorarlo.",
     "approve_failed": "No se pudo aprobar",
     "token_not_found": "Token no encontrado",
     "gas_price": "Precio del gas:",

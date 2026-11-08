@@ -1518,6 +1518,7 @@
     "deposit_hint": "예치하면 대출 주문의 사용 가능 잔액이 늘어납니다",
     "deposit_success": "예치되었습니다",
     "deposit_failed": "예치하지 못했습니다",
+    "deposit_no_oracle_price": "{symbol}을(를) 이 포지션에 추가할 수 없습니다. 가격 오라클에 {symbol}/{loan} 풀이 없어 가치를 평가할 수 없습니다.",
     "approve_failed": "승인하지 못했습니다",
     "token_not_found": "토큰을 찾을 수 없습니다",
     "gas_price": "가스 가격:",

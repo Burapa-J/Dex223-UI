@@ -1529,6 +1529,7 @@
     "deposit_hint": "You will increase the available balance of your lending order by making a deposit",
     "deposit_success": "Successfully deposited",
     "deposit_failed": "Failed to deposit",
+    "deposit_no_oracle_price": "{symbol} cannot be added to this position: the price oracle has no {symbol}/{loan} pool to value it.",
     "approve_failed": "Failed to approve",
     "token_not_found": "Token not found",
     "gas_price": "Gas price:",

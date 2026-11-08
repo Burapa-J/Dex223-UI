@@ -1518,6 +1518,7 @@
     "deposit_hint": "Un dépôt augmente le solde disponible de votre ordre de prêt",
     "deposit_success": "Dépôt effectué",
     "deposit_failed": "Échec du dépôt",
+    "deposit_no_oracle_price": "Impossible d'ajouter {symbol} à cette position : l'oracle de prix n'a pas de pool {symbol}/{loan} pour l'évaluer.",
     "approve_failed": "Échec de l’approbation",
     "token_not_found": "Jeton introuvable",
     "gas_price": "Prix du gas:",
