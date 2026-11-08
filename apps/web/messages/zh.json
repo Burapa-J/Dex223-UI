@@ -1518,6 +1518,7 @@
     "deposit_hint": "存入资金会增加你借贷订单的可用余额",
     "deposit_success": "存入成功",
     "deposit_failed": "存入失败",
+    "deposit_no_oracle_price": "无法将 {symbol} 添加到此仓位：价格预言机没有可用于估值的 {symbol}/{loan} 池。",
     "approve_failed": "授权失败",
     "token_not_found": "未找到代币",
     "gas_price": "Gas 价格:",
