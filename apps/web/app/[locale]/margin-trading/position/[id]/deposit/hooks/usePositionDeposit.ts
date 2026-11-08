@@ -5,16 +5,18 @@ import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 import { getMarginAssetAddress } from "@/app/[locale]/margin-trading/helpers/assetFunding";
 import {
   PositionDepositStatus,
+  SwapError,
   useDepositPositionStatusStore,
 } from "@/app/[locale]/margin-trading/position/[id]/stores/usePositionDepositStatusStore";
 import { LendingOrder, MarginPosition } from "@/app/[locale]/margin-trading/types";
 import { ERC223_ABI } from "@/config/abis/erc223";
 import { MARGIN_MODULE_ABI } from "@/config/abis/marginModule";
+import { ORACLE_ABI } from "@/config/abis/oracle";
 import { isMarginDeployed } from "@/config/modules";
 import { getTransactionWithRetries } from "@/functions/getTransactionWithRetries";
 import { useStoreAllowance } from "@/hooks/useAllowance";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
-import { MARGIN_TRADING_ADDRESS, ZERO_ADDRESS } from "@/sdk_bi/addresses";
+import { MARGIN_TRADING_ADDRESS, ORACLE_ADDRESS, ZERO_ADDRESS } from "@/sdk_bi/addresses";
 import { Currency } from "@/sdk_bi/entities/currency";
 import { Standard } from "@/sdk_bi/standard";
 import {
@@ -171,7 +173,7 @@ export default function usePositionDeposit({
   amount: string;
   standard: Standard;
 }) {
-  const { setStatus, setDepositHash, setApproveHash, setTransferHash } =
+  const { setStatus, setErrorType, setDepositHash, setApproveHash, setTransferHash } =
     useDepositPositionStatusStore();
   const chainId = useCurrentChainId();
   const { data: walletClient } = useWalletClient();
@@ -198,6 +200,7 @@ export default function usePositionDeposit({
   const handlePositionDeposit = useCallback(
     async (amountToApprove: string) => {
       if (!isMarginDeployed(chainId) || !walletClient || !publicClient || !address) return;
+      setErrorType(SwapError.UNKNOWN);
       // positionDeposit is nonpayable and only the owner of an open position can call it.
       if (
         !parsedAmount ||
@@ -210,6 +213,28 @@ export default function usePositionDeposit({
       ) {
         setStatus(PositionDepositStatus.ERROR_DEPOSIT);
         return;
+      }
+
+      // A deposit of anything but the base asset values the position through the oracle, which
+      // reverts the deposit ("Oracle: no pool found") when it has no pool for the asset. Check
+      // first, so nothing is approved or transferred for a deposit that cannot succeed.
+      const baseAddress = position.assetAddresses[0]?.address;
+      if (baseAddress && depositAddress.toLowerCase() !== baseAddress.toLowerCase()) {
+        try {
+          await publicClient.readContract({
+            abi: ORACLE_ABI,
+            address: ORACLE_ADDRESS[chainId],
+            functionName: "findPoolWithHighestLiquidity",
+            args: [depositAddress, baseAddress],
+          });
+        } catch (error) {
+          if (/no pool found/i.test(String((error as Error)?.message ?? error))) {
+            setErrorType(SwapError.NO_ORACLE_PRICE);
+            setStatus(PositionDepositStatus.ERROR_DEPOSIT);
+            return;
+          }
+          // Any other read failure (RPC hiccup): let the deposit itself decide.
+        }
       }
 
       let failureStatus = PositionDepositStatus.ERROR_DEPOSIT;
@@ -341,6 +366,7 @@ export default function usePositionDeposit({
       publicClient,
       setApproveHash,
       setDepositHash,
+      setErrorType,
       setStatus,
       setTransferHash,
       standard,
@@ -352,4 +378,3 @@ export default function usePositionDeposit({
 
   return { handlePositionDeposit };
 }
-

@@ -113,7 +113,9 @@ export default function DepositForm({ position }: { position: MarginPosition }) 
             />
             <TokenInput
               allowedErc223={
-                assetToDeposit ? allowedStandards.allowErc223 : position.order.isErc223TradingAllowed
+                assetToDeposit
+                  ? allowedStandards.allowErc223
+                  : position.order.isErc223TradingAllowed
               }
               value={amountToDeposit}
               onInputChange={(value) => {
@@ -219,4 +221,3 @@ export default function DepositForm({ position }: { position: MarginPosition }) 
     </div>
   );
 }
-

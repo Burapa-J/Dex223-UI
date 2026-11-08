@@ -93,10 +93,7 @@ export default function useOrderDeposit({
     [amount, currency?.decimals],
   );
 
-  const {
-    isAllowed: isAllowedA,
-    writeTokenApprove: approveA,
-  } = useStoreAllowance({
+  const { isAllowed: isAllowedA, writeTokenApprove: approveA } = useStoreAllowance({
     token: standard === Standard.ERC20 && !currency.isNative ? currency : undefined,
     contractAddress: MARGIN_TRADING_ADDRESS[chainId],
     amountToCheck: parsedAmount,
@@ -378,4 +375,3 @@ export default function useOrderDeposit({
 
   return { handleOrderDeposit };
 }
-

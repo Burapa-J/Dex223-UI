@@ -9,6 +9,7 @@ import {
 import usePositionDeposit from "@/app/[locale]/margin-trading/position/[id]/deposit/hooks/usePositionDeposit";
 import {
   PositionDepositStatus,
+  SwapError,
   useDepositPositionStatusStore,
 } from "@/app/[locale]/margin-trading/position/[id]/stores/usePositionDepositStatusStore";
 import { MarginPosition } from "@/app/[locale]/margin-trading/types";
@@ -173,7 +174,7 @@ export default function PositionDepositDialog({
   amountToDeposit: string;
 }) {
   const t = useTranslations("Margin");
-  const { status, setStatus } = useDepositPositionStatusStore();
+  const { status, setStatus, errorType } = useDepositPositionStatusStore();
   const [isEditApproveActive, setEditApproveActive] = useState(false);
 
   const isInitialStatus = useMemo(() => status === PositionDepositStatus.INITIAL, [status]);
@@ -298,6 +299,15 @@ export default function PositionDepositDialog({
                 <p className="text-center mb-1">
                   {amountToDeposit} {assetToDeposit.symbol}
                 </p>
+                {status === PositionDepositStatus.ERROR_DEPOSIT &&
+                  errorType === SwapError.NO_ORACLE_PRICE && (
+                    <p className="text-center mb-1 text-secondary-text">
+                      {t("deposit_no_oracle_price", {
+                        symbol: assetToDeposit.symbol ?? "",
+                        loan: position.loanAsset.symbol ?? "",
+                      })}
+                    </p>
+                  )}
               </div>
             )}
             <div className="my-4 border-b border-secondary-border w-full" />
@@ -316,4 +326,3 @@ export default function PositionDepositDialog({
     </DrawerDialog>
   );
 }
-

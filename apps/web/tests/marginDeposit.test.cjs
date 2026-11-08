@@ -19,7 +19,9 @@ function parseUnitsFallback(value, decimals) {
 }
 
 function formatUnitsFallback(value, decimals) {
-  const str = BigInt(value).toString().padStart(decimals + 1, "0");
+  const str = BigInt(value)
+    .toString()
+    .padStart(decimals + 1, "0");
   const intPart = str.slice(0, str.length - decimals) || "0";
   const fracPart = str.slice(str.length - decimals).replace(/0+$/, "");
   return fracPart ? `${intPart}.${fracPart}` : intPart;
@@ -68,6 +70,8 @@ function load(file, mocks = {}) {
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const MARGIN_MODULE = "0x9999999999999999999999999999999999999999";
+const ORACLE = "0x7777777777777777777777777777777777777777";
+const SwapError = { OUT_OF_GAS: 0, UNKNOWN: 1, NO_ORACLE_PRICE: 2 };
 const AUTOLISTING_CONTRACT = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const OWNER = "0x1111111111111111111111111111111111111111";
 
@@ -336,6 +340,8 @@ function createPositionFixture(overrides = {}) {
 
 function loadPositionDepositModule(harness = {}) {
   const statuses = [];
+  const errorTypes = [];
+  const oracleReads = [];
   const recentTxs = [];
   const writeCalls = [];
 
@@ -352,6 +358,12 @@ function loadPositionDepositModule(harness = {}) {
         usePublicClient: () => ({
           waitForTransactionReceipt:
             harness.waitForTransactionReceipt ?? (async () => ({ status: "success" })),
+          // Oracle pre-check for non-base deposits; prices every asset unless a test says otherwise.
+          readContract: async (req) => {
+            oracleReads.push(req);
+            if (harness.oracleReadError) throw harness.oracleReadError;
+            return [ZERO_ADDRESS, 0n, 0];
+          },
         }),
         useWalletClient: () => ({
           data: {
@@ -373,8 +385,10 @@ function loadPositionDepositModule(harness = {}) {
       },
       "@/app/[locale]/margin-trading/position/[id]/stores/usePositionDepositStatusStore": {
         PositionDepositStatus,
+        SwapError,
         useDepositPositionStatusStore: () => ({
           setStatus: (s) => statuses.push(s),
+          setErrorType: (e) => errorTypes.push(e),
           setDepositHash: () => {},
           setApproveHash: () => {},
           setTransferHash: () => {},
@@ -382,13 +396,16 @@ function loadPositionDepositModule(harness = {}) {
       },
       "@/app/[locale]/margin-trading/types": {},
       "@/config/abis/erc223": {
-        ERC223_ABI: viem.parseAbi([
-          "function transfer(address to, uint256 value) returns (bool)",
-        ]),
+        ERC223_ABI: viem.parseAbi(["function transfer(address to, uint256 value) returns (bool)"]),
       },
       "@/config/abis/marginModule": {
         MARGIN_MODULE_ABI: viem.parseAbi([
           "function positionDeposit(uint256 positionId, address asset, uint256 idInWhitelist, uint256 amount)",
+        ]),
+      },
+      "@/config/abis/oracle": {
+        ORACLE_ABI: viem.parseAbi([
+          "function findPoolWithHighestLiquidity(address tokenA, address tokenB) view returns (address poolAddress, uint128 liquidity, uint24 fee)",
         ]),
       },
       "@/config/modules": {
@@ -408,6 +425,7 @@ function loadPositionDepositModule(harness = {}) {
       "@/hooks/useCurrentChainId": { default: () => 1, __esModule: true },
       "@/sdk_bi/addresses": {
         MARGIN_TRADING_ADDRESS: { 1: MARGIN_MODULE },
+        ORACLE_ADDRESS: { 1: ORACLE },
         ZERO_ADDRESS,
       },
       "@/sdk_bi/entities/currency": {},
@@ -426,7 +444,7 @@ function loadPositionDepositModule(harness = {}) {
     },
   );
 
-  return { mod, statuses, recentTxs, writeCalls };
+  return { mod, statuses, errorTypes, recentTxs, writeCalls, oracleReads };
 }
 
 test("position deposit helpers allow collateral, baseAsset, whitelisted tokens, and autolisting tokens with right standards", () => {
@@ -467,22 +485,14 @@ test("position deposit helpers allow collateral, baseAsset, whitelisted tokens, 
   // both standards are allowed with whitelistId = 0n even though WBTC is not in allowedTradingAddresses
   const collateralStandards = mod.getPositionDepositAllowedStandards(position, COLLATERAL_TOKEN);
   assert.deepEqual(collateralStandards, { allowErc20: true, allowErc223: true });
-  const colResolved = mod.resolvePositionDepositParams(
-    position,
-    COLLATERAL_TOKEN,
-    Standard.ERC223,
-  );
+  const colResolved = mod.resolvePositionDepositParams(position, COLLATERAL_TOKEN, Standard.ERC223);
   assert.equal(colResolved.isAllowedAsset, true);
   assert.equal(colResolved.whitelistId, 0n);
 
   // 4. Trading asset (USDT) has only ERC-20 in allowedTradingAddresses at index 0
   const tradingStandards = mod.getPositionDepositAllowedStandards(position, TRADING_TOKEN);
   assert.deepEqual(tradingStandards, { allowErc20: true, allowErc223: false });
-  const tradingResolved = mod.resolvePositionDepositParams(
-    position,
-    TRADING_TOKEN,
-    Standard.ERC20,
-  );
+  const tradingResolved = mod.resolvePositionDepositParams(position, TRADING_TOKEN, Standard.ERC20);
   assert.equal(tradingResolved.isAllowedAsset, true);
   assert.equal(tradingResolved.whitelistId, 0n);
 
@@ -542,15 +552,51 @@ test("handlePositionDeposit executes ERC-223 transfer + positionDeposit(whitelis
   assert.deepEqual(writeCalls[0].args, [MARGIN_MODULE, viem.parseUnits("25", 18)]);
 
   assert.equal(writeCalls[1].functionName, "positionDeposit");
-  assert.deepEqual(writeCalls[1].args, [
-    42n,
-    LOAN_TOKEN.address1,
-    0n,
-    viem.parseUnits("25", 18),
-  ]);
+  assert.deepEqual(writeCalls[1].args, [42n, LOAN_TOKEN.address1, 0n, viem.parseUnits("25", 18)]);
   assert.equal(recentTxs.length, 2);
   assert.equal(recentTxs[0].tx.title.template, "TRANSFER");
   assert.equal(recentTxs[1].tx.title.template, "DEPOSIT");
+});
+
+test("handlePositionDeposit stops before approving when the oracle cannot price a non-base asset", async () => {
+  const { mod, statuses, errorTypes, writeCalls, oracleReads } = loadPositionDepositModule({
+    oracleReadError: new Error(
+      'The contract function "findPoolWithHighestLiquidity" reverted: Oracle: no pool found',
+    ),
+  });
+  const position = createPositionFixture();
+
+  const { handlePositionDeposit } = mod.default({
+    position,
+    currency: COLLATERAL_TOKEN,
+    amount: "5",
+    standard: Standard.ERC20,
+  });
+
+  await handlePositionDeposit("5");
+
+  assert.equal(oracleReads.length, 1);
+  assert.equal(oracleReads[0].functionName, "findPoolWithHighestLiquidity");
+  assert.deepEqual(oracleReads[0].args, [COLLATERAL_TOKEN.address0, LOAN_TOKEN.address1]);
+  assert.deepEqual(statuses, [PositionDepositStatus.ERROR_DEPOSIT]);
+  assert.equal(errorTypes[errorTypes.length - 1], SwapError.NO_ORACLE_PRICE);
+  assert.equal(writeCalls.length, 0);
+});
+
+test("handlePositionDeposit does not ask the oracle for a base-asset top-up", async () => {
+  const { mod, oracleReads } = loadPositionDepositModule({
+    oracleReadError: new Error("Oracle: no pool found"),
+  });
+  const { handlePositionDeposit } = mod.default({
+    position: createPositionFixture(),
+    currency: LOAN_TOKEN,
+    amount: "25",
+    standard: Standard.ERC223,
+  });
+
+  await handlePositionDeposit("25");
+
+  assert.equal(oracleReads.length, 0);
 });
 
 function loadOrderDepositModule(harness = {}) {
@@ -558,84 +604,79 @@ function loadOrderDepositModule(harness = {}) {
   const recentTxs = [];
   const writeCalls = [];
 
-  const mod = load(
-    "app/[locale]/margin-trading/lending-order/[id]/hooks/useOrderDeposit.ts",
-    {
-      react: {
-        useCallback: (fn) => fn,
-        useMemo: (fn) => fn(),
-      },
-      viem,
-      wagmi: {
-        useAccount: () => ({ address: harness.address ?? OWNER }),
-        usePublicClient: () => ({
-          waitForTransactionReceipt:
-            harness.waitForTransactionReceipt ?? (async () => ({ status: "success" })),
-        }),
-        useWalletClient: () => ({
-          data: {
-            writeContract: async (req) => {
-              writeCalls.push(req);
-              if (harness.onWriteContract) return harness.onWriteContract(req);
-              return `0x${String(writeCalls.length).repeat(64)}`;
-            },
-          },
-        }),
-      },
-      "@/app/[locale]/margin-trading/lending-order/[id]/stores/useDepositOrderStatusStore": {
-        OrderDepositStatus,
-        useDepositOrderStatusStore: () => ({
-          setStatus: (s) => statuses.push(s),
-          setDepositHash: () => {},
-          setApproveHash: () => {},
-          setTransferHash: () => {},
-        }),
-      },
-      "@/config/abis/erc223": {
-        ERC223_ABI: viem.parseAbi([
-          "function transfer(address to, uint256 value) returns (bool)",
-        ]),
-      },
-      "@/config/abis/marginModule": {
-        MARGIN_MODULE_ABI: viem.parseAbi([
-          "function orderDepositEth(uint256 _orderId) payable",
-          "function orderDepositToken(uint256 _orderId, uint256 amount)",
-        ]),
-      },
-      "@/config/modules": {
-        isMarginDeployed: () => true,
-      },
-      "@/functions/getTransactionWithRetries": {
-        getTransactionWithRetries: async () => ({ nonce: 1 }),
-      },
-      "@/hooks/useAllowance": {
-        useStoreAllowance: () => ({
-          isAllowed: harness.isAllowed ?? true,
-          writeTokenApprove:
-            harness.writeTokenApprove ??
-            (async () => ({ success: true, hash: `0x${"b".repeat(64)}` })),
-        }),
-      },
-      "@/hooks/useCurrentChainId": { default: () => 1, __esModule: true },
-      "@/sdk_bi/addresses": {
-        MARGIN_TRADING_ADDRESS: { 1: MARGIN_MODULE },
-      },
-      "@/sdk_bi/chains": { DexChainId: { MAINNET: 1 } },
-      "@/sdk_bi/entities/currency": {},
-      "@/sdk_bi/standard": { Standard },
-      "@/stores/useRecentTransactionsStore": {
-        GasFeeModel: { EIP1559: "EIP1559" },
-        RecentTransactionTitleTemplate: {
-          TRANSFER: "TRANSFER",
-          DEPOSIT: "DEPOSIT",
-        },
-        stringifyObject: (obj) => obj,
-        useRecentTransactionsStore: () => ({
-          addRecentTransaction: (tx, addr) => recentTxs.push({ tx, addr }),
-        }),
-      },
+  const mod = load("app/[locale]/margin-trading/lending-order/[id]/hooks/useOrderDeposit.ts", {
+    react: {
+      useCallback: (fn) => fn,
+      useMemo: (fn) => fn(),
     },
-  );
+    viem,
+    wagmi: {
+      useAccount: () => ({ address: harness.address ?? OWNER }),
+      usePublicClient: () => ({
+        waitForTransactionReceipt:
+          harness.waitForTransactionReceipt ?? (async () => ({ status: "success" })),
+      }),
+      useWalletClient: () => ({
+        data: {
+          writeContract: async (req) => {
+            writeCalls.push(req);
+            if (harness.onWriteContract) return harness.onWriteContract(req);
+            return `0x${String(writeCalls.length).repeat(64)}`;
+          },
+        },
+      }),
+    },
+    "@/app/[locale]/margin-trading/lending-order/[id]/stores/useDepositOrderStatusStore": {
+      OrderDepositStatus,
+      useDepositOrderStatusStore: () => ({
+        setStatus: (s) => statuses.push(s),
+        setDepositHash: () => {},
+        setApproveHash: () => {},
+        setTransferHash: () => {},
+      }),
+    },
+    "@/config/abis/erc223": {
+      ERC223_ABI: viem.parseAbi(["function transfer(address to, uint256 value) returns (bool)"]),
+    },
+    "@/config/abis/marginModule": {
+      MARGIN_MODULE_ABI: viem.parseAbi([
+        "function orderDepositEth(uint256 _orderId) payable",
+        "function orderDepositToken(uint256 _orderId, uint256 amount)",
+      ]),
+    },
+    "@/config/modules": {
+      isMarginDeployed: () => true,
+    },
+    "@/functions/getTransactionWithRetries": {
+      getTransactionWithRetries: async () => ({ nonce: 1 }),
+    },
+    "@/hooks/useAllowance": {
+      useStoreAllowance: () => ({
+        isAllowed: harness.isAllowed ?? true,
+        writeTokenApprove:
+          harness.writeTokenApprove ??
+          (async () => ({ success: true, hash: `0x${"b".repeat(64)}` })),
+      }),
+    },
+    "@/hooks/useCurrentChainId": { default: () => 1, __esModule: true },
+    "@/sdk_bi/addresses": {
+      MARGIN_TRADING_ADDRESS: { 1: MARGIN_MODULE },
+    },
+    "@/sdk_bi/chains": { DexChainId: { MAINNET: 1 } },
+    "@/sdk_bi/entities/currency": {},
+    "@/sdk_bi/standard": { Standard },
+    "@/stores/useRecentTransactionsStore": {
+      GasFeeModel: { EIP1559: "EIP1559" },
+      RecentTransactionTitleTemplate: {
+        TRANSFER: "TRANSFER",
+        DEPOSIT: "DEPOSIT",
+      },
+      stringifyObject: (obj) => obj,
+      useRecentTransactionsStore: () => ({
+        addRecentTransaction: (tx, addr) => recentTxs.push({ tx, addr }),
+      }),
+    },
+  });
 
   return { mod, statuses, recentTxs, writeCalls };
 }
@@ -676,10 +717,7 @@ test("useOrderDeposit calls orderDepositEth for native-asset orders and transfer
   assert.equal(erc223Run.writeCalls.length, 2);
   assert.equal(erc223Run.writeCalls[0].functionName, "transfer");
   assert.equal(erc223Run.writeCalls[0].address, LOAN_TOKEN.address1);
-  assert.deepEqual(erc223Run.writeCalls[0].args, [
-    MARGIN_MODULE,
-    viem.parseUnits("100", 18),
-  ]);
+  assert.deepEqual(erc223Run.writeCalls[0].args, [MARGIN_MODULE, viem.parseUnits("100", 18)]);
   assert.equal(erc223Run.writeCalls[1].functionName, "orderDepositToken");
   assert.deepEqual(erc223Run.writeCalls[1].args, [8n, viem.parseUnits("100", 18)]);
   assert.deepEqual(erc223Run.statuses, [
@@ -743,7 +781,10 @@ test("DepositForm, PositionDepositDialog, and OrderDepositDialog transpile clean
     ),
     "utf8",
   );
-  assert.match(orderDialogSrc, /order\.baseAsset\.isNative \|\| order\.baseAssetStandard === Standard\.ERC20\s*\?\s*tokenA0Balance\s*:\s*tokenA1Balance/);
+  assert.match(
+    orderDialogSrc,
+    /order\.baseAsset\.isNative \|\| order\.baseAssetStandard === Standard\.ERC20\s*\?\s*tokenA0Balance\s*:\s*tokenA1Balance/,
+  );
 
   const posDialogSrc = fs.readFileSync(
     path.join(
@@ -752,7 +793,9 @@ test("DepositForm, PositionDepositDialog, and OrderDepositDialog transpile clean
     ),
     "utf8",
   );
-  assert.match(posDialogSrc, /assetToDeposit\.isToken && assetToDepositStandard === Standard\.ERC20/);
+  assert.match(
+    posDialogSrc,
+    /assetToDeposit\.isToken && assetToDepositStandard === Standard\.ERC20/,
+  );
   assert.match(posDialogSrc, /standard=\{assetToDepositStandard\}/);
 });
-
