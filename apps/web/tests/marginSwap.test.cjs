@@ -239,6 +239,7 @@ test("buildMarginSwapCallParams routes ERC-223 input to marginSwap223 and resolv
     amountIn,
     tokenLoan.address1, // _asset2 uses ERC-223 address1
     3000,
+    500n, // _minAmountOut: the module enforces the owner's minimum (Dex223-contracts #198)
   ]);
   assert.ok(
     viem.encodeFunctionData({
