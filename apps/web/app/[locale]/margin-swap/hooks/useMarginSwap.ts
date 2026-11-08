@@ -84,6 +84,7 @@ export function buildMarginSwapCallParams({
       abi: MARGIN_MODULE_ABI,
       functionName: "marginSwap223" as const,
       address: marginModuleAddress,
+      // The module enforces the owner's minimum since Dex223-contracts #198 (MM21 below it).
       args: [
         BigInt(positionId),
         BigInt(assetId1),
@@ -92,6 +93,7 @@ export function buildMarginSwapCallParams({
         amountIn,
         assetOutAddress,
         fee,
+        minimumAmountOut,
       ] as const,
     };
   }
