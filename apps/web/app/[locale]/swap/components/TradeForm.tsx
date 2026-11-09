@@ -30,6 +30,7 @@ import { TradeError } from "@/app/[locale]/swap/stores/useSwapTradeStore";
 import Button, { ButtonColor, ButtonSize } from "@/components/buttons/Button";
 import IconButton, { IconButtonSize } from "@/components/buttons/IconButton";
 import SwapButton from "@/components/buttons/SwapButton";
+import Erc223ReceiveWarning from "@/components/common/Erc223ReceiveWarning";
 import TokenInput from "@/components/common/TokenInput";
 import NetworkFeeConfigDialog from "@/components/dialogs/NetworkFeeConfigDialog";
 import PickTokenDialog from "@/components/dialogs/PickTokenDialog";
@@ -750,39 +751,16 @@ export default function TradeForm({
       />
 
       {tokenB && tokenBStandard === Standard.ERC223 && !canReceiveERC223 && (
-        <div className="mt-5">
-          <Alert
-            type="warning"
-            text={
-              <span className="flex flex-col gap-2">
-                {/* Non-breaking hyphens keep "ERC-223" from splitting across lines. */}
-                <span className="font-medium text-primary-text">
-                  {t("eip7702_title").replace(/ERC-(\d+)/g, "ERC\u2011$1")}
-                </span>
-                <span>{t("eip7702_warning").replace(/ERC-(\d+)/g, "ERC\u2011$1")}</span>
-                <span>
-                  {t.rich("eip7702_fix", {
-                    receive: (chunks) => (
-                      <button
-                        type="button"
-                        className="text-green underline hocus:text-green-hover duration-200"
-                        onClick={() => {
-                          setTokenBStandard(Standard.ERC20);
-                          // Same token on both sides is a conversion, so the input takes the other standard.
-                          if (tokenA && tokenA.wrapped.equals(tokenB.wrapped)) {
-                            setTokenAStandard(Standard.ERC223);
-                          }
-                        }}
-                      >
-                        {chunks}
-                      </button>
-                    ),
-                  })}
-                </span>
-              </span>
+        <Erc223ReceiveWarning
+          className="mt-5"
+          onUseErc20={() => {
+            setTokenBStandard(Standard.ERC20);
+            // Same token on both sides is a conversion, so the input takes the other standard.
+            if (tokenA && tokenA.wrapped.equals(tokenB.wrapped)) {
+              setTokenAStandard(Standard.ERC223);
             }
-          />
-        </div>
+          }}
+        />
       )}
 
       {error === TradeError.NO_LIQUIDITY && (

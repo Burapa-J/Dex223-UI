@@ -5,6 +5,11 @@ import { useTranslations } from "next-intl";
 import React from "react";
 
 import {
+  oraclePricingChipBorder,
+  OraclePricingChipMarker,
+} from "@/app/[locale]/margin-trading/lending-order/create/components/OraclePricingAlerts";
+import { OraclePricingState } from "@/app/[locale]/margin-trading/lending-order/create/hooks/useOraclePricingCheck";
+import {
   LendingOrderTradingTokens,
   TradingTokensInputMode,
 } from "@/app/[locale]/margin-trading/lending-order/create/steps/types";
@@ -22,7 +27,9 @@ export default function LendingOrderTokensSourceConfig({
   setValues,
   manualError,
   autoListingError,
+  pricingFlags,
 }: {
+  pricingFlags?: Map<string, OraclePricingState>;
   values: LendingOrderTradingTokens;
   setValues: (values: LendingOrderTradingTokens) => void;
   manualError?: string;
@@ -83,7 +90,12 @@ export default function LendingOrderTokensSourceConfig({
                     key={
                       currency.isToken ? currency.address0 : `native-${currency.wrapped.address0}`
                     }
-                    className="border pl-1 py-1 pr-3 flex items-center gap-2 rounded-2 border-primary-border"
+                    className={clsx(
+                      "border pl-1 py-1 pr-3 flex items-center gap-2 rounded-2",
+                      oraclePricingChipBorder(
+                        pricingFlags?.get(currency.wrapped.address0.toLowerCase()),
+                      ),
+                    )}
                   >
                     <Image
                       className="flex-shrink-0"
@@ -93,6 +105,9 @@ export default function LendingOrderTokensSourceConfig({
                       alt={""}
                     />
                     <span>{currency.name}</span>
+                    <OraclePricingChipMarker
+                      state={pricingFlags?.get(currency.wrapped.address0.toLowerCase())}
+                    />
                   </div>
                 );
               })}

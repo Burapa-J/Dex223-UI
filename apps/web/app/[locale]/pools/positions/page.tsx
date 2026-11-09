@@ -16,8 +16,10 @@ import TokensPair from "@/components/common/TokensPair";
 import { FEE_AMOUNT_DETAIL } from "@/config/constants/liquidityFee";
 import { formatNumber } from "@/functions/formatFloat";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
+import usePositionPriceOrientation from "@/hooks/usePositionPriceOrientation";
 import usePositions, {
   usePositionFromPositionInfo,
+  usePositionPrices,
   usePositionRangeStatus,
 } from "@/hooks/usePositions";
 import { useRouter } from "@/i18n/routing";
@@ -50,13 +52,19 @@ function PoolPosition({ onClick, positionInfo }: { onClick: any; positionInfo: P
       : [undefined, undefined];
   }, [position?.pool.fee, position?.pool.token0, position?.pool.token1]);
 
-  const minTokenAPerTokenB = useMemo(() => {
-    return position?.token0PriceLower.invert().toSignificant() || "0";
-  }, [position?.token0PriceLower]);
-
-  const maxTokenAPerTokenB = useMemo(() => {
-    return position?.token0PriceUpper.invert().toSignificant() || "0";
-  }, [position?.token0PriceUpper]);
+  // Same orientation as the position page (remembered per position, stablecoin/ETH as the unit
+  // by default). usePositionPrices keeps Min below Max in either orientation; inverting the lower
+  // and upper prices directly swapped them (Min 991.9, Max 330.2).
+  const [showFirst] = usePositionPriceOrientation({
+    tokenId: positionInfo.tokenId,
+    token0: tokenA,
+    token1: tokenB,
+  });
+  const { minPriceString: minTokenAPerTokenB, maxPriceString: maxTokenAPerTokenB } =
+    usePositionPrices({ position, showFirst });
+  const [quoteSymbol, baseSymbol] = showFirst
+    ? [tokenA?.symbol, tokenB?.symbol]
+    : [tokenB?.symbol, tokenA?.symbol];
 
   const { inRange, removed } = usePositionRangeStatus({ position });
 
@@ -96,10 +104,10 @@ function PoolPosition({ onClick, positionInfo }: { onClick: any; positionInfo: P
       </div>
       <div className="hidden md:flex gap-2 items-center">
         <span className="text-secondary-text">Min:</span> {formatNumber(minTokenAPerTokenB)}{" "}
-        {tokenA?.symbol} / {tokenB?.symbol}
+        {quoteSymbol} / {baseSymbol}
         <Svg iconName="double-arrow" className="text-tertiary-text" />
         <span className="text-secondary-text">Max:</span> {formatNumber(maxTokenAPerTokenB)}{" "}
-        {tokenA?.symbol} / {tokenB?.symbol}
+        {quoteSymbol} / {baseSymbol}
       </div>
       <div className="flex md:hidden gap-2 items-center">
         <Svg iconName="double-arrow" className="rotate-90 text-tertiary-text" size={32} />
@@ -107,11 +115,11 @@ function PoolPosition({ onClick, positionInfo }: { onClick: any; positionInfo: P
           <div>
             {" "}
             <span className="text-secondary-text">Min:</span> {formatNumber(minTokenAPerTokenB)}{" "}
-            {tokenA?.symbol} / {tokenB?.symbol}
+            {quoteSymbol} / {baseSymbol}
           </div>
           <div>
             <span className="text-secondary-text">Max:</span> {formatNumber(maxTokenAPerTokenB)}{" "}
-            {tokenA?.symbol} / {tokenB?.symbol}
+            {quoteSymbol} / {baseSymbol}
           </div>
         </div>
       </div>

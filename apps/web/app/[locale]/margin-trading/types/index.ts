@@ -70,6 +70,7 @@ export type LendingOrder = {
 
   allowedTradingAssets: Currency[];
   allowedTradingAddresses: Address[];
+  whitelistAutoListing?: Address;
   isErc223TradingAllowed: boolean;
 
   interestRate: number;
@@ -77,6 +78,7 @@ export type LendingOrder = {
 
   balance: bigint;
   baseAsset: Currency;
+  baseAssetAddress?: Address;
   baseAssetStandard: Standard;
 
   positions: Omit<MarginPosition, "order">[];
