@@ -38,12 +38,12 @@ import { useGlobalFees } from "@/shared/hooks/useGlobalFees";
 import useRecentTransactionByHash from "../hooks/useRecentTransactionByHash";
 import useRevenueContract from "../hooks/useRevenueContract";
 import { getTxErrorCategory } from "../lib/txError";
+import { StakeError, StakeStatus, useStakeDialogStore } from "../stores/useStakeDialogStore";
 import {
   useStakeGasLimitStore,
   useStakeGasModeStore,
   useStakeGasPriceStore,
 } from "../stores/useStakeGasSettingsStore";
-import { StakeError, StakeStatus, useStakeDialogStore } from "../stores/useStakeDialogStore";
 
 export function useStakeStatus() {
   const { status: stakeStatus } = useStakeDialogStore();

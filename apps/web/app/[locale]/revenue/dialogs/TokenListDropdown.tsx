@@ -142,7 +142,9 @@ export default function TokenListDropdown({
   const handleSelectAll = () => {
     setDraftSelection((prev) => {
       const newSelection = new Set(prev);
-      const allSelected = filteredOptions.every((option) => option.id && newSelection.has(option.id));
+      const allSelected = filteredOptions.every(
+        (option) => option.id && newSelection.has(option.id),
+      );
       if (allSelected) {
         filteredOptions.forEach((option) => option.id && newSelection.delete(option.id));
       } else {
