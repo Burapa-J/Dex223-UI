@@ -108,32 +108,40 @@ function createOrderSteps(): OperationStepConfig[] {
 function LiquidatePositionActionButton({ position }: { position: MarginPosition }) {
   const { status, positionLiquidateHash, positionFreezeHash } = usePositionLiquidateStatusStore();
 
-  if (status !== PositionLiquidateStatus.INITIAL) {
-    return (
-      <OperationRows>
-        {createOrderSteps().map((step, index) => (
-          <OperationStepRow
-            key={index}
-            iconName={step.iconName}
-            hash={[positionFreezeHash, undefined, positionLiquidateHash][index]}
-            statusTextMap={step.textMap}
-            status={operationStatusToStepStatus({
-              currentStatus: status,
-              orderedSteps: createOrderSteps().flatMap((s) => [s.pending, s.loading, s.error]),
-              stepIndex: index,
-              pendingStep: step.pending,
-              loadingStep: step.loading,
-              errorStep: step.error,
-              successStep: PositionLiquidateStatus.SUCCESS,
-            })}
-            isFirstStep={index === 0}
-          />
-        ))}
-      </OperationRows>
-    );
+  if (
+    status === PositionLiquidateStatus.INITIAL ||
+    status === PositionLiquidateStatus.ALREADY_CLOSED
+  ) {
+    return undefined;
   }
 
-  return undefined;
+  const currentStatus =
+    status === PositionLiquidateStatus.FREEZE_RENEWED
+      ? PositionLiquidateStatus.ERROR_LIQUIDATE
+      : status;
+
+  return (
+    <OperationRows>
+      {createOrderSteps().map((step, index) => (
+        <OperationStepRow
+          key={index}
+          iconName={step.iconName}
+          hash={[positionFreezeHash, undefined, positionLiquidateHash][index]}
+          statusTextMap={step.textMap}
+          status={operationStatusToStepStatus({
+            currentStatus,
+            orderedSteps: createOrderSteps().flatMap((s) => [s.pending, s.loading, s.error]),
+            stepIndex: index,
+            pendingStep: step.pending,
+            loadingStep: step.loading,
+            errorStep: step.error,
+            successStep: PositionLiquidateStatus.SUCCESS,
+          })}
+          isFirstStep={index === 0}
+        />
+      ))}
+    </OperationRows>
+  );
 }
 
 export default function ConfirmLiquidatePositionDialog({
@@ -154,7 +162,9 @@ export default function ConfirmLiquidatePositionDialog({
     if (
       (status === PositionLiquidateStatus.ERROR_LIQUIDATE ||
         status === PositionLiquidateStatus.ERROR_FREEZE ||
-        status === PositionLiquidateStatus.SUCCESS) &&
+        status === PositionLiquidateStatus.SUCCESS ||
+        status === PositionLiquidateStatus.ALREADY_CLOSED ||
+        status === PositionLiquidateStatus.FREEZE_RENEWED) &&
       !isOpen
     ) {
       setTimeout(() => {
@@ -168,7 +178,9 @@ export default function ConfirmLiquidatePositionDialog({
     () =>
       status === PositionLiquidateStatus.SUCCESS ||
       status === PositionLiquidateStatus.ERROR_FREEZE ||
-      status === PositionLiquidateStatus.ERROR_LIQUIDATE,
+      status === PositionLiquidateStatus.ERROR_LIQUIDATE ||
+      status === PositionLiquidateStatus.ALREADY_CLOSED ||
+      status === PositionLiquidateStatus.FREEZE_RENEWED,
     [status],
   );
   const isLoadingStatus = useMemo(
@@ -203,7 +215,9 @@ export default function ConfirmLiquidatePositionDialog({
           <div className="pb-3 border-b border-secondary-border mb-4">
             <div className="mx-auto w-[80px] h-[80px] flex items-center justify-center relative mb-5">
               {(status === PositionLiquidateStatus.ERROR_FREEZE ||
-                status === PositionLiquidateStatus.ERROR_LIQUIDATE) && (
+                status === PositionLiquidateStatus.ERROR_LIQUIDATE ||
+                status === PositionLiquidateStatus.ALREADY_CLOSED ||
+                status === PositionLiquidateStatus.FREEZE_RENEWED) && (
                 <EmptyStateIcon iconName="warning" />
               )}
 
@@ -244,6 +258,29 @@ export default function ConfirmLiquidatePositionDialog({
                 <h2 className="text-center mb-1 font-bold text-20 text-red-light">
                   {t("freeze_failed")}
                 </h2>
+                <p className="text-center mb-1">
+                  {position.loanAsset.symbol}{" "}
+                  <span className="text-secondary-text">(ID: {position.id})</span>
+                </p>
+              </div>
+            )}
+            {status === PositionLiquidateStatus.ALREADY_CLOSED && (
+              <div>
+                <h2 className="text-center mb-1 font-bold text-20">
+                  {t("position_already_closed")}
+                </h2>
+                <p className="text-center mb-1">
+                  {position.loanAsset.symbol}{" "}
+                  <span className="text-secondary-text">(ID: {position.id})</span>
+                </p>
+              </div>
+            )}
+            {status === PositionLiquidateStatus.FREEZE_RENEWED && (
+              <div>
+                <h2 className="text-center mb-1 font-bold text-20 text-red-light">
+                  {t("freeze_renewed_title")}
+                </h2>
+                <p className="text-center mb-1">{t("freeze_renewed")}</p>
                 <p className="text-center mb-1">
                   {position.loanAsset.symbol}{" "}
                   <span className="text-secondary-text">(ID: {position.id})</span>

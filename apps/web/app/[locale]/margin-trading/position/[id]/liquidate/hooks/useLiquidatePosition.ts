@@ -34,8 +34,9 @@ export default function useLiquidatePosition(position: MarginPosition) {
           args: [BigInt(position.id)],
         });
       const current = await readPosition();
+      // positions()[6] is `open`. A closed position was already liquidated or closed by its owner.
       if (!current[6]) {
-        setStatus(PositionLiquidateStatus.SUCCESS);
+        setStatus(PositionLiquidateStatus.ALREADY_CLOSED);
         return;
       }
       const liquidatable = await publicClient.readContract({
@@ -66,7 +67,7 @@ export default function useLiquidatePosition(position: MarginPosition) {
         if (receipt.status !== "success") throw new Error("Freeze failed");
         const after = await readPosition();
         if (!after[6]) {
-          setStatus(PositionLiquidateStatus.SUCCESS);
+          setStatus(PositionLiquidateStatus.ALREADY_CLOSED);
           return;
         }
         // The contract forbids freezing and liquidating in the same block.
@@ -82,11 +83,15 @@ export default function useLiquidatePosition(position: MarginPosition) {
       setPositionLiquidateHash(hash);
       setStatus(PositionLiquidateStatus.LOADING_LIQUIDATE);
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
-      setStatus(
-        receipt.status === "success"
-          ? PositionLiquidateStatus.SUCCESS
-          : PositionLiquidateStatus.ERROR_LIQUIDATE,
-      );
+      if (receipt.status !== "success") throw new Error("Liquidation failed");
+      // A liquidate call that lands after MAX_FREEZE_DURATION re-freezes instead of reverting.
+      // The receipt still succeeds, so confirm the position actually closed.
+      const liquidated = await readPosition();
+      if (!liquidated[6]) {
+        setStatus(PositionLiquidateStatus.SUCCESS);
+        return;
+      }
+      setStatus(PositionLiquidateStatus.FREEZE_RENEWED);
     } catch (error) {
       console.error(error);
       setStatus(failureStatus);
