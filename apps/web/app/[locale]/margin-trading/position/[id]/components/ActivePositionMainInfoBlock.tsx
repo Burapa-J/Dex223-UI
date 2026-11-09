@@ -6,7 +6,7 @@ import React, { useMemo } from "react";
 import { formatUnits } from "viem";
 import { useAccount } from "wagmi";
 
-import { useMarginSwapPositionStore } from "@/app/[locale]/margin-swap/stores/useMarginSwapPositionStore";
+import { useOpenMarginSwapForPosition } from "@/app/[locale]/margin-swap/hooks/useOpenMarginSwapForPosition";
 import FrozenBadge from "@/app/[locale]/margin-trading/components/FrozenBadge";
 import FrozenPositionActions from "@/app/[locale]/margin-trading/components/FrozenPositionActions";
 import PositionHealthStatus from "@/app/[locale]/margin-trading/components/widgets/PositionHealthStatus";
@@ -18,7 +18,7 @@ import { MarginPosition } from "@/app/[locale]/margin-trading/types";
 import Button, { ButtonColor } from "@/components/buttons/Button";
 import { formatFloat } from "@/functions/formatFloat";
 import { useNativeCurrency } from "@/hooks/useNativeCurrency";
-import { Link, useRouter } from "@/i18n/routing";
+import { Link } from "@/i18n/routing";
 
 function BalanceCard({ position }: { position: MarginPosition }) {
   const t = useTranslations("Margin");
@@ -61,8 +61,7 @@ export default function ActivePositionMainInfoBlock({
   const { formatted } = usePositionLiquidationCost(position);
   const nativeCurrency = useNativeCurrency();
   const { address } = useAccount();
-  const router = useRouter();
-  const { setMarginSwapPositionId } = useMarginSwapPositionStore();
+  const openMarginSwap = useOpenMarginSwapForPosition();
 
   const { expectedBalance, actualBalance } = usePositionStatus(position);
   const { isFrozen, isLiquidatable, isLiquidatableKnown, frozenTime, refetch } =
@@ -87,7 +86,12 @@ export default function ActivePositionMainInfoBlock({
       <div className="grid grid-cols-1 lg:grid-cols-2 items-center mb-3 gap-3">
         <div className="flex items-center gap-2 justify-between">
           <div className="flex items-center gap-2">
-            <Image width={32} height={32} src="/images/tokens/placeholder.svg" alt="" />
+            <Image
+              width={32}
+              height={32}
+              src={position.loanAsset.logoURI || "/images/tokens/placeholder.svg"}
+              alt=""
+            />
             <span className="text-secondary-text text-18 font-bold">{position.loanAsset.name}</span>
             <div className="flex items-center gap-3 text-green">
               {t("status_active")}
@@ -105,8 +109,7 @@ export default function ActivePositionMainInfoBlock({
               isKnown={isLiquidatableKnown}
               tradeDisabled={address?.toLowerCase() !== position.owner.toLowerCase()}
               onTrade={() => {
-                setMarginSwapPositionId(position.id);
-                router.push("/margin-swap");
+                openMarginSwap(position);
               }}
               onClose={() => setIsCloseDialogOpened(true)}
               onUnfrozen={refetch}
@@ -118,8 +121,7 @@ export default function ActivePositionMainInfoBlock({
                 fullWidth
                 disabled={atRisk || address?.toLowerCase() !== position.owner.toLowerCase()}
                 onClick={() => {
-                  setMarginSwapPositionId(position.id);
-                  router.push("/margin-swap");
+                  openMarginSwap(position);
                 }}
               >
                 {t("trade")}

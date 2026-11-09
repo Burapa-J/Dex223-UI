@@ -109,6 +109,7 @@ export default function FeedbackDialog() {
     removeTag,
     email,
     setEmail,
+    clearDraft,
   } = useFeedbackDialogStore();
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -189,6 +190,7 @@ export default function FeedbackDialog() {
                     addToast(t("sent_successfully"));
                     setSubmitting(false);
                     resetForm();
+                    clearDraft();
                   } else {
                     addToast(t("something_went_wrong"), "error");
                   }
@@ -240,6 +242,7 @@ export default function FeedbackDialog() {
                       }}
                       onBlur={handleBlur}
                       value={values.email}
+                      maxLength={255}
                     />
 
                     <InputLabel label="Feedback category" inputSize={InputSize.LARGE} />

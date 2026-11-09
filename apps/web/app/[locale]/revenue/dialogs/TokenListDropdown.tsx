@@ -253,23 +253,23 @@ export default function TokenListDropdown({
                 {getOptionIcon(option)}
                 <span className="text-primary-text flex-1 truncate text-16">{option.name}</span>
                 <div className="flex items-center gap-2">
-                  {/* {!option.isDefault && !option.isPaid && !option.isFree && ( */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setListToDelete(option);
-                      setDeleteDialogOpen(true);
-                    }}
-                    className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-red-light/20 rounded-2 flex items-center justify-center"
-                    title={tA11y("delete")}
-                  >
-                    <Svg
-                      iconName="delete"
-                      size={16}
-                      className="text-tertiary-text hover:text-tertiary-text-hover"
-                    />
-                  </button>
-                  {/* )} */}
+                  {!option.isDefault && !option.isPaid && !option.isFree && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setListToDelete(option);
+                        setDeleteDialogOpen(true);
+                      }}
+                      className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-red-light/20 rounded-2 flex items-center justify-center"
+                      title={tA11y("delete")}
+                    >
+                      <Svg
+                        iconName="delete"
+                        size={16}
+                        className="text-tertiary-text hover:text-tertiary-text-hover"
+                      />
+                    </button>
+                  )}
                   <Checkbox
                     checked={isSelected}
                     handleChange={() => handleOptionSelect(option.id)}
@@ -424,12 +424,16 @@ export default function TokenListDropdown({
               <Button
                 colorScheme={ButtonColor.RED}
                 onClick={async () => {
-                  if (listToDelete) {
-                    await db.tokenLists.delete(listToDelete.id);
-                    addToast(t("list_deleted"));
+                  if (!listToDelete) return;
+                  if (listToDelete.isDefault || listToDelete.isPaid || listToDelete.isFree) {
                     setDeleteDialogOpen(false);
                     setListToDelete(null);
+                    return;
                   }
+                  await db.tokenLists.delete(listToDelete.id);
+                  addToast(t("list_deleted"));
+                  setDeleteDialogOpen(false);
+                  setListToDelete(null);
                 }}
               >
                 {t("confirm_removing")}

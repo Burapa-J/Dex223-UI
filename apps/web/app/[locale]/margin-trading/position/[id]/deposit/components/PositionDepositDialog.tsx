@@ -6,10 +6,10 @@ import {
   getApproveTextMap,
   getTransferTextMap,
 } from "@/app/[locale]/margin-trading/lending-order/[id]/helpers/getStepTexts";
-import { OrderDepositStatus } from "@/app/[locale]/margin-trading/lending-order/[id]/stores/useDepositOrderStatusStore";
 import usePositionDeposit from "@/app/[locale]/margin-trading/position/[id]/deposit/hooks/usePositionDeposit";
 import {
   PositionDepositStatus,
+  SwapError,
   useDepositPositionStatusStore,
 } from "@/app/[locale]/margin-trading/position/[id]/stores/usePositionDepositStatusStore";
 import { MarginPosition } from "@/app/[locale]/margin-trading/types";
@@ -174,23 +174,34 @@ export default function PositionDepositDialog({
   amountToDeposit: string;
 }) {
   const t = useTranslations("Margin");
-  const { status, setStatus } = useDepositPositionStatusStore();
+  const { status, setStatus, errorType } = useDepositPositionStatusStore();
   const [isEditApproveActive, setEditApproveActive] = useState(false);
 
   const isInitialStatus = useMemo(() => status === PositionDepositStatus.INITIAL, [status]);
-  const isFinalStatus = useMemo(
+  const isErrorStatus = useMemo(
     () =>
-      status === PositionDepositStatus.SUCCESS ||
       status === PositionDepositStatus.ERROR_DEPOSIT ||
       status === PositionDepositStatus.ERROR_APPROVE ||
       status === PositionDepositStatus.ERROR_TRANSFER,
     [status],
+  );
+  const isFinalStatus = useMemo(
+    () => status === PositionDepositStatus.SUCCESS || isErrorStatus,
+    [isErrorStatus, status],
   );
 
   const isLoadingStatus = useMemo(
     () => !isInitialStatus && !isFinalStatus,
     [isFinalStatus, isInitialStatus],
   );
+
+  const parsedMinAmount = useMemo(() => {
+    try {
+      return amountToDeposit.trim() ? parseUnits(amountToDeposit, assetToDeposit.decimals) : 0n;
+    } catch {
+      return 0n;
+    }
+  }, [amountToDeposit, assetToDeposit.decimals]);
 
   useEffect(() => {
     if (isFinalStatus && !isOpen) {
@@ -216,7 +227,7 @@ export default function PositionDepositDialog({
               token={assetToDeposit}
               amount={amountToDeposit}
               amountUSD={"0"}
-              standard={Standard.ERC20}
+              standard={assetToDepositStandard}
               title={t("deposit_amount")}
             />
             <div className="flex flex-col mt-4">
@@ -226,14 +237,14 @@ export default function PositionDepositDialog({
                 value={position.order.leverage}
               />
             </div>
-            {assetToDeposit.isToken ? (
+            {assetToDeposit.isToken && assetToDepositStandard === Standard.ERC20 ? (
               <ApproveAmountConfig
                 asset={assetToDeposit}
                 amountToApprove={amountToApprove}
                 setAmountToApprove={setAmountToApprove}
                 setEditApproveActive={setEditApproveActive}
                 isEditApproveActive={isEditApproveActive}
-                minAmount={parseUnits(amountToDeposit, assetToDeposit.decimals)}
+                minAmount={parsedMinAmount}
               />
             ) : null}
           </>
@@ -245,7 +256,7 @@ export default function PositionDepositDialog({
               token={assetToDeposit}
               amount={amountToDeposit}
               amountUSD={"0"}
-              standard={Standard.ERC20}
+              standard={assetToDepositStandard}
               title={t("deposit_amount")}
             />
             <div className="h-px bg-secondary-border my-4" />
@@ -255,9 +266,7 @@ export default function PositionDepositDialog({
         {isFinalStatus && (
           <div className="pb-1">
             <div className="mx-auto w-[80px] h-[80px] flex items-center justify-center relative mb-5">
-              {status === PositionDepositStatus.ERROR_DEPOSIT && (
-                <EmptyStateIcon iconName="warning" />
-              )}
+              {isErrorStatus && <EmptyStateIcon iconName="warning" />}
 
               {status === PositionDepositStatus.SUCCESS && (
                 <>
@@ -275,8 +284,30 @@ export default function PositionDepositDialog({
               <div>
                 <h2 className="text-center mb-1 font-bold text-20 ">{t("deposit_success")}</h2>
                 <p className="text-center mb-1">
-                  {amountToDeposit} {position.loanAsset.symbol}
+                  {amountToDeposit} {assetToDeposit.symbol}
                 </p>
+              </div>
+            )}
+
+            {isErrorStatus && (
+              <div>
+                <h2 className="text-center mb-1 font-bold text-20 text-red-light">
+                  {status === PositionDepositStatus.ERROR_DEPOSIT
+                    ? t("deposit_failed")
+                    : t("approve_failed")}
+                </h2>
+                <p className="text-center mb-1">
+                  {amountToDeposit} {assetToDeposit.symbol}
+                </p>
+                {status === PositionDepositStatus.ERROR_DEPOSIT &&
+                  errorType === SwapError.NO_ORACLE_PRICE && (
+                    <p className="text-center mb-1 text-secondary-text">
+                      {t("deposit_no_oracle_price", {
+                        symbol: assetToDeposit.symbol ?? "",
+                        loan: position.loanAsset.symbol ?? "",
+                      })}
+                    </p>
+                  )}
               </div>
             )}
             <div className="my-4 border-b border-secondary-border w-full" />

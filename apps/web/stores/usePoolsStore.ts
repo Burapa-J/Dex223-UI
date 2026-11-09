@@ -54,6 +54,7 @@ interface _PoolsStore {
   addPool: (key: string) => void;
   setStatus: (key: string, status: PoolState, pool?: Pool, error?: string) => void;
   getPool: (key: string) => PoolRecord | undefined;
+  invalidateAll: () => void;
 }
 
 export const _usePoolsStore = create<_PoolsStore>()(
@@ -82,6 +83,18 @@ export const _usePoolsStore = create<_PoolsStore>()(
 
     getPool: (key: string) => {
       return get().pools[key];
+    },
+
+    // After a swap the pool's price and liquidity have moved, but a cached record is only
+    // refetched once it is a minute old, so the next quote was computed against the pre-swap pool
+    // (Dario: 27% price impact until a hard refresh). Mark every loaded pool as stale; the pool
+    // hooks refetch the ones on screen, which keep showing their last state until then.
+    invalidateAll: () => {
+      set((state) => {
+        Object.values(state.pools).forEach((record) => {
+          if (record.status === PoolState.EXISTS) record.lastUpdated = 0;
+        });
+      });
     },
   })),
 );
