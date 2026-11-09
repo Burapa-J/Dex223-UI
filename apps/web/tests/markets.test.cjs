@@ -43,6 +43,31 @@ test("missing and non-finite prices stay blank instead of $NaN", () => {
   assert.match(format.formatUsdCompact(1_500_000), /^\$/);
 });
 
+test("a live bar from another coin is not shown as this coin's price", () => {
+  assert.equal(format.displayedCoinPrice("bitcoin", { coinId: "ethereum", close: 3000 }, 100), 100);
+  assert.equal(format.displayedCoinPrice("bitcoin", { coinId: "bitcoin", close: 101 }, 100), 101);
+  assert.equal(format.displayedCoinPrice("bitcoin", { coinId: "ethereum", close: 3000 }, null), null);
+  assert.equal(format.displayedCoinPrice("bitcoin", null, undefined), null);
+});
+
+test("the headline percent follows the live price, not the listing snapshot", () => {
+  const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-9);
+  near(format.displayedChange24h(100, 10, 100), 10);
+  near(format.displayedChange24h(100, 0, 110), 10);
+  near(format.displayedChange24h(73830, -2, 73830), -2);
+  const moved = format.displayedChange24h(73830, -2, 74654);
+  assert.ok(moved > -2 && moved < 0);
+  assert.equal(format.displayedChange24h(100, null, 110), null);
+  assert.equal(format.displayedChange24h(100, -100, 90), -100);
+  assert.equal(format.displayedChange24h(null, 4, 10), 4);
+});
+
+test("an unparseable market date does not throw", () => {
+  assert.equal(format.formatMarketDate(null), "");
+  assert.equal(format.formatMarketDate("not-a-date"), "");
+  assert.match(format.formatMarketDate("2024-01-02T00:00:00.000Z"), /2024/);
+});
+
 test("placeholder rows from a different query are not treated as the current page", () => {
   assert.equal(
     tableState.marketTablePhase({

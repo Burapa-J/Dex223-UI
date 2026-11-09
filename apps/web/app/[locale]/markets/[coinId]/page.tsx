@@ -7,32 +7,25 @@ import { use, useState } from "react";
 import Container from "@/components/atoms/Container";
 import Svg from "@/components/atoms/Svg";
 import TokenLogo from "@/components/atoms/TokenLogo";
+import Badge, { BadgeVariant } from "@/components/badges/Badge";
 import { NotFoundError, useCoin } from "@/components/markets/api";
 import CoinChart from "@/components/markets/CoinChart";
+import {
+  displayedChange24h,
+  displayedCoinPrice,
+  formatMarketDate,
+  formatUsd,
+  formatUsdCompact,
+} from "@/components/markets/format";
 import OrderBookCard from "@/components/markets/OrderBookCard";
-import { Bar } from "@/components/trading-chart/datafeed/types";
-import { compact, formatPercent, formatPrice } from "@/components/trading-chart/format";
+import { compact, formatPercent } from "@/components/trading-chart/format";
 import { Link } from "@/i18n/routing";
-
-const usd = (v: number | null | undefined) =>
-  v === null || v === undefined ? "–" : `$${formatPrice(v)}`;
-const usdCompact = (v: number | null | undefined) =>
-  v === null || v === undefined ? "–" : `$${compact(v)}`;
-
-function formatDate(iso: string | null) {
-  if (!iso) return "";
-  return new Intl.DateTimeFormat(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(new Date(iso));
-}
 
 export default function CoinPage({ params }: { params: Promise<{ coinId: string }> }) {
   const { coinId } = use(params);
   const t = useTranslations("Markets");
   const { data: coin, error, isLoading } = useCoin(coinId);
-  const [liveBar, setLiveBar] = useState<Bar | null>(null);
+  const [liveBar, setLiveBar] = useState<{ coinId: string; close: number } | null>(null);
 
   if (error instanceof NotFoundError || (!isLoading && !coin)) {
     return (
@@ -50,8 +43,8 @@ export default function CoinPage({ params }: { params: Promise<{ coinId: string 
   }
 
   // The chart's live bar is fresher than the listing, which refreshes every few minutes.
-  const price = liveBar?.close ?? coin?.price ?? null;
-  const change = coin?.change_24h ?? null;
+  const price = displayedCoinPrice(coinId, liveBar, coin?.price);
+  const change = displayedChange24h(coin?.price, coin?.change_24h, price);
   const fromAth = coin?.ath && price ? ((price - coin.ath) / coin.ath) * 100 : null;
   const source = coin?.binance_symbol ? `Binance ${coin.binance_symbol}` : "CoinGecko";
 
@@ -70,32 +63,34 @@ export default function CoinPage({ params }: { params: Promise<{ coinId: string 
           <div className="flex flex-col gap-5 min-w-0">
             {/* Header */}
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0">
                 {coin ? (
                   <TokenLogo
                     src={coin.image}
                     alt={coin.symbol}
                     size={40}
-                    className="rounded-full w-10 h-10"
+                    className="rounded-full w-10 h-10 shrink-0"
                   />
                 ) : (
-                  <div className="w-10 h-10 rounded-full bg-tertiary-bg animate-pulse" />
+                  <div className="w-10 h-10 rounded-full bg-tertiary-bg animate-pulse shrink-0" />
                 )}
-                <div>
-                  <h1 className="text-20 md:text-24 font-medium text-primary-text leading-tight">
+                <div className="min-w-0">
+                  <h1 className="text-20 md:text-24 font-medium text-primary-text leading-none">
                     {coin?.name ?? " "}{" "}
                     <span className="text-16 text-tertiary-text font-normal">{coin?.symbol}</span>
                   </h1>
                   {coin?.rank && (
-                    <span className="inline-block mt-1 px-2 py-0.5 rounded-1 bg-tertiary-bg text-12 text-secondary-text">
-                      {t("rank", { rank: coin.rank })}
-                    </span>
+                    <Badge
+                      variant={BadgeVariant.DEFAULT}
+                      text={t("rank", { rank: coin.rank })}
+                      className="mt-1.5 text-12 py-0.5"
+                    />
                   )}
                 </div>
               </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-32 font-medium text-primary-text tabular-nums">
-                  {usd(price)}
+              <div className="flex items-center gap-3">
+                <span className="text-32 font-medium leading-none text-primary-text tabular-nums">
+                  {formatUsd(price)}
                 </span>
                 {change !== null && (
                   <span
@@ -104,7 +99,8 @@ export default function CoinPage({ params }: { params: Promise<{ coinId: string 
                       change >= 0 ? "bg-green-bg text-green" : "bg-red-bg text-red-light",
                     )}
                   >
-                    {formatPercent(change)} <span className="text-12 opacity-70">24h</span>
+                    {formatPercent(change)}{" "}
+                    <span className="text-12 opacity-70">{t("col_24h")}</span>
                   </span>
                 )}
               </div>
@@ -116,7 +112,7 @@ export default function CoinPage({ params }: { params: Promise<{ coinId: string 
                 label={`${coin.symbol}/USD`}
                 volumeUnit={coin.symbol}
                 sourceLong={`${t("chart_source", { source })} · ${t("attribution")}`}
-                onLastBar={setLiveBar}
+                onLastBar={(bar) => setLiveBar(bar ? { coinId, close: bar.close } : null)}
               />
             )}
           </div>
@@ -129,13 +125,15 @@ export default function CoinPage({ params }: { params: Promise<{ coinId: string 
                 low={coin?.low_24h ?? null}
                 high={coin?.high_24h ?? null}
                 value={price}
+                logo={coin?.image}
+                symbol={coin?.symbol}
               />
             </div>
             {coin?.binance_symbol && <OrderBookCard pair={coin.binance_symbol} />}
             <div className="bg-primary-bg rounded-5 p-5 flex flex-col gap-3 text-14">
-              <StatRow label={t("market_cap")} value={usdCompact(coin?.market_cap)} />
-              <StatRow label={t("fdv")} value={usdCompact(coin?.fdv)} />
-              <StatRow label={t("volume_24h")} value={usdCompact(coin?.volume_24h)} />
+              <StatRow label={t("market_cap")} value={formatUsdCompact(coin?.market_cap)} />
+              <StatRow label={t("fdv")} value={formatUsdCompact(coin?.fdv)} />
+              <StatRow label={t("volume_24h")} value={formatUsdCompact(coin?.volume_24h)} />
               <StatRow
                 label={t("volume_market_cap")}
                 value={
@@ -155,14 +153,12 @@ export default function CoinPage({ params }: { params: Promise<{ coinId: string 
                 }
               />
               {coin?.circulating_supply && coin.max_supply ? (
-                <div className="h-1.5 rounded-full bg-tertiary-bg overflow-hidden -mt-1">
-                  <div
-                    className="h-full bg-green rounded-full"
-                    style={{
-                      width: `${Math.min(100, (coin.circulating_supply / coin.max_supply) * 100)}%`,
-                    }}
-                  />
-                </div>
+                <MarkerTrack
+                  position={Math.min(100, (coin.circulating_supply / coin.max_supply) * 100)}
+                  label={t("circulating")}
+                  logo={coin.image}
+                  symbol={coin.symbol}
+                />
               ) : null}
               <StatRow
                 label={t("total_supply")}
@@ -178,17 +174,17 @@ export default function CoinPage({ params }: { params: Promise<{ coinId: string 
             <div className="bg-primary-bg rounded-5 p-5 flex flex-col gap-3 text-14">
               <StatRow
                 label={t("ath")}
-                value={usd(coin?.ath)}
+                value={formatUsd(coin?.ath)}
                 detail={
                   coin?.ath
-                    ? `${formatDate(coin.ath_date)}${fromAth !== null ? ` · ${t("from_ath", { percent: formatPercent(fromAth) })}` : ""}`
+                    ? `${formatMarketDate(coin.ath_date)}${fromAth !== null ? ` · ${t("from_ath", { percent: formatPercent(fromAth) })}` : ""}`
                     : undefined
                 }
               />
               <StatRow
                 label={t("atl")}
-                value={usd(coin?.atl)}
-                detail={formatDate(coin?.atl_date ?? null) || undefined}
+                value={formatUsd(coin?.atl)}
+                detail={formatMarketDate(coin?.atl_date) || undefined}
               />
             </div>
           </aside>
@@ -215,11 +211,15 @@ function RangeBar({
   low,
   high,
   value,
+  logo,
+  symbol,
 }: {
   label: string;
   low: number | null;
   high: number | null;
   value: number | null;
+  logo?: string | null;
+  symbol?: string;
 }) {
   const position =
     low !== null && high !== null && value !== null && high > low
@@ -227,19 +227,75 @@ function RangeBar({
       : null;
   return (
     <div>
-      <div className="text-14 text-tertiary-text mb-3">{label}</div>
-      <div className="relative h-1.5 rounded-full bg-gradient-to-r from-red via-yellow-light to-green">
-        {position !== null && (
-          <span
-            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-primary-text border-2 border-primary-bg"
-            style={{ left: `${position}%` }}
+      <div className="text-14 text-tertiary-text mb-2">{label}</div>
+      <div className="grid grid-cols-3 mb-3 text-12 tabular-nums">
+        <div className="text-secondary-text">{formatUsd(low)}</div>
+        <div className="text-center text-primary-text">{formatUsd(value)}</div>
+        <div className="text-right text-secondary-text">{formatUsd(high)}</div>
+      </div>
+      <MarkerTrack
+        position={position}
+        label={label}
+        logo={logo}
+        symbol={symbol}
+        min={low ?? undefined}
+        max={high ?? undefined}
+        now={value ?? undefined}
+      />
+    </div>
+  );
+}
+
+function MarkerTrack({
+  position,
+  label,
+  logo,
+  symbol,
+  min = 0,
+  max = 100,
+  now,
+}: {
+  position: number | null;
+  label: string;
+  logo?: string | null;
+  symbol?: string;
+  min?: number;
+  max?: number;
+  now?: number;
+}) {
+  const zone = position === null ? null : position < 40 ? "low" : position < 60 ? "mid" : "high";
+  return (
+    <div
+      className="relative h-6"
+      role="meter"
+      aria-label={label}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={now ?? (position === null ? undefined : Math.round(position))}
+    >
+      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 grid grid-cols-[2fr_1fr_2fr] h-[5px]">
+        <div className="h-full bg-red-light" />
+        <div className="h-full bg-orange" />
+        <div className="h-full bg-green" />
+      </div>
+      {position !== null && (
+        <div
+          className={clsx(
+            "absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-6 h-6 rounded-full border-2 bg-primary-bg overflow-hidden",
+            zone === "low" && "border-red-light",
+            zone === "mid" && "border-orange",
+            zone === "high" && "border-green",
+          )}
+          style={{ left: `clamp(12px, ${position}%, calc(100% - 12px))` }}
+        >
+          <TokenLogo
+            src={logo}
+            alt={symbol ?? ""}
+            size={20}
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full w-5 h-5"
           />
-        )}
-      </div>
-      <div className="flex justify-between mt-2 text-12 tabular-nums text-secondary-text">
-        <span>{low !== null ? `$${formatPrice(low)}` : "–"}</span>
-        <span>{high !== null ? `$${formatPrice(high)}` : "–"}</span>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
