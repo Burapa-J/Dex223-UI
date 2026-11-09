@@ -9,6 +9,7 @@ import SelectPositionDialog, {
 } from "@/app/[locale]/margin-swap/components/SelectPositionDialog";
 import TradeForm from "@/app/[locale]/margin-swap/components/TradeForm";
 import { useMarginSwapDefaultPair } from "@/app/[locale]/margin-swap/hooks/useMarginSwapDefaultPair";
+import { canPositionReceiveToken } from "@/app/[locale]/margin-swap/hooks/useOpenMarginSwapForPosition";
 import { useMarginSwapTokensStore } from "@/app/[locale]/margin-swap/stores/useMarginSwapTokensStore";
 import { usePositionsByOwner } from "@/app/[locale]/margin-trading/hooks/useMarginPosition";
 import { MarginPosition } from "@/app/[locale]/margin-trading/types";
@@ -48,11 +49,10 @@ export default function MarginSwapPage() {
     for (const position of openedPositions ?? []) {
       const hasA = tokenA && position.assets.some((asset) => asset.equals(tokenA));
 
-      const hasB =
-        tokenB && position.order.allowedTradingAssets.some((asset) => asset.equals(tokenB));
+      const hasB = tokenB && canPositionReceiveToken(position, tokenB);
 
       // If tokenA is provided → must match assets
-      // If tokenB is provided → must match allowedTradingAssets
+      // If tokenB is provided → must match allowedTradingAssets, loanAsset, or collateralAsset
       // If both are provided → both must match
       const matches = (!tokenA || hasA) && (!tokenB || hasB);
 

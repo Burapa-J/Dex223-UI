@@ -1,5 +1,5 @@
 import { useTranslations } from "next-intl";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { Address } from "viem";
 import { usePublicClient } from "wagmi";
 
@@ -35,6 +35,11 @@ export enum ApproveTransactionType {
   "ERC223",
   "ERC20_AND_ERC223",
 }
+
+const isStepBlockingAnotherAttempt = (status: AddLiquidityApproveStatus) =>
+  status === AddLiquidityApproveStatus.PENDING ||
+  status === AddLiquidityApproveStatus.LOADING ||
+  status === AddLiquidityApproveStatus.SUCCESS;
 
 export const useLiquidityApprove = (parsedAmounts: {
   [field in Field]: CurrencyAmount<Currency> | undefined;
@@ -198,6 +203,7 @@ export const useLiquidityApprove = (parsedAmounts: {
   const t = useTranslations("Swap");
   const publicClient = usePublicClient();
   const { openConfirmInWalletAlert, closeConfirmInWalletAlert } = useConfirmInWalletAlertStore();
+  const approveInFlightRef = useRef(false);
 
   const handleApprove1 = useCallback(
     async ({ customAmountB }: { customAmountB?: bigint }) => {
@@ -207,97 +213,101 @@ export const useLiquidityApprove = (parsedAmounts: {
         return;
       }
 
+      const { approve1Status: latestApprove1Status, deposite1Status: latestDeposite1Status } =
+        useAddLiquidityStatusStore.getState();
+
       if (
-        ![AddLiquidityApproveStatus.SUCCESS, AddLiquidityApproveStatus.LOADING].includes(
-          approve1Status,
-        )
+        tokenB?.isToken &&
+        tokenBStandard === Standard.ERC20 &&
+        !isStepBlockingAnotherAttempt(latestApprove1Status) &&
+        (currentAllowanceB || BigInt(0)) < amountB
       ) {
-        if (
-          tokenB?.isToken &&
-          tokenBStandard === Standard.ERC20 &&
-          (currentAllowanceB || BigInt(0)) < amountB
-        ) {
-          openConfirmInWalletAlert(t("confirm_action_in_your_wallet_alert"));
+        openConfirmInWalletAlert(t("confirm_action_in_your_wallet_alert"));
 
-          setApprove1Status(AddLiquidityApproveStatus.PENDING);
-          // A throw (e.g. wallet rejection) is treated like a failed result below:
-          // set this step to ERROR and close the confirm-in-wallet alert.
-          const result = await approveB({
-            customAmount: customAmountB,
-            customGasSettings: gasSettings,
-          }).catch((e) => {
+        setApprove1Status(AddLiquidityApproveStatus.PENDING);
+        // A throw (e.g. wallet rejection) is treated like a failed result below:
+        // set this step to ERROR and close the confirm-in-wallet alert.
+        const result = await approveB({
+          customAmount: customAmountB,
+          customGasSettings: gasSettings,
+        }).catch((e) => {
+          console.error(e);
+          return undefined;
+        });
+
+        if (!result?.success) {
+          setApprove1Status(AddLiquidityApproveStatus.ERROR);
+          closeConfirmInWalletAlert();
+          // return;
+        } else {
+          setApprove1Hash(result.hash);
+          setApprove1Status(AddLiquidityApproveStatus.LOADING);
+          closeConfirmInWalletAlert();
+
+          let approveReceipt;
+          try {
+            approveReceipt = await publicClient.waitForTransactionReceipt({
+              hash: result.hash,
+            });
+          } catch (e) {
+            // Broadcast already; keep LOADING rather than reporting a failure that may not be real.
             console.error(e);
-            return undefined;
-          });
+            return;
+          }
 
-          if (!result?.success) {
+          if (approveReceipt.status === "reverted") {
             setApprove1Status(AddLiquidityApproveStatus.ERROR);
-            closeConfirmInWalletAlert();
             // return;
           } else {
-            setApprove1Hash(result.hash);
-            setApprove1Status(AddLiquidityApproveStatus.LOADING);
-            closeConfirmInWalletAlert();
-
-            let approveReceipt;
-            try {
-              approveReceipt = await publicClient.waitForTransactionReceipt({
-                hash: result.hash,
-              });
-            } catch (e) {
-              // Broadcast already; keep LOADING rather than reporting a failure that may not be real.
-              console.error(e);
-              return;
-            }
-
-            if (approveReceipt.status === "reverted") {
-              setApprove1Status(AddLiquidityApproveStatus.ERROR);
-              // return;
-            } else {
-              setApprove1Status(AddLiquidityApproveStatus.SUCCESS);
-            }
+            setApprove1Status(AddLiquidityApproveStatus.SUCCESS);
           }
-        } else if (
-          tokenB?.isToken &&
-          tokenBStandard === Standard.ERC223 &&
-          (currentDepositB || BigInt(0)) < amountB
-        ) {
-          openConfirmInWalletAlert(t("confirm_action_in_your_wallet_alert"));
+        }
+      } else if (
+        tokenB?.isToken &&
+        tokenBStandard === Standard.ERC223 &&
+        !isStepBlockingAnotherAttempt(latestDeposite1Status) &&
+        (currentDepositB || BigInt(0)) < amountB
+      ) {
+        openConfirmInWalletAlert(t("confirm_action_in_your_wallet_alert"));
 
-          setDeposite1Status(AddLiquidityApproveStatus.PENDING);
-          // A throw (e.g. wallet rejection) is treated like a failed result below:
-          // set this step to ERROR and close the confirm-in-wallet alert.
-          const result = await depositB({
-            customAmount: customAmountB,
-            customGasSettings: gasSettings,
-          }).catch((e) => {
+        setDeposite1Status(AddLiquidityApproveStatus.PENDING);
+        // A throw (e.g. wallet rejection) is treated like a failed result below:
+        // set this step to ERROR and close the confirm-in-wallet alert.
+        const result = await depositB({
+          customAmount: customAmountB,
+          customGasSettings: gasSettings,
+        }).catch((e) => {
+          console.error(e);
+          return undefined;
+        });
+        if (!result?.success) {
+          setDeposite1Status(AddLiquidityApproveStatus.ERROR);
+          closeConfirmInWalletAlert();
+        } else {
+          setDeposite1Hash(result.hash);
+          setDeposite1Status(AddLiquidityApproveStatus.LOADING);
+          closeConfirmInWalletAlert();
+
+          let depositeReceipt;
+          try {
+            depositeReceipt = await publicClient.waitForTransactionReceipt({
+              hash: result.hash,
+            });
+          } catch (e) {
+            // Broadcast already; keep LOADING rather than reporting a failure that may not be real.
             console.error(e);
-            return undefined;
-          });
-          if (!result?.success) {
+            return;
+          }
+
+          if (depositeReceipt.status === "reverted") {
             setDeposite1Status(AddLiquidityApproveStatus.ERROR);
-            closeConfirmInWalletAlert();
           } else {
-            setDeposite1Hash(result.hash);
-            setDeposite1Status(AddLiquidityApproveStatus.LOADING);
-            closeConfirmInWalletAlert();
-
-            let depositeReceipt;
             try {
-              depositeReceipt = await publicClient.waitForTransactionReceipt({
-                hash: result.hash,
-              });
+              await updateDepositeB();
             } catch (e) {
-              // Broadcast already; keep LOADING rather than reporting a failure that may not be real.
               console.error(e);
-              return;
             }
-
-            if (depositeReceipt.status === "reverted") {
-              setDeposite1Status(AddLiquidityApproveStatus.ERROR);
-            } else {
-              setDeposite1Status(AddLiquidityApproveStatus.SUCCESS);
-            }
+            setDeposite1Status(AddLiquidityApproveStatus.SUCCESS);
           }
         }
       }
@@ -305,7 +315,6 @@ export const useLiquidityApprove = (parsedAmounts: {
     [
       amountToCheckB,
       publicClient,
-      approve1Status,
       tokenB?.isToken,
       tokenBStandard,
       currentAllowanceB,
@@ -320,6 +329,7 @@ export const useLiquidityApprove = (parsedAmounts: {
       setDeposite1Status,
       depositB,
       setDeposite1Hash,
+      updateDepositeB,
     ],
   );
 
@@ -337,91 +347,99 @@ export const useLiquidityApprove = (parsedAmounts: {
         return;
       }
 
-      if (approve0Status !== AddLiquidityApproveStatus.SUCCESS) {
-        if (
-          tokenA?.isToken &&
-          tokenAStandard === Standard.ERC20 &&
-          (currentAllowanceA || BigInt(0)) < amountA
-        ) {
-          openConfirmInWalletAlert(t("confirm_action_in_your_wallet_alert"));
+      const { approve0Status: latestApprove0Status, deposite0Status: latestDeposite0Status } =
+        useAddLiquidityStatusStore.getState();
 
-          setApprove0Status(AddLiquidityApproveStatus.PENDING);
-          // A throw (e.g. wallet rejection) is treated like a failed result below:
-          // set this step to ERROR and close the confirm-in-wallet alert.
-          const result = await approveA({
-            customAmount: customAmountA,
-            customGasSettings: gasSettings,
-          }).catch((e) => {
+      if (
+        tokenA?.isToken &&
+        tokenAStandard === Standard.ERC20 &&
+        !isStepBlockingAnotherAttempt(latestApprove0Status) &&
+        (currentAllowanceA || BigInt(0)) < amountA
+      ) {
+        openConfirmInWalletAlert(t("confirm_action_in_your_wallet_alert"));
+
+        setApprove0Status(AddLiquidityApproveStatus.PENDING);
+        // A throw (e.g. wallet rejection) is treated like a failed result below:
+        // set this step to ERROR and close the confirm-in-wallet alert.
+        const result = await approveA({
+          customAmount: customAmountA,
+          customGasSettings: gasSettings,
+        }).catch((e) => {
+          console.error(e);
+          return undefined;
+        });
+
+        if (!result?.success) {
+          setApprove0Status(AddLiquidityApproveStatus.ERROR);
+          closeConfirmInWalletAlert();
+        } else {
+          setApprove0Hash(result.hash);
+          setApprove0Status(AddLiquidityApproveStatus.LOADING);
+          closeConfirmInWalletAlert();
+
+          let approveReceipt;
+          try {
+            approveReceipt = await publicClient.waitForTransactionReceipt({
+              hash: result.hash,
+            });
+          } catch (e) {
+            // Broadcast already; keep LOADING rather than reporting a failure that may not be real.
             console.error(e);
-            return undefined;
-          });
-
-          if (!result?.success) {
-            setApprove0Status(AddLiquidityApproveStatus.ERROR);
-            closeConfirmInWalletAlert();
-          } else {
-            setApprove0Hash(result.hash);
-            setApprove0Status(AddLiquidityApproveStatus.LOADING);
-            closeConfirmInWalletAlert();
-
-            let approveReceipt;
-            try {
-              approveReceipt = await publicClient.waitForTransactionReceipt({
-                hash: result.hash,
-              });
-            } catch (e) {
-              // Broadcast already; keep LOADING rather than reporting a failure that may not be real.
-              console.error(e);
-              return;
-            }
-
-            if (approveReceipt.status === "reverted") {
-              setApprove0Status(AddLiquidityApproveStatus.ERROR);
-            } else {
-              setApprove0Status(AddLiquidityApproveStatus.SUCCESS);
-            }
+            return;
           }
-        } else if (
-          tokenA?.isToken &&
-          tokenAStandard === Standard.ERC223 &&
-          (currentDepositA || BigInt(0)) < amountA
-        ) {
-          openConfirmInWalletAlert(t("confirm_action_in_your_wallet_alert"));
 
-          setDeposite0Status(AddLiquidityApproveStatus.PENDING);
-          // A throw (e.g. wallet rejection) is treated like a failed result below:
-          // set this step to ERROR and close the confirm-in-wallet alert.
-          const result = await depositA({
-            customAmount: customAmountA,
-            customGasSettings: gasSettings,
-          }).catch((e) => {
-            console.error(e);
-            return undefined;
-          });
-          if (!result?.success) {
-            setDeposite0Status(AddLiquidityApproveStatus.ERROR);
-            closeConfirmInWalletAlert();
+          if (approveReceipt.status === "reverted") {
+            setApprove0Status(AddLiquidityApproveStatus.ERROR);
           } else {
-            setDeposite0Hash(result.hash);
-            setDeposite0Status(AddLiquidityApproveStatus.LOADING);
-            closeConfirmInWalletAlert();
+            setApprove0Status(AddLiquidityApproveStatus.SUCCESS);
+          }
+        }
+      } else if (
+        tokenA?.isToken &&
+        tokenAStandard === Standard.ERC223 &&
+        !isStepBlockingAnotherAttempt(latestDeposite0Status) &&
+        (currentDepositA || BigInt(0)) < amountA
+      ) {
+        openConfirmInWalletAlert(t("confirm_action_in_your_wallet_alert"));
 
-            let depositeReceipt;
+        setDeposite0Status(AddLiquidityApproveStatus.PENDING);
+        // A throw (e.g. wallet rejection) is treated like a failed result below:
+        // set this step to ERROR and close the confirm-in-wallet alert.
+        const result = await depositA({
+          customAmount: customAmountA,
+          customGasSettings: gasSettings,
+        }).catch((e) => {
+          console.error(e);
+          return undefined;
+        });
+        if (!result?.success) {
+          setDeposite0Status(AddLiquidityApproveStatus.ERROR);
+          closeConfirmInWalletAlert();
+        } else {
+          setDeposite0Hash(result.hash);
+          setDeposite0Status(AddLiquidityApproveStatus.LOADING);
+          closeConfirmInWalletAlert();
+
+          let depositeReceipt;
+          try {
+            depositeReceipt = await publicClient.waitForTransactionReceipt({
+              hash: result.hash,
+            });
+          } catch (e) {
+            // Broadcast already; keep LOADING rather than reporting a failure that may not be real.
+            console.error(e);
+            return;
+          }
+
+          if (depositeReceipt.status === "reverted") {
+            setDeposite0Status(AddLiquidityApproveStatus.ERROR);
+          } else {
             try {
-              depositeReceipt = await publicClient.waitForTransactionReceipt({
-                hash: result.hash,
-              });
+              await updateDepositeA();
             } catch (e) {
-              // Broadcast already; keep LOADING rather than reporting a failure that may not be real.
               console.error(e);
-              return;
             }
-
-            if (depositeReceipt.status === "reverted") {
-              setDeposite0Status(AddLiquidityApproveStatus.ERROR);
-            } else {
-              setDeposite0Status(AddLiquidityApproveStatus.SUCCESS);
-            }
+            setDeposite0Status(AddLiquidityApproveStatus.SUCCESS);
           }
         }
       }
@@ -433,7 +451,6 @@ export const useLiquidityApprove = (parsedAmounts: {
     [
       amountToCheckA,
       publicClient,
-      approve0Status,
       amountToCheckB,
       tokenA?.isToken,
       tokenAStandard,
@@ -449,6 +466,7 @@ export const useLiquidityApprove = (parsedAmounts: {
       setDeposite0Status,
       depositA,
       setDeposite0Hash,
+      updateDepositeA,
       handleApprove1,
     ],
   );
@@ -461,12 +479,15 @@ export const useLiquidityApprove = (parsedAmounts: {
       customAmountA?: bigint;
       customAmountB?: bigint;
     }) => {
-      // NOTE perform approves in query on ANY wallet (most wallets can process only ONE request at a time)
-      // if (isMetamaskMobile) {
-      await handleApprove0({ customAmountA, customAmountB });
-      // } else {
-      //   await Promise.all([handleApprove0({ customAmountA }), handleApprove1({ customAmountB })]);
-      // }
+      if (approveInFlightRef.current) {
+        return;
+      }
+      approveInFlightRef.current = true;
+      try {
+        await handleApprove0({ customAmountA, customAmountB });
+      } finally {
+        approveInFlightRef.current = false;
+      }
     },
     [handleApprove0],
   );

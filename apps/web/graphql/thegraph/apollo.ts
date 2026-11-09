@@ -6,8 +6,8 @@ import {
   InMemoryCache,
   NormalizedCacheObject,
 } from "@apollo/client";
-import { setContext } from "@apollo/client/link/context";
 
+import { subgraphProxyPath } from "@/lib/subgraphTargets";
 import { DexChainId } from "@/sdk_bi/chains";
 
 export const CHAIN_SUBGRAPH_URL: Record<DexChainId, string> = {
@@ -24,8 +24,8 @@ export const CHAIN_SUBGRAPH_URL: Record<DexChainId, string> = {
   //   "https://api.thegraph.com/subgraphs/name/lynnshaoyu/uniswap-v3-avax?source=uniswap",
   // [ChainId.BASE]:
   //   "https://api.studio.thegraph.com/query/48211/uniswap-v3-base/version/latest?source=uniswap",
-  [DexChainId.MAINNET]:
-    "https://gateway.thegraph.com/api/subgraphs/id/A3mMtVLVvdbpgXduav8znCv7qdvXhSeWxST27pxdx4Mm",
+  // The gateway needs an API key, so mainnet goes through our server (key never in the bundle).
+  [DexChainId.MAINNET]: subgraphProxyPath("exchange-mainnet"),
   [DexChainId.SEPOLIA]:
     "https://api.studio.thegraph.com/query/1760635/dex-223-v-1-sepolia/version/latest",
   // [DexChainId.CALLISTO]: "",
@@ -69,27 +69,17 @@ export function getAuthMiddleware(chainId: DexChainId) {
   });
 }
 
-const authLink = setContext((_, { headers }) => {
-  // return the headers to the context so httpLink can read them
-  return {
-    headers: {
-      ...headers,
-      authorization: `Bearer ${process.env.NEXT_PUBLIC_AUTH_TOKEN_GQL}`,
-    },
-  };
-});
-
 export function apolloClient(chainId: DexChainId) {
   return new ApolloClient({
     cache: new InMemoryCache(),
-    link: authLink.concat(concat(getAuthMiddleware(chainId), httpLink)),
+    link: concat(getAuthMiddleware(chainId), httpLink),
   });
 }
 
 export const chainToApolloClient: Record<DexChainId, ApolloClient<NormalizedCacheObject>> = {
   [DexChainId.MAINNET]: new ApolloClient({
     cache: new InMemoryCache(),
-    link: authLink.concat(concat(getAuthMiddleware(DexChainId.MAINNET), httpLink)),
+    link: concat(getAuthMiddleware(DexChainId.MAINNET), httpLink),
   }),
   // [ChainId.ARBITRUM_ONE]: new ApolloClient({
   //   cache: new InMemoryCache(),
@@ -117,7 +107,7 @@ export const chainToApolloClient: Record<DexChainId, ApolloClient<NormalizedCach
   // }),
   [DexChainId.SEPOLIA]: new ApolloClient({
     cache: new InMemoryCache(),
-    link: authLink.concat(concat(getAuthMiddleware(DexChainId.SEPOLIA), httpLinkSep)),
+    link: concat(getAuthMiddleware(DexChainId.SEPOLIA), httpLinkSep),
   }),
   // Do not fall back to Sepolia. When a Chapel URL is restored, wire it like SEPOLIA.
   [DexChainId.BSC_TESTNET]: CHAIN_SUBGRAPH_URL[DexChainId.BSC_TESTNET]

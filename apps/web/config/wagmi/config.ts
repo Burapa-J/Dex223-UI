@@ -1,4 +1,4 @@
-import { Chain, fallback, http, webSocket } from "viem";
+import { Chain, http, webSocket } from "viem";
 import {
   arbitrum,
   avalanche,
@@ -21,6 +21,8 @@ import { eos } from "@/config/chains/eos";
 import { monad } from "@/config/chains/monad";
 import { plasma } from "@/config/chains/plasma";
 import { sepolia } from "@/config/chains/sepolia";
+import { receiptAwareFallback } from "@/config/wagmi/receiptAwareFallback";
+import { rpcProxyUrl } from "@/config/wagmi/rpcProxyUrl";
 import { DexChainId } from "@/sdk_bi/chains";
 
 const viemChains: Record<DexChainId, Chain> = {
@@ -98,17 +100,22 @@ export const config = createConfig({
   }),
   multiInjectedProviderDiscovery: false, // to avoid connecting to io.metamask and other injected connectors
   transports: {
-    [mainnet.id]: fallback([
+    [mainnet.id]: receiptAwareFallback([
       // dRPC (keyed and public) rejects every Ethereum method, ethereum.callstaticrpc.com no longer
       // resolves and 1rpc.io/eth is discontinued, so all three were removed. Each failed attempt
       // logged console errors before the fallback moved on.
+      //
+      // Alchemy first, through our server (the key never reaches the bundle). Public RPCs follow:
+      // they rate-limit, lag and miss receipts, so production reads should not depend on them. The
+      // proxy answers 503 without a key and 429 past its per-IP limit; either moves the fallback on.
+      http(rpcProxyUrl("mainnet")),
       webSocket("wss://ethereum-rpc.publicnode.com"),
       http("https://ethereum-rpc.publicnode.com"),
       http("https://eth-mainnet.public.blastapi.io"),
       http("https://mainnet.gateway.tenderly.co"),
       http(),
     ]),
-    [sepolia.id]: fallback([
+    [sepolia.id]: receiptAwareFallback([
       // NOTE: the previous first two entries pointed at lb.drpc.org/sepolia, which dRPC has moved behind
       // a paid plan - it now answers every request with HTTP 400 "chain is not available on free plan",
       // so Sepolia was completely broken in the UI.
@@ -116,15 +123,17 @@ export const config = createConfig({
       // The third entry was wss://ethereum-rpc.publicnode.com, which is MAINNET (chainId 1) listed as a
       // Sepolia fallback. With the drpc entries failing, that was the next transport tried.
       //
-      // rpc.ankr.com/eth_sepolia no longer answers either. Verified working, in order:
+      // rpc.ankr.com/eth_sepolia no longer answers either.
+      //
+      // Keyed providers (Alchemy, then Infura) through our server first: the keys never reach the
+      // bundle, and publicnode's Sepolia node misses some receipts. Answers 503 when no key is
+      // configured, so the fallback moves on to publicnode.
+      http(rpcProxyUrl("sepolia")),
       webSocket("wss://ethereum-sepolia-rpc.publicnode.com"),
       http("https://ethereum-sepolia-rpc.publicnode.com"),
-      webSocket("wss://eth-sepolia.g.alchemy.com/v2/kvidqVpyVu4aivBEb55XXIzCHDqMm7CO"),
-      http("https://eth-sepolia.g.alchemy.com/v2/kvidqVpyVu4aivBEb55XXIzCHDqMm7CO"),
-      http("https://sepolia.infura.io/v3/6689c099b8d542589b1842e30dbc2027"),
       http(),
     ]),
-    [bscTestnet.id]: fallback([
+    [bscTestnet.id]: receiptAwareFallback([
       // webSocket("wss://bsc-testnet-rpc.publicnode.com"),
       http("https://api.zan.top/bsc-testnet"),
       http("https://endpoints.omniatech.io/v1/bsc/testnet/public"),
@@ -136,27 +145,27 @@ export const config = createConfig({
     // The Vaulta Foundation shut down the public EOS EVM RPC on 2025-10-08; this must be our own node.
     [eos.id]: http(process.env.NEXT_PUBLIC_EOSEVM_RPC_URL),
     // Public RPCs. Swap in private endpoints before a chain goes to production.
-    [base.id]: fallback([
+    [base.id]: receiptAwareFallback([
       http("https://mainnet.base.org"),
       http("https://base-rpc.publicnode.com"),
     ]),
-    [bsc.id]: fallback([
+    [bsc.id]: receiptAwareFallback([
       http("https://bsc-dataseed.bnbchain.org"),
       http("https://bsc-rpc.publicnode.com"),
     ]),
-    [arbitrum.id]: fallback([
+    [arbitrum.id]: receiptAwareFallback([
       http("https://arb1.arbitrum.io/rpc"),
       http("https://arbitrum-one-rpc.publicnode.com"),
     ]),
-    [polygon.id]: fallback([
+    [polygon.id]: receiptAwareFallback([
       http("https://polygon.drpc.org"),
       http("https://polygon-bor-rpc.publicnode.com"),
     ]),
-    [avalanche.id]: fallback([
+    [avalanche.id]: receiptAwareFallback([
       http("https://api.avax.network/ext/bc/C/rpc"),
       http("https://avalanche-c-chain-rpc.publicnode.com"),
     ]),
-    [optimism.id]: fallback([
+    [optimism.id]: receiptAwareFallback([
       http("https://mainnet.optimism.io"),
       http("https://optimism-rpc.publicnode.com"),
     ]),
