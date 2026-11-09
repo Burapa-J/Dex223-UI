@@ -1867,7 +1867,9 @@
     "ath": "Plus haut historique",
     "atl": "Plus bas historique",
     "from_ath": "{percent} depuis le plus haut",
-    "chart_source": "Graphique : {source}"
+    "chart_source": "Graphique : {source}",
+    "coin_title": "Prix de {name} ({symbol})",
+    "coin_description": "Prix en direct de {name}, variation sur 24 h, capitalisation et graphique."
   },
   "Seo": {
     "default": {
@@ -1944,7 +1946,7 @@
     },
     "markets": {
       "title": "Marchés crypto : prix et graphiques",
-      "description": "Prix, capitalisations et graphiques en direct des principales cryptomonnaies, avec un accès direct pour les échanger sur DEX223."
+      "description": "Prix, capitalisations et graphiques en direct des principales cryptomonnaies."
     },
     "governance": {
       "title": "Gouvernance DEX223",

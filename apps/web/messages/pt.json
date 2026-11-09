@@ -1867,7 +1867,9 @@
     "ath": "Máxima histórica",
     "atl": "Mínima histórica",
     "from_ath": "{percent} desde a máxima",
-    "chart_source": "Gráfico: {source}"
+    "chart_source": "Gráfico: {source}",
+    "coin_title": "Preço de {name} ({symbol})",
+    "coin_description": "Preço ao vivo de {name}, variação em 24h, valor de mercado e gráfico."
   },
   "Seo": {
     "default": {
@@ -1944,7 +1946,7 @@
     },
     "markets": {
       "title": "Mercados cripto: preços e gráficos",
-      "description": "Preços, valor de mercado e gráficos ao vivo das principais criptomoedas, com acesso direto para negociá-las na DEX223."
+      "description": "Preços, valor de mercado e gráficos ao vivo das principais criptomoedas."
     },
     "governance": {
       "title": "Governança da DEX223",

@@ -1867,7 +1867,9 @@
     "ath": "역대 최고가",
     "atl": "역대 최저가",
     "from_ath": "최고가 대비 {percent}",
-    "chart_source": "차트: {source}"
+    "chart_source": "차트: {source}",
+    "coin_title": "{name}({symbol}) 가격",
+    "coin_description": "{name}의 실시간 가격, 24시간 범위, 시가총액, 차트."
   },
   "Seo": {
     "default": {
@@ -1944,7 +1946,7 @@
     },
     "markets": {
       "title": "암호화폐 시장: 가격과 차트",
-      "description": "주요 암호화폐의 실시간 가격, 시가총액, 차트와 DEX223에서 바로 거래하는 경로."
+      "description": "주요 암호화폐의 실시간 가격, 시가총액, 차트."
     },
     "governance": {
       "title": "DEX223 거버넌스",

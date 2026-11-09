@@ -1878,7 +1878,9 @@
     "ath": "All-time high",
     "atl": "All-time low",
     "from_ath": "{percent} from high",
-    "chart_source": "Chart: {source}"
+    "chart_source": "Chart: {source}",
+    "coin_title": "{name} ({symbol}) price",
+    "coin_description": "Live {name} price, 24h range, market cap and chart."
   },
   "Seo": {
     "default": {
@@ -1955,7 +1957,7 @@
     },
     "markets": {
       "title": "Crypto Markets: Prices and Charts",
-      "description": "Live prices, market caps and charts for the top cryptocurrencies, with a one-click path to trade them on DEX223."
+      "description": "Live prices, market caps and charts for the top cryptocurrencies."
     },
     "governance": {
       "title": "DEX223 Governance",

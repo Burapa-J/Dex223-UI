@@ -1867,7 +1867,9 @@
     "ath": "历史最高",
     "atl": "历史最低",
     "from_ath": "较最高价 {percent}",
-    "chart_source": "图表：{source}"
+    "chart_source": "图表：{source}",
+    "coin_title": "{name}（{symbol}）价格",
+    "coin_description": "{name} 的实时价格、24 小时区间、市值和图表。"
   },
   "Seo": {
     "default": {
@@ -1944,7 +1946,7 @@
     },
     "markets": {
       "title": "加密市场：价格与图表",
-      "description": "主流加密货币的实时价格、市值和图表，并可一键前往 DEX223 交易。"
+      "description": "主流加密货币的实时价格、市值和图表。"
     },
     "governance": {
       "title": "DEX223 治理",
