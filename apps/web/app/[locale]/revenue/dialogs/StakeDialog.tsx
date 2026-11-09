@@ -520,10 +520,7 @@ const StakeDialog = () => {
     abi: ERC20_ABI,
     address: stakingTokenERC20,
     functionName: "allowance",
-    args:
-      connectedAddress && revenueAddress
-        ? [connectedAddress, revenueAddress]
-        : undefined,
+    args: connectedAddress && revenueAddress ? [connectedAddress, revenueAddress] : undefined,
     query: {
       enabled: Boolean(
         isOpen &&
