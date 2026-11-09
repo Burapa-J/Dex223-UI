@@ -20,6 +20,7 @@ import { getUSDAnchorTokens } from "@/config/constants/usdAnchors";
 import { formatNumberKilos } from "@/functions/formatFloat";
 import { computePoolTVL } from "@/functions/poolTvl";
 import truncateMiddle from "@/functions/truncateMiddle";
+import { isSubgraphUnavailable } from "@/graphql/thegraph/subgraphAvailability";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
 import { usePoolsOnChainBalances } from "@/hooks/usePoolOnChainBalances";
 import { Link, useRouter } from "@/i18n/routing";
@@ -470,6 +471,7 @@ export default function PoolsTable({
   const searchBlocked =
     Boolean(filter?.searchString) &&
     (error?.networkError as ServerError | ServerParseError | undefined)?.statusCode === 403;
+  const subgraphUnavailable = isSubgraphUnavailable(error);
 
   const poolAddresses = useMemo(
     () =>
@@ -554,14 +556,18 @@ export default function PoolsTable({
         <>
           {error && !searchBlocked && pools.length === 0 ? (
             <div className="min-h-[340px] bg-primary-bg flex flex-col gap-4 items-center justify-center w-full rounded-5 px-4 text-center">
-              <p className="text-secondary-text">{t("pools_load_error")}</p>
-              <Button
-                size={ButtonSize.MEDIUM}
-                colorScheme={ButtonColor.LIGHT_GREEN}
-                onClick={() => refetch()}
-              >
-                {t("try_again")}
-              </Button>
+              <p className="text-secondary-text">
+                {subgraphUnavailable ? t("pools_unavailable") : t("pools_load_error")}
+              </p>
+              {subgraphUnavailable ? null : (
+                <Button
+                  size={ButtonSize.MEDIUM}
+                  colorScheme={ButtonColor.LIGHT_GREEN}
+                  onClick={() => refetch()}
+                >
+                  {t("try_again")}
+                </Button>
+              )}
             </div>
           ) : isLoading || pools.length > 0 ? (
             <>

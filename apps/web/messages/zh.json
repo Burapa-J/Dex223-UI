@@ -613,6 +613,7 @@
     "pools_not_found": "未找到流动性池",
     "pool_not_found": "未找到流动性池。请检查地址和所选网络。",
     "pools_load_error": "无法加载流动性池。请检查网络连接后重试。",
+    "pools_unavailable": "此网络上暂无资金池。",
     "amount_title": "数量",
     "enter_correct_values": "请输入正确的数值",
     "collecting_fee_message": "领取手续费将提取当前可用的手续费",

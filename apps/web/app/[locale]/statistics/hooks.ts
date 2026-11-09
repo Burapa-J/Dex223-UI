@@ -2,10 +2,9 @@ import { gql, useQuery } from "@apollo/client";
 import { useMemo } from "react";
 
 import { chainToApolloClient, isSubgraphConfigured } from "@/graphql/thegraph/apollo";
+import { subgraphUnavailableError } from "@/graphql/thegraph/subgraphAvailability";
 import { ChartRange } from "@/hooks/usePoolPriceChart";
 import { DexChainId } from "@/sdk_bi/chains";
-
-const SUBGRAPH_UNAVAILABLE = new Error("Subgraph not configured for this network");
 
 export const FactoryStatsDocument = gql`
   query FactoryStatsQuery {
@@ -31,7 +30,7 @@ export function useFactoryStats(chainId: DexChainId) {
   });
 
   if (!configured) {
-    return { ...result, data: undefined, loading: false, error: SUBGRAPH_UNAVAILABLE };
+    return { ...result, data: undefined, loading: false, error: subgraphUnavailableError() };
   }
 
   return result;
@@ -75,7 +74,7 @@ export function useDex223DayData(chainId: DexChainId, days: ChartRange = 30) {
   return {
     series,
     loading: configured ? loading : false,
-    error: configured ? error : SUBGRAPH_UNAVAILABLE,
+    error: configured ? error : subgraphUnavailableError(),
   };
 }
 
@@ -109,7 +108,7 @@ export function useTokensData(chainId: DexChainId, first = 50) {
   });
 
   if (!configured) {
-    return { ...result, data: undefined, loading: false, error: SUBGRAPH_UNAVAILABLE };
+    return { ...result, data: undefined, loading: false, error: subgraphUnavailableError() };
   }
 
   return result;
@@ -212,6 +211,6 @@ export function useTokenDetail(
     priceSeries,
     volumeSeries,
     loading: configured ? loading : false,
-    error: configured ? error : SUBGRAPH_UNAVAILABLE,
+    error: configured ? error : subgraphUnavailableError(),
   };
 }

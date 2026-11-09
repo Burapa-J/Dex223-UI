@@ -493,6 +493,7 @@
     "pools_not_found": "Pools not found",
     "pool_not_found": "Pool not found. Check the address and the selected network.",
     "pools_load_error": "We couldn't load pools. Check your connection and try again.",
+    "pools_unavailable": "Pools are not available on this network.",
     "amount_title": "Amount",
     "enter_correct_values": "Enter correct values",
     "collecting_fee_message": "Collecting fees will withdraw currently available fees for you",

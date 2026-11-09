@@ -613,6 +613,7 @@
     "pools_not_found": "Não foram encontrados pools",
     "pool_not_found": "Pool não encontrado. Verifique o endereço e a rede selecionada.",
     "pools_load_error": "Não foi possível carregar os pools. Verifique sua conexão e tente novamente.",
+    "pools_unavailable": "Os pools não estão disponíveis nesta rede.",
     "amount_title": "Quantidade",
     "enter_correct_values": "Introduza valores corretos",
     "collecting_fee_message": "Recolher as taxas irá levantar as taxas atualmente disponíveis",
