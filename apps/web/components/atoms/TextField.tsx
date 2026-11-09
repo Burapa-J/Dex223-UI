@@ -76,12 +76,19 @@ export function HelperText({
   return (
     <div className="text-12 mt-1 min-h-4">
       {typeof helperText !== "undefined" && !error && (
-        <div className={clsx("text-12 text-tertiary-text h-4", disabled && "opacity-50")}>
+        <div
+          className={clsx(
+            "text-12 text-tertiary-text min-h-4 break-words",
+            disabled && "opacity-50",
+          )}
+        >
           {helperText}
         </div>
       )}
-      {typeof error !== "undefined" && <p className="text-12 text-red-light h-4 mt-1">{error}</p>}
-      {warning && <p className="text-12 text-orange mt-1 h-4">{warning}</p>}
+      {typeof error !== "undefined" && (
+        <p className="text-12 text-red-light min-h-4 mt-1 break-words">{error}</p>
+      )}
+      {warning && <p className="text-12 text-orange mt-1 min-h-4 break-words">{warning}</p>}
     </div>
   );
 }

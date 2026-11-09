@@ -8,7 +8,10 @@ import React, { PropsWithChildren, useEffect, useMemo, useState } from "react";
 import { NumericFormat } from "react-number-format";
 import { Address, formatEther, formatGwei, parseUnits } from "viem";
 
-import PriceImpactWarning from "@/app/[locale]/swap/components/PriceImpactWarning";
+import PriceImpactWarning, {
+  PriceImpactAcknowledgement,
+  usePriceImpactAcknowledgement,
+} from "@/app/[locale]/swap/components/PriceImpactWarning";
 import SwapDetailsRow from "@/app/[locale]/swap/components/SwapDetailsRow";
 import useSwap, { useSwapStatus } from "@/app/[locale]/swap/hooks/useSwap";
 import { useConfirmSwapDialogStore } from "@/app/[locale]/swap/stores/useConfirmSwapDialogOpened";
@@ -212,9 +215,13 @@ function Rows({ children }: PropsWithChildren<{}>) {
 function SwapActionButton({
   amountToApprove,
   isEditApproveActive,
+  isVeryHighPriceImpact = false,
+  isPriceImpactAcknowledged = false,
 }: {
   amountToApprove: string;
   isEditApproveActive: boolean;
+  isVeryHighPriceImpact?: boolean;
+  isPriceImpactAcknowledged?: boolean;
 }) {
   const t = useTranslations("Swap");
   const { tokenA, tokenB, tokenAStandard } = useSwapTokensStore();
@@ -394,8 +401,13 @@ function SwapActionButton({
   }
 
   return (
-    <Button disabled={isEditApproveActive} onClick={() => handleSwap(amountToApprove)} fullWidth>
-      {t("confirm_swap")}
+    <Button
+      colorScheme={isVeryHighPriceImpact ? ButtonColor.RED : undefined}
+      disabled={isEditApproveActive || (isVeryHighPriceImpact && !isPriceImpactAcknowledged)}
+      onClick={() => handleSwap(amountToApprove)}
+      fullWidth
+    >
+      {isVeryHighPriceImpact ? t("swap_anyway") : t("confirm_swap")}
     </Button>
   );
 }
@@ -466,6 +478,7 @@ export default function ConfirmSwapDialog({ trade }: { trade: Trade<any, any, an
   }, [trade]);
 
   const { slippage, deadline: _deadline } = useSwapSettingsStore();
+  const priceImpactAck = usePriceImpactAcknowledgement(trade);
   const {
     isPendingSwap,
     isLoadingSwap,
@@ -477,7 +490,11 @@ export default function ConfirmSwapDialog({ trade }: { trade: Trade<any, any, an
     isRevertedApprove,
   } = useSwapStatus();
 
-  const { status: swapStatus, setStatus: setSwapStatus } = useSwapStatusStore();
+  const {
+    status: swapStatus,
+    setStatus: setSwapStatus,
+    isReceiptUnavailable,
+  } = useSwapStatusStore();
 
   const { estimatedGas, customGasLimit } = useSwapGasLimitStore();
 
@@ -590,7 +607,7 @@ export default function ConfirmSwapDialog({ trade }: { trade: Trade<any, any, an
   // Closing mid-swap no longer means watching a spinner: the swap keeps running and a
   // compact tracker takes over in the corner until it settles.
   const closeDialog = () => {
-    if (isInFlight && tokenA && tokenB && !isConversion) {
+    if (isInFlight && !isReceiptUnavailable && tokenA && tokenB && !isConversion) {
       showTracker({
         symbolA: tokenA.symbol ?? "",
         symbolB: tokenB.symbol ?? "",
@@ -611,6 +628,12 @@ export default function ConfirmSwapDialog({ trade }: { trade: Trade<any, any, an
   }, [isSuccessSwap, resetAmounts, isOpen, isConversion]);
 
   useEffect(() => {
+    // A missing receipt is still pending in recent transactions, not a failed swap to retry.
+    if (isReceiptUnavailable && !isOpen && !isConversion) {
+      hideTracker();
+      setSwapStatus(SwapStatus.INITIAL);
+      return;
+    }
     // While the tracker shows this swap it owns the reset, so its result stays visible.
     if (
       (isSuccessSwap || isRevertedSwap || isRevertedApprove) &&
@@ -623,6 +646,8 @@ export default function ConfirmSwapDialog({ trade }: { trade: Trade<any, any, an
       }, 400);
     }
   }, [
+    hideTracker,
+    isReceiptUnavailable,
     isConversion,
     isOpen,
     isRevertedApprove,
@@ -761,7 +786,15 @@ export default function ConfirmSwapDialog({ trade }: { trade: Trade<any, any, an
               />
               <SwapDetailsRow
                 title={t("price_impact")}
-                value={trade ? `${formatFloat(trade.priceImpact.toSignificant())}%` : t("loading")}
+                value={
+                  trade ? (
+                    <span className={clsx(priceImpactAck.required && "text-red-light")}>
+                      {`${formatFloat(trade.priceImpact.toSignificant())}%`}
+                    </span>
+                  ) : (
+                    t("loading")
+                  )
+                }
                 tooltipText={t("price_impact_tooltip")}
               />
               <SwapDetailsRow
@@ -793,7 +826,14 @@ export default function ConfirmSwapDialog({ trade }: { trade: Trade<any, any, an
                 tooltipText={t("gas_limit_tooltip")}
               />
 
-              <PriceImpactWarning trade={trade} className="mt-2" />
+              <PriceImpactWarning trade={trade} slippage={slippage} className="mt-2" />
+              <PriceImpactAcknowledgement
+                id="swap-price-impact-acknowledgement"
+                trade={trade}
+                checked={priceImpactAck.acknowledged}
+                onChange={priceImpactAck.setAcknowledged}
+                className="mt-3"
+              />
 
               {tokenA?.isToken && tokenAStandard === Standard.ERC20 && !isAllowedA && (
                 <div
@@ -873,6 +913,8 @@ export default function ConfirmSwapDialog({ trade }: { trade: Trade<any, any, an
           <SwapActionButton
             isEditApproveActive={isEditApproveActive}
             amountToApprove={amountToApprove}
+            isVeryHighPriceImpact={priceImpactAck.required}
+            isPriceImpactAcknowledged={priceImpactAck.acknowledged}
           />
         </div>
       </div>

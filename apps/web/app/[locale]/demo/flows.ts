@@ -86,3 +86,9 @@ export const DEMO_SIGNING_MS = 1500;
 
 // Pretend market price used by the swap and liquidity flows.
 export const DEMO_D223_PER_USDT = 124.312;
+
+export const DEMO_LIQUIDITY_DEPOSIT = {
+  usdt20: 100,
+  // Match the displayed quote, without binary multiplication residue at the exact balance.
+  d223: Number((100 * DEMO_D223_PER_USDT).toFixed(4)),
+} as const;

@@ -47,3 +47,13 @@ jobs:
         if: matrix.app == 'web'
         working-directory: apps/web
         run: node tests/gasSettings.test.cjs
+
+      - name: Swap receipt regressions
+        if: matrix.app == 'web'
+        working-directory: apps/web
+        run: node tests/swapReceipt.test.cjs
+
+      - name: API key proxy regressions
+        if: matrix.app == 'web'
+        working-directory: apps/web
+        run: node tests/apiProxies.test.cjs

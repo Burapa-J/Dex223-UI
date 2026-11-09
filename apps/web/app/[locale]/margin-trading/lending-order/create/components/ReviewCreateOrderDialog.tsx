@@ -252,7 +252,6 @@ export default function ReviewCreateOrderDialog({
     loanAmount,
     liquidationFeeToken,
     liquidationFeeForLiquidator,
-    liquidationFeeForLender,
     liquidationMode,
     minimumBorrowingAmount,
     orderCurrencyLimit,
@@ -453,11 +452,7 @@ export default function ReviewCreateOrderDialog({
                 value={`${liquidationFeeForLiquidator} ${liquidationFeeToken?.symbol}`}
                 tooltipText={t("fee_for_liquidator_tooltip")}
               />
-              <LendingOrderDetailsRow
-                title={t("fee_for_lender")}
-                value={`${liquidationFeeForLender} ${liquidationFeeToken?.symbol}`}
-                tooltipText={t("fee_for_lender_tooltip")}
-              />
+
               <LendingOrderDetailsRow
                 title={t("liquidation_price_source")}
                 value={

@@ -224,6 +224,15 @@ export function RecentTransactionTitle({ title }: { title: IRecentTransactionTit
           <span className="font-medium inline-block text-16 align-top">Close margin position</span>
         </span>
       );
+    case RecentTransactionTitleTemplate.UNFREEZE_MARGIN_POSITION:
+      return (
+        <span className="mr-1 text-0">
+          <Svg className="text-tertiary-text inline-block mr-1 align-top" iconName="done" />
+          <span className="font-medium inline-block text-16 align-top">
+            Unfreeze margin position
+          </span>
+        </span>
+      );
   }
 }
 
@@ -287,6 +296,7 @@ export function RecentTransactionSubTitle({ title }: { title: IRecentTransaction
         <span className="text-14 text-secondary-text">{`${title.amountCollateral} ${title.symbolCollateral} collateral and ${title.amountFee} ${title.symbolFee} fee`}</span>
       );
     case RecentTransactionTitleTemplate.CLOSE_MARGIN_POSITION:
+    case RecentTransactionTitleTemplate.UNFREEZE_MARGIN_POSITION:
       return (
         <span className="text-14 text-secondary-text">{`${title.symbol} (ID: ${title.positionId})`}</span>
       );
@@ -310,6 +320,7 @@ export function RecentTransactionLogo({ title }: { title: IRecentTransactionTitl
     case RecentTransactionTitleTemplate.EDIT_LENDING_ORDER:
     case RecentTransactionTitleTemplate.CREATE_MARGIN_POSITION:
     case RecentTransactionTitleTemplate.CLOSE_MARGIN_POSITION:
+    case RecentTransactionTitleTemplate.UNFREEZE_MARGIN_POSITION:
     case RecentTransactionTitleTemplate.TRANSFER:
       return (
         <div className="flex items-center justify-center w-12 h-12 flex-shrink-0">
@@ -384,6 +395,7 @@ export default function RecentTransaction({
 }) {
   const t = useTranslations("RecentTransactions");
   const { handleSpeedUp, handleCancel, replacement } = useTransactionSpeedUpDialogStore();
+  showSpeedUp = showSpeedUp && transaction.nonce !== undefined;
 
   return (
     <div

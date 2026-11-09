@@ -4,7 +4,7 @@ import { formatUnits } from "viem";
 
 import { OrderInfoBlock } from "@/app/[locale]/margin-trading/components/widgets/OrderInfoBlock";
 import { MarginPosition } from "@/app/[locale]/margin-trading/types";
-import { formatFloat } from "@/functions/formatFloat";
+import { formatFloat, formatLeverage } from "@/functions/formatFloat";
 
 export default function ActivePositionParametersBlock({ position }: { position: MarginPosition }) {
   const t = useTranslations("Margin");
@@ -29,7 +29,7 @@ export default function ActivePositionParametersBlock({ position }: { position: 
           {
             title: t("leverage"),
             tooltipText: t("leverage_position_tooltip"),
-            value: `${position.initialLeverage}x`,
+            value: formatLeverage(position.initialLeverage),
             bg: "leverage",
           },
         ]}

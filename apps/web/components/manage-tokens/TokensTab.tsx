@@ -13,7 +13,7 @@ import Badge, { BadgeVariant } from "@/components/badges/Badge";
 import Button, { ButtonSize } from "@/components/buttons/Button";
 import IconButton, { IconButtonSize, IconButtonVariant } from "@/components/buttons/IconButton";
 import ManageTokenItem from "@/components/manage-tokens/ManageTokenItem";
-import { db } from "@/db/db";
+import { addCustomToken } from "@/db/addCustomToken";
 import getExplorerLink, { ExplorerLinkType } from "@/functions/getExplorerLink";
 import { filterTokens } from "@/functions/searchTokens";
 import truncateMiddle from "@/functions/truncateMiddle";
@@ -66,7 +66,6 @@ export default function TokensTab({
       : [0, 0];
 
   const [checkedUnderstand, setCheckedUnderstand] = useState<boolean>(false);
-  const tokenLists = useTokenLists();
 
   const custom = useTokenLists(true);
 
@@ -269,32 +268,9 @@ export default function TokensTab({
               disabled={!checkedUnderstand || isErc777}
               onClick={async () => {
                 if (chainId && derivedToken) {
-                  const currentCustomList = tokenLists?.find((t) => t.id === `custom-${chainId}`);
-
-                  if (!currentCustomList) {
-                    await db.tokenLists.add({
-                      id: `custom-${chainId}`,
-                      enabled: true,
-                      chainId,
-                      list: {
-                        name: "Custom token list",
-                        version: {
-                          minor: 0,
-                          major: 0,
-                          patch: 0,
-                        },
-                        tokens: [derivedToken],
-                        logoURI: "/images/token-list-placeholder.svg",
-                      },
-                    });
-                  } else {
-                    (db.tokenLists as any).update(`custom-${chainId}`, {
-                      "list.tokens": [...currentCustomList.list.tokens, derivedToken],
-                    });
-                  }
+                  await addCustomToken(derivedToken);
+                  addToast(t("imported_successfully"));
                 }
-                // setContent("default");
-                addToast(t("imported_successfully"));
               }}
             >
               {isErc777

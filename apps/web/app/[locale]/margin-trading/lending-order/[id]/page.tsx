@@ -164,14 +164,6 @@ export default function LendingOrder({
                 {order.alive && (
                   <div className="flex items-center gap-3">
                     <Link
-                      className={"flex-shrink-0 pointer-events-none"}
-                      href={`/margin-trading/lending-order/${order.id}/borrow`}
-                    >
-                      <Button disabled colorScheme={ButtonColor.LIGHT_PURPLE}>
-                        {t("margin_swap")}
-                      </Button>
-                    </Link>
-                    <Link
                       className={
                         order.balance < order.minLoan ||
                         requestTimeRef.current / 1000 > order.deadline ||
@@ -279,7 +271,13 @@ export default function LendingOrder({
             </span>
           </div>
           {!!order.positions?.length && (
-            <Button colorScheme={ButtonColor.LIGHT_GREEN} endIcon="next">
+            <Button
+              colorScheme={ButtonColor.LIGHT_GREEN}
+              endIcon="next"
+              onClick={() =>
+                document.getElementById("margin-positions")?.scrollIntoView({ block: "start" })
+              }
+            >
               {t("view_margin_positions")}
             </Button>
           )}
@@ -517,7 +515,7 @@ export default function LendingOrder({
 
         {!!order.positions?.length && (
           <>
-            <h2 className="text-32 text-secondary-text font-medium mb-5">
+            <h2 id="margin-positions" className="text-32 text-secondary-text font-medium mb-5">
               {t("margin_positions")}
             </h2>
             <div className="grid gap-5">

@@ -45,6 +45,7 @@ export type MarginPosition = {
   collateralAmount: bigint;
   collateralAsset: Currency;
   initialLeverage: number;
+  frozenTime: number;
 };
 
 export type LendingOrder = {
@@ -69,6 +70,7 @@ export type LendingOrder = {
 
   allowedTradingAssets: Currency[];
   allowedTradingAddresses: Address[];
+  whitelistAutoListing?: Address;
   isErc223TradingAllowed: boolean;
 
   interestRate: number;
@@ -76,6 +78,7 @@ export type LendingOrder = {
 
   balance: bigint;
   baseAsset: Currency;
+  baseAssetAddress?: Address;
   baseAssetStandard: Standard;
 
   positions: Omit<MarginPosition, "order">[];

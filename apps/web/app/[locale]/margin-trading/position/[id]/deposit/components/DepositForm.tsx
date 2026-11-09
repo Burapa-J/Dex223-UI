@@ -3,9 +3,13 @@ import React, { useCallback, useMemo, useState } from "react";
 import { parseUnits } from "viem";
 
 import MarginGasSettings from "@/app/[locale]/margin-trading/components/MarginGasSettings";
-import { getMarginAssetAddress } from "@/app/[locale]/margin-trading/helpers/assetFunding";
 import PositionDepositDialog from "@/app/[locale]/margin-trading/position/[id]/deposit/components/PositionDepositDialog";
-import { usePositionDepositGasEstimate } from "@/app/[locale]/margin-trading/position/[id]/deposit/hooks/usePositionDeposit";
+import {
+  getPositionDepositableTokens,
+  getPositionDepositAllowedStandards,
+  resolvePositionDepositParams,
+  usePositionDepositGasEstimate,
+} from "@/app/[locale]/margin-trading/position/[id]/deposit/hooks/usePositionDeposit";
 import { MarginPosition } from "@/app/[locale]/margin-trading/types";
 import { useSwapRecentTransactionsStore } from "@/app/[locale]/swap/stores/useSwapRecentTransactions";
 import { InputSize } from "@/components/atoms/Input";
@@ -16,17 +20,28 @@ import TokenInput from "@/components/common/TokenInput";
 import PickTokenDialog from "@/components/dialogs/PickTokenDialog";
 import { formatFloat } from "@/functions/formatFloat";
 import useTokenBalances from "@/hooks/useTokenBalances";
+import { useTokens } from "@/hooks/useTokenLists";
 import { Currency } from "@/sdk_bi/entities/currency";
 import { Standard } from "@/sdk_bi/standard";
 
 export default function DepositForm({ position }: { position: MarginPosition }) {
   const t = useTranslations("Margin");
+  const allTokens = useTokens();
   const [amountToDeposit, setAmountToDeposit] = useState("");
   const [isOpenedTokenPick, setIsOpenedTokenPick] = useState(false);
 
   const [isDepositDialogOpened, setIsDepositDialogOpened] = useState(false);
   const [assetToDeposit, setAssetToDeposit] = useState<Currency | undefined>(undefined);
   const [assetToDepositStandard, setAssetToDepositStandard] = useState(Standard.ERC20);
+
+  const availableTokens = useMemo(
+    () => getPositionDepositableTokens(position, allTokens),
+    [allTokens, position],
+  );
+  const allowedStandards = useMemo(
+    () => getPositionDepositAllowedStandards(position, assetToDeposit),
+    [assetToDeposit, position],
+  );
 
   usePositionDepositGasEstimate({
     position,
@@ -35,12 +50,17 @@ export default function DepositForm({ position }: { position: MarginPosition }) 
     standard: assetToDepositStandard,
   });
 
-  const handlePick = useCallback((token: Currency) => {
-    setAssetToDeposit(token);
-    setAssetToDepositStandard(Standard.ERC20);
+  const handlePick = useCallback(
+    (token: Currency) => {
+      if (token.isNative) return;
+      const { allowErc20, allowErc223 } = getPositionDepositAllowedStandards(position, token);
+      setAssetToDeposit(token);
+      setAssetToDepositStandard(!allowErc20 && allowErc223 ? Standard.ERC223 : Standard.ERC20);
 
-    setIsOpenedTokenPick(false);
-  }, []);
+      setIsOpenedTokenPick(false);
+    },
+    [position],
+  );
 
   const { isOpened: showRecentTransactions, setIsOpened: setShowRecentTransactions } =
     useSwapRecentTransactionsStore();
@@ -54,13 +74,15 @@ export default function DepositForm({ position }: { position: MarginPosition }) 
     try {
       const amount = parseUnits(amountToDeposit, assetToDeposit.decimals);
       if (amount <= 0n) return t("deposit_amount_required");
+      const { isAllowedAsset, existingAsset } = resolvePositionDepositParams(
+        position,
+        assetToDeposit,
+        assetToDepositStandard,
+      );
+      if (!isAllowedAsset) return t("deposit_amount_required");
       const balance = assetToDepositStandard === Standard.ERC223 ? tokenA1Balance : tokenA0Balance;
       if (!balance || amount > balance.value) return t("insufficient_balance");
-      const address = getMarginAssetAddress(assetToDeposit, assetToDepositStandard);
-      const existing = position.assetAddresses.some(
-        (asset) => asset.address.toLowerCase() === address.toLowerCase(),
-      );
-      if (!existing && position.assetAddresses.length >= position.order.currencyLimit)
+      if (!existingAsset && position.assetAddresses.length >= position.order.currencyLimit)
         return t("deposit_currency_limit_reached");
       return undefined;
     } catch {
@@ -70,8 +92,7 @@ export default function DepositForm({ position }: { position: MarginPosition }) 
     amountToDeposit,
     assetToDeposit,
     assetToDepositStandard,
-    position.assetAddresses,
-    position.order.currencyLimit,
+    position,
     t,
     tokenA0Balance,
     tokenA1Balance,
@@ -100,7 +121,11 @@ export default function DepositForm({ position }: { position: MarginPosition }) 
               tooltipText={t("deposit_amount_position_tooltip")}
             />
             <TokenInput
-              allowedErc223={position.order.isErc223TradingAllowed}
+              allowedErc223={
+                assetToDeposit
+                  ? allowedStandards.allowErc223
+                  : position.order.isErc223TradingAllowed
+              }
               value={amountToDeposit}
               onInputChange={(value) => {
                 setAmountToDeposit(value);
@@ -121,6 +146,16 @@ export default function DepositForm({ position }: { position: MarginPosition }) 
               }
               standard={assetToDepositStandard}
               setStandard={(standard) => {
+                if (
+                  standard === Standard.ERC20 &&
+                  !allowedStandards.allowErc20 &&
+                  allowedStandards.allowErc223
+                ) {
+                  return;
+                }
+                if (standard === Standard.ERC223 && !allowedStandards.allowErc223) {
+                  return;
+                }
                 setAssetToDepositStandard(standard);
               }}
             />
@@ -161,7 +196,7 @@ export default function DepositForm({ position }: { position: MarginPosition }) 
           handlePick={handlePick}
           isOpen={isOpenedTokenPick}
           setIsOpen={setIsOpenedTokenPick}
-          availableTokens={position.order.allowedTradingAssets.filter((asset) => !asset.isNative)}
+          availableTokens={availableTokens}
         />
       </>
     </div>

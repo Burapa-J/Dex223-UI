@@ -8,13 +8,9 @@ import * as Yup from "yup";
 import MarginGasSettings from "@/app/[locale]/margin-trading/components/MarginGasSettings";
 import { useEditOrderRequest } from "@/app/[locale]/margin-trading/lending-order/[id]/edit/hooks/useEditOrder";
 import LiquidationFeeConfig from "@/app/[locale]/margin-trading/lending-order/create/components/LiquidationFeeConfig";
-import LiquidationInitiatorSelect from "@/app/[locale]/margin-trading/lending-order/create/components/LiquidationInitiatorSelect";
 import LiquidationOracleSelect from "@/app/[locale]/margin-trading/lending-order/create/components/LiquidationOracleSelect";
 import { useCreateOrderRequest } from "@/app/[locale]/margin-trading/lending-order/create/hooks/useCreateOrder";
-import {
-  LiquidationMode,
-  LiquidationType,
-} from "@/app/[locale]/margin-trading/lending-order/create/steps/types";
+import { LiquidationType } from "@/app/[locale]/margin-trading/lending-order/create/steps/types";
 import { ThirdStepValues } from "@/app/[locale]/margin-trading/lending-order/create/stores/useCreateOrderConfigStore";
 import {
   LendingOrder,
@@ -55,10 +51,6 @@ export const thirdStepSchema = Yup.object().shape({
   liquidationFeeForLiquidator: Yup.number()
     .typeError("Fee for liquidator must be a number")
     .required("Fee for liquidator is required"),
-
-  liquidationFeeForLender: Yup.number()
-    .typeError("Fee for lender must be a number")
-    .required("Fee for lender is required"),
 });
 
 function CreateOrderGasSettings({ values }: { values: ThirdStepValues }) {
@@ -110,11 +102,6 @@ export default function ThirdStep({
     >
       {({ handleSubmit, values, errors, touched, setFieldValue }) => (
         <form onSubmit={handleSubmit}>
-          <LiquidationInitiatorSelect
-            values={values.liquidationMode}
-            setValue={(values: LiquidationMode) => setFieldValue("liquidationMode", values)}
-          />
-
           <TextField
             label={t("order_currency_limit")}
             placeholder={t("order_currency_limit")}

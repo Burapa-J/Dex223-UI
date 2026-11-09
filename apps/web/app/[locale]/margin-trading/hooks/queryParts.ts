@@ -33,6 +33,7 @@ export const GQL_POSITION_FIELDS = `
   txFrozen
   txLiquidated
   collateralAmount
+  frozenTime
   collateralToken {
     ${GQL_TOKEN_FIELDS}
   }

@@ -111,3 +111,17 @@ export default function usePositionWithdraw({ position }: { position: MarginPosi
 
   return { handlePositionWithdraw };
 }
+
+/**
+ * Whether withdrawing `position` sends any ERC-223 token: positionWithdraw transfers each asset at
+ * the exact address the position holds, and an ERC-223 address is delivered as ERC-223, which a
+ * smart account (EIP-7702) can't receive.
+ */
+export function positionWithdrawDeliversErc223(position: MarginPosition): boolean {
+  const erc20 = new Set(position.assets.map((asset) => asset.wrapped.address0.toLowerCase()));
+  const erc223 = new Set(position.assets.map((asset) => asset.wrapped.address1.toLowerCase()));
+  return position.assetAddresses.some(({ address, balance }) => {
+    const a = address.toLowerCase();
+    return balance > 0n && erc223.has(a) && !erc20.has(a);
+  });
+}

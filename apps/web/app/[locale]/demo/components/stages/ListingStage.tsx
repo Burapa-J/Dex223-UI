@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { clsxMerge } from "@/functions/clsxMerge";
 
 import DemoAction from "../DemoAction";
+import { DemoChip } from "../DemoChip";
 import { DemoTokenLogo } from "../DemoTokenBox";
 import { DEMO_TARGET, DemoCard, DemoDetails, demoHighlight, DemoHint } from "../DemoUi";
 import { StageProps } from "../stageTypes";
@@ -29,15 +30,15 @@ export default function ListingStage(props: StageProps) {
     return (
       <DemoCard>
         <h3 className="text-20 font-bold">{tf("token_card")}</h3>
-        <div className="bg-secondary-bg rounded-3 p-4 flex items-center gap-3">
+        <div className="bg-secondary-bg rounded-3 p-4 flex flex-wrap items-center gap-3">
           <DemoTokenLogo symbol="DEMO" size={32} />
-          <div className="flex flex-col">
+          <div className="flex min-w-0 flex-1 flex-col break-words">
             <span className="font-medium">{tf("demo_token")}</span>
             <span className="text-12 text-secondary-text">{tf("demo_token_name")}</span>
           </div>
-          <span className="ml-auto text-12 rounded-full bg-green-bg text-green px-2 py-0.5">
+          <DemoChip tone="success" className="ml-auto">
             {tf("pool_exists")}
-          </span>
+          </DemoChip>
         </div>
         <span className="text-secondary-text font-medium">{tf("contracts")}</span>
         <div className="grid sm:grid-cols-2 gap-2">
@@ -91,11 +92,9 @@ export default function ListingStage(props: StageProps) {
   if (stepKey === "watch") {
     return (
       <DemoCard>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-20 font-bold">{tf("position")}</h3>
-          <span className="text-12 rounded-full bg-purple-bg text-purple px-2 py-0.5">
-            {tf("status_open")}
-          </span>
+          <DemoChip tone="purple">{tf("status_open")}</DemoChip>
         </div>
         <DemoDetails
           rows={[
@@ -170,8 +169,8 @@ export default function ListingStage(props: StageProps) {
               <span className="text-secondary-text font-medium">{tf("leverage")}</span>
               <span className="text-purple font-medium">3x</span>
             </div>
-            <div className="h-2 rounded-full bg-tertiary-bg">
-              <div className="h-2 w-3/5 rounded-full bg-purple" />
+            <div className="h-2 rounded-5 bg-tertiary-bg">
+              <div className="h-2 w-3/5 rounded-5 bg-purple" />
             </div>
           </div>
           <DemoDetails

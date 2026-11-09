@@ -6,8 +6,10 @@ import React, { useState } from "react";
 import Container from "@/components/atoms/Container";
 import Svg from "@/components/atoms/Svg";
 import Button, { ButtonColor, ButtonSize, ButtonVariant } from "@/components/buttons/Button";
+import ButtonLink from "@/components/buttons/ButtonLink";
 import { Link, useRouter } from "@/i18n/routing";
 
+import { DemoChip } from "./components/DemoChip";
 import { DemoTokenLogo } from "./components/DemoTokenBox";
 import { DemoBanner, useDemoNumber } from "./components/DemoUi";
 import { DEMO_FLOWS, DemoFlow, nextUnfinishedFlow } from "./flows";
@@ -25,10 +27,12 @@ function FlowCard({ flow, completed }: { flow: DemoFlow; completed: boolean }) {
           <Svg iconName={flow.icon} />
         </span>
         {completed && (
-          <span className="flex items-center gap-1 text-12 rounded-full bg-green-bg text-green px-2 py-0.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-green" />
+          <DemoChip
+            tone="success"
+            leading={<span aria-hidden className="w-1.5 h-1.5 rounded-full bg-green" />}
+          >
             {t("completed")}
-          </span>
+          </DemoChip>
         )}
       </div>
       <h2 className="text-18 font-bold">{t(`flows.${flow.id}.title`)}</h2>
@@ -113,9 +117,7 @@ export default function DemoHubPage() {
                 <li key={`${symbol}-${standard}`} className="flex items-center gap-2">
                   <DemoTokenLogo symbol={symbol} />
                   <span className="font-medium">{amount}</span>
-                  <span className="text-12 rounded-1 border border-secondary-border px-1.5 text-secondary-text">
-                    {standard}
-                  </span>
+                  <DemoChip className="min-h-5 px-1.5">{standard}</DemoChip>
                 </li>
               ))}
             </ul>
@@ -139,15 +141,16 @@ export default function DemoHubPage() {
               <h2 className="text-18 font-bold">{t("ready_title")}</h2>
               <p className="text-14 text-secondary-text">{t("ready_text")}</p>
             </div>
-            <div className="flex gap-3">
-              <a
+            <div className="flex flex-col sm:flex-row gap-3 md:shrink-0">
+              <ButtonLink
                 href={TEST_APP_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center min-h-10 px-6 rounded-2 border border-green text-primary-text hocus:bg-green-bg duration-200 font-medium"
+                size={ButtonSize.MEDIUM}
+                variant={ButtonVariant.OUTLINED}
               >
                 {t("open_test_app")}
-              </a>
+              </ButtonLink>
               <Button
                 size={ButtonSize.MEDIUM}
                 variant={ButtonVariant.CONTAINED}

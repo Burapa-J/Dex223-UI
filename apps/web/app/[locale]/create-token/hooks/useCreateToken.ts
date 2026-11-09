@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
-import { getAbiItem, getContractAddress, parseEventLogs, parseUnits } from "viem";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Address, getAbiItem, getContractAddress, parseEventLogs, parseUnits } from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 
 import {
@@ -15,10 +15,8 @@ import { ERC223_TOKEN_DEPLOYER_ABI } from "@/config/abis/erc2223TokenDeployer";
 import { TOKEN_CONVERTER_ABI } from "@/config/abis/tokenConverter";
 import { getGasSettings } from "@/functions/gasSettings";
 import { getTransactionWithRetries } from "@/functions/getTransactionWithRetries";
-import { IIFE } from "@/functions/iife";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
-import useDeepEffect from "@/hooks/useDeepEffect";
-import { CONVERTER_ADDRESS, ERC223_TOKEN_DEPLOYER_ADDRESS } from "@/sdk_bi/addresses";
+import { CONVERTER_ADDRESS, ERC223_TOKEN_DEPLOYER_ADDRESS, ZERO_ADDRESS } from "@/sdk_bi/addresses";
 import { Standard } from "@/sdk_bi/standard";
 import { useGlobalFees } from "@/shared/hooks/useGlobalFees";
 import {
@@ -33,7 +31,16 @@ import {
   useCreateTokenGasPriceStore,
 } from "../stores/useCreateTokenGasSettingsStore";
 
-export function useCreateTokenEstimatedGas(createTokenSettings: {
+const DEFAULT_CREATE_TOKEN_GAS = BigInt(900000);
+const CREATE_TOKEN_GAS_BUFFER = BigInt(30000);
+
+export function useCreateTokenEstimatedGas({
+  name,
+  symbol,
+  totalSupply,
+  imageURL,
+  allowMintForOwner,
+}: {
   name: string;
   symbol: string;
   totalSupply: string;
@@ -46,45 +53,63 @@ export function useCreateTokenEstimatedGas(createTokenSettings: {
   const { setEstimatedGas } = useCreateTokenGasLimitStore();
   const chainId = useCurrentChainId();
 
-  useDeepEffect(() => {
-    IIFE(async () => {
-      if (!address) {
-        setEstimatedGas(BigInt(900000));
+  useEffect(() => {
+    let cancelled = false;
+
+    async function estimateGas() {
+      if (
+        !address ||
+        !publicClient ||
+        !totalSupply.trim() ||
+        ERC223_TOKEN_DEPLOYER_ADDRESS[chainId] === ZERO_ADDRESS
+      ) {
+        setEstimatedGas(DEFAULT_CREATE_TOKEN_GAS);
         return;
       }
 
-      const deployTokenParams = {
-        abi: ERC223_TOKEN_DEPLOYER_ABI,
-        address: ERC223_TOKEN_DEPLOYER_ADDRESS[chainId],
-        functionName: "deployERC223Token" as const,
-        args: [
-          createTokenSettings.name,
-          createTokenSettings.symbol,
-          parseUnits(createTokenSettings.totalSupply, 18),
-          createTokenSettings.imageURL,
-          18,
-          createTokenSettings.allowMintForOwner,
-        ],
-      } as const;
-
       try {
-        const estimated = await publicClient?.estimateContractGas({
+        const estimated = await publicClient.estimateContractGas({
           account: address,
-          ...deployTokenParams,
-        } as any);
+          abi: ERC223_TOKEN_DEPLOYER_ABI,
+          address: ERC223_TOKEN_DEPLOYER_ADDRESS[chainId],
+          functionName: "deployERC223Token",
+          args: [
+            name.trim(),
+            symbol.trim(),
+            parseUnits(totalSupply, 18),
+            imageURL,
+            18,
+            allowMintForOwner,
+          ],
+        });
 
-        if (estimated) {
-          setEstimatedGas(estimated + BigInt(10000));
-        } else {
-          setEstimatedGas(BigInt(900000));
+        if (!cancelled) {
+          setEstimatedGas(
+            estimated ? estimated + CREATE_TOKEN_GAS_BUFFER : DEFAULT_CREATE_TOKEN_GAS,
+          );
         }
-        // console.log(estimated);
-      } catch (e) {
-        console.log(e);
-        setEstimatedGas(BigInt(900000));
+      } catch {
+        if (!cancelled) {
+          setEstimatedGas(DEFAULT_CREATE_TOKEN_GAS);
+        }
       }
-    });
-  }, [publicClient, address]);
+    }
+
+    void estimateGas();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    address,
+    allowMintForOwner,
+    chainId,
+    imageURL,
+    name,
+    publicClient,
+    setEstimatedGas,
+    symbol,
+    totalSupply,
+  ]);
 }
 
 export default function useCreateToken(createTokenSettings: {
@@ -103,6 +128,8 @@ export default function useCreateToken(createTokenSettings: {
     useCreateTokenStatusStore();
   const { addRecentTransaction } = useRecentTransactionsStore();
   const [tokenAddress, setTokenAddress] = useState<string | null>(null);
+  // ERC-20 version of the new token, when "create ERC-20" ran and its wrapper was deployed.
+  const [erc20Address, setErc20Address] = useState<Address | null>(null);
   const [isReceiptUnavailable, setIsReceiptUnavailable] = useState(false);
   const { handleImport } = useImportToken();
   const { baseFee, priorityFee, gasPrice } = useGlobalFees();
@@ -149,7 +176,7 @@ export default function useCreateToken(createTokenSettings: {
         ...deployTokenParams,
       } as any);
 
-      const gasToUse = customGasLimit ? customGasLimit : estimatedGas + BigInt(30000); // set custom gas here if user changed it
+      const gasToUse = customGasLimit ? customGasLimit : estimatedGas + CREATE_TOKEN_GAS_BUFFER;
 
       hash = await walletClient.writeContract({
         ...deployTokenParams,
@@ -235,6 +262,7 @@ export default function useCreateToken(createTokenSettings: {
         console.log(deployTokenLog);
         if (deployTokenLog) {
           setTokenAddress(deployTokenLog.args.token);
+          setErc20Address(null);
           try {
             await handleImport(deployTokenLog.args.token, chainId, createTokenSettings.imageURL);
           } catch (e) {
@@ -267,6 +295,18 @@ export default function useCreateToken(createTokenSettings: {
               const receipt = await publicClient.waitForTransactionReceipt({ hash: wrapperHash });
 
               if (receipt.status === "success") {
+                try {
+                  const wrapper = await publicClient.readContract({
+                    abi: TOKEN_CONVERTER_ABI,
+                    address: CONVERTER_ADDRESS[chainId],
+                    functionName: "getERC20WrapperFor",
+                    args: [deployTokenLog.args.token],
+                  });
+                  if (wrapper && wrapper !== ZERO_ADDRESS) setErc20Address(wrapper as Address);
+                } catch (e) {
+                  // Address display only; the token and its wrapper exist either way.
+                  console.error(e);
+                }
                 setStatus(CreateTokenStatus.SUCCESS);
               }
 
@@ -320,6 +360,7 @@ export default function useCreateToken(createTokenSettings: {
   return {
     handleCreateToken,
     tokenAddress,
+    erc20Address,
     setTokenAddress,
     isReceiptUnavailable,
     setIsReceiptUnavailable,

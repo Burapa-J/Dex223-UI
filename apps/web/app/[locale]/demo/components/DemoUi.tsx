@@ -6,6 +6,8 @@ import { ReactNode } from "react";
 import Svg from "@/components/atoms/Svg";
 import { clsxMerge } from "@/functions/clsxMerge";
 
+import { DemoChip, DemoChipButton } from "./DemoChip";
+
 // The one control a step wants clicked. Clicks on anything else inside the stage show the
 // "click the highlighted control" toast (see DemoStage).
 export const DEMO_TARGET = { "data-demo-target": "" } as const;
@@ -25,17 +27,18 @@ export function useDemoNumber() {
 
 export function DemoHint({ step, text, purple }: { step: number; text: string; purple?: boolean }) {
   return (
-    <span
-      className={clsxMerge(
-        "inline-flex items-center gap-2 rounded-full pl-1 pr-3 py-1 text-14 font-medium text-black whitespace-nowrap",
-        purple ? "bg-purple" : "bg-green",
-      )}
+    <DemoChip
+      tone={purple ? "solid-purple" : "solid-success"}
+      size="medium"
+      className="pl-1 shrink whitespace-normal text-left break-words"
+      leading={
+        <span className="flex shrink-0 items-center justify-center rounded-full bg-white w-6 h-6 text-12">
+          {step}
+        </span>
+      }
     >
-      <span className="flex items-center justify-center rounded-full bg-white min-w-6 h-6 text-12">
-        {step}
-      </span>
       {text}
-    </span>
+    </DemoChip>
   );
 }
 
@@ -77,14 +80,10 @@ export function DemoBanner({ onExit }: { onExit?: () => void }) {
           <span className="md:hidden text-yellow font-medium">{t("banner_text_short")}</span>
         </p>
         {onExit && (
-          <button
-            type="button"
-            onClick={onExit}
-            className="flex-shrink-0 rounded-full border border-secondary-border px-4 min-h-8 text-14 text-secondary-text hocus:text-primary-text hocus:border-primary-text duration-200"
-          >
+          <DemoChipButton onClick={onExit} size="medium" className="flex-shrink-0 px-4">
             <span className="max-md:hidden">{t("exit")}</span>
             <span className="md:hidden">{t("exit_short")}</span>
-          </button>
+          </DemoChipButton>
         )}
       </div>
     </div>

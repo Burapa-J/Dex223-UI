@@ -157,11 +157,6 @@ function OrderActions({
 
   return (
     <>
-      <Link className="flex-shrink-0 pointer-events-none" href={`/margin-swap`}>
-        <Button disabled size={ButtonSize.MEDIUM} colorScheme={ButtonColor.LIGHT_PURPLE}>
-          {t("margin_swap")}
-        </Button>
-      </Link>
       <Link
         className={clsx("flex-shrink-0", borrowDisabled && "pointer-events-none")}
         href={`/margin-trading/lending-order/${order.id}/borrow`}

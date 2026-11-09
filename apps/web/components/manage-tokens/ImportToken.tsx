@@ -25,7 +25,7 @@ import {
   ERC1820_REGISTRY_ADDRESS,
 } from "@/config/abis/erc1820";
 import { TOKEN_CONVERTER_ABI } from "@/config/abis/tokenConverter";
-import { db } from "@/db/db";
+import { addCustomToken } from "@/db/addCustomToken";
 import getExplorerLink, { ExplorerLinkType } from "@/functions/getExplorerLink";
 import truncateMiddle from "@/functions/truncateMiddle";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
@@ -78,7 +78,6 @@ function EmptyState({
 }
 
 export function useImportToken() {
-  const tokenLists = useTokenLists();
   const publicClient = usePublicClient();
 
   const handleImport = useCallback(
@@ -185,33 +184,11 @@ export function useImportToken() {
           : "/images/tokens/placeholder.svg",
       );
 
-      const currentCustomList = tokenLists?.find((t) => t.id === `custom-${chainId}`);
-
-      if (!currentCustomList) {
-        await db.tokenLists.add({
-          id: `custom-${chainId}`,
-          enabled: true,
-          chainId,
-          list: {
-            name: "Custom token list",
-            version: {
-              minor: 0,
-              major: 0,
-              patch: 0,
-            },
-            tokens: [token],
-            logoURI: "/images/token-list-placeholder.svg",
-          },
-        });
-      } else {
-        (db.tokenLists as any).update(`custom-${chainId}`, {
-          "list.tokens": [...currentCustomList.list.tokens, token],
-        });
-      }
+      await addCustomToken(token);
 
       return token;
     },
-    [publicClient, tokenLists],
+    [publicClient],
   );
 
   return { handleImport };
@@ -221,7 +198,6 @@ export default function ImportToken({ setContent, handleClose }: Props) {
   const t = useTranslations("ManageTokens");
   const [tokenAddressToImport, setTokenAddressToImport] = useState("");
   const chainId = useCurrentChainId();
-  const tokenLists = useTokenLists();
 
   const {
     data: tokenName,
@@ -480,7 +456,7 @@ export default function ImportToken({ setContent, handleClose }: Props) {
                                   text={truncateMiddle(erc223AddressToImport)}
                                   href={getExplorerLink(
                                     ExplorerLinkType.ADDRESS,
-                                    erc20AddressToImport,
+                                    erc223AddressToImport,
                                     chainId,
                                   )}
                                   className="justify-between"
@@ -542,10 +518,6 @@ export default function ImportToken({ setContent, handleClose }: Props) {
                       erc20AddressToImport &&
                       erc223AddressToImport
                     ) {
-                      const currentCustomList = tokenLists?.find(
-                        (t) => t.id === `custom-${chainId}`,
-                      );
-
                       const token = new Token(
                         chainId,
                         erc20AddressToImport as Address,
@@ -556,27 +528,7 @@ export default function ImportToken({ setContent, handleClose }: Props) {
                         "/images/tokens/placeholder.svg",
                       );
 
-                      if (!currentCustomList) {
-                        await db.tokenLists.add({
-                          id: `custom-${chainId}`,
-                          enabled: true,
-                          chainId,
-                          list: {
-                            name: "Custom token list",
-                            version: {
-                              minor: 0,
-                              major: 0,
-                              patch: 0,
-                            },
-                            tokens: [token],
-                            logoURI: "/images/token-list-placeholder.svg",
-                          },
-                        });
-                      } else {
-                        (db.tokenLists as any).update(`custom-${chainId}`, {
-                          "list.tokens": [...currentCustomList.list.tokens, token],
-                        });
-                      }
+                      await addCustomToken(token);
                     }
                     setContent("default");
                     addToast(t("imported_successfully"));

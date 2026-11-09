@@ -3,12 +3,17 @@ import clsx from "clsx";
 import { Formik } from "formik";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import React from "react";
+import React, { useState } from "react";
 import { array, mixed, number, object } from "yup";
 
 import { calculatePeriodInterestRateNum } from "@/app/[locale]/margin-trading/lending-order/[id]/helpers/calculatePeriodInterestRate";
 import LendingOrderDetailsRow from "@/app/[locale]/margin-trading/lending-order/create/components/LendingOrderDetailsRow";
 import LendingOrderTokensSourceConfig from "@/app/[locale]/margin-trading/lending-order/create/components/LendingOrderTokensSourceConfig";
+import OraclePricingAlerts, {
+  oraclePricingChipBorder,
+  OraclePricingChipMarker,
+  OraclePricingStatus,
+} from "@/app/[locale]/margin-trading/lending-order/create/components/OraclePricingAlerts";
 import PickAllowedTokenListsDialog from "@/app/[locale]/margin-trading/lending-order/create/components/PickAllowedTokenListsDialog";
 import PickAllowedTokensDialog from "@/app/[locale]/margin-trading/lending-order/create/components/PickAllowedTokensDialog";
 import PickCollateralTokensDialog from "@/app/[locale]/margin-trading/lending-order/create/components/PickCollateralTokensDialog";
@@ -44,6 +49,10 @@ export default function SecondStep({
 }) {
   const t = useTranslations("Margin");
   const { setIsOpen: setCollateralDialogOpened } = useCollateralTokensDialogOpenedStore();
+  const [pricing, setPricing] = useState<OraclePricingStatus>({
+    hasBlocking: false,
+    flags: new Map(),
+  });
 
   return (
     <Formik
@@ -194,7 +203,12 @@ export default function SecondStep({
                             ? currency.address0
                             : `native-${currency.wrapped.address0}`
                         }
-                        className="border pl-1 py-1 pr-3 flex items-center gap-2 rounded-2 border-primary-border"
+                        className={clsx(
+                          "border pl-1 py-1 pr-3 flex items-center gap-2 rounded-2",
+                          oraclePricingChipBorder(
+                            pricing.flags.get(currency.wrapped.address0.toLowerCase()),
+                          ),
+                        )}
                       >
                         <Image
                           className="flex-shrink-0"
@@ -204,6 +218,9 @@ export default function SecondStep({
                           alt={""}
                         />
                         <span>{currency.name}</span>
+                        <OraclePricingChipMarker
+                          state={pricing.flags.get(currency.wrapped.address0.toLowerCase())}
+                        />
                       </div>
                     );
                   })}
@@ -227,11 +244,23 @@ export default function SecondStep({
                 : undefined
             }
             // error={undefined}
+            pricingFlags={pricing.flags}
             autoListingError={
               !!props.touched.tradingTokens?.tradingTokensAutoListing
                 ? (props.errors.tradingTokens?.tradingTokensAutoListing as string)
                 : undefined
             }
+          />
+
+          <OraclePricingAlerts
+            loanToken={firstStepValues.loanToken}
+            tokens={[
+              ...props.values.collateralTokens,
+              ...(props.values.tradingTokens.inputMode === TradingTokensInputMode.MANUAL
+                ? props.values.tradingTokens.allowedTokens
+                : []),
+            ]}
+            onStatus={setPricing}
           />
 
           <TextField
@@ -279,6 +308,7 @@ export default function SecondStep({
             </Button>
             <Button
               disabled={
+                pricing.hasBlocking ||
                 (props.values.minimumBorrowingAmount &&
                   +props.values.minimumBorrowingAmount > +firstStepValues.loanAmount) ||
                 (Object.keys(props.touched).length > 0 && Object.keys(props.errors).length > 0)

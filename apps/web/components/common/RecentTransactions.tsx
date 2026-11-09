@@ -92,8 +92,10 @@ export default function RecentTransactions({
       }
 
       return accountPendingTransactions.reduce((lowest, obj) => {
-        return obj.nonce < lowest ? obj.nonce : lowest;
-      }, accountPendingTransactions[0]?.nonce || -1);
+        return obj.nonce !== undefined && (lowest === -1 || obj.nonce < lowest)
+          ? obj.nonce
+          : lowest;
+      }, -1);
     }
 
     return -1;

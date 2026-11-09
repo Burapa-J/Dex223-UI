@@ -3,7 +3,11 @@
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { ReactNode } from "react";
+import { NumericFormat } from "react-number-format";
 
+import SelectButton from "@/components/atoms/SelectButton";
+import InputButton from "@/components/buttons/InputButton";
+import { ThemeColors } from "@/config/theme/colors";
 import { clsxMerge } from "@/functions/clsxMerge";
 
 import { DEMO_TARGET, demoHighlight, useDemoNumber } from "./DemoUi";
@@ -70,37 +74,48 @@ export default function DemoTokenBox({
         error && "ring-1 ring-inset ring-red-light",
       )}
     >
-      <span className="text-14 text-secondary-text">{label}</span>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-14 text-secondary-text">{label}</span>
+        {onAmountChange && (
+          <InputButton
+            data-demo-free=""
+            onClick={() => onAmountChange(String(balances[selected ?? "ERC-20"]))}
+            colorScheme={purple ? ThemeColors.PURPLE : ThemeColors.GREEN}
+            isActive={
+              amount !== "" && Number(amount.replace(/,/g, "")) === balances[selected ?? "ERC-20"]
+            }
+            text={t("max")}
+          />
+        )}
+      </div>
       <div className="flex items-center justify-between gap-3">
         {onAmountChange ? (
-          <input
+          <NumericFormat
             data-demo-free=""
             inputMode="decimal"
             aria-label={label}
             value={amount}
-            onChange={(e) => onAmountChange(e.target.value.replace(/[^\d.,]/g, ""))}
+            allowedDecimalSeparators={[","]}
+            allowNegative={false}
+            onValueChange={({ value }) => onAmountChange(value)}
             className="bg-transparent outline-none text-24 md:text-32 font-bold w-full min-w-0"
           />
         ) : (
           <span className="text-24 md:text-32 font-bold truncate">{amount}</span>
         )}
-        <span className="flex items-center gap-2 rounded-full bg-primary-bg px-3 py-1.5 flex-shrink-0">
-          <DemoTokenLogo symbol={symbol} />
-          <span className="font-medium">{symbol}</span>
-        </span>
+        <SelectButton
+          type="button"
+          variant="rounded"
+          size="large"
+          className="shrink-0 gap-1 lg:px-3 xl:px-5"
+          colorScheme={purple ? ThemeColors.PURPLE : ThemeColors.GREEN}
+        >
+          <DemoTokenLogo symbol={symbol} size={32} />
+          <span className="text-14 xl:text-20 font-medium">{symbol}</span>
+        </SelectButton>
       </div>
       <div className="flex items-center justify-between gap-3">
         <span className="text-14 text-secondary-text">{usd}</span>
-        {onAmountChange && (
-          <button
-            type="button"
-            data-demo-free=""
-            onClick={() => onAmountChange(String(balances[selected ?? "ERC-20"]))}
-            className="text-12 rounded-full bg-tertiary-bg px-2 py-0.5 text-secondary-text hocus:text-primary-text"
-          >
-            {t("max")}
-          </button>
-        )}
       </div>
       <div className="grid grid-cols-2 gap-2">
         {(["ERC-20", "ERC-223"] as Standard[]).map((standard) => {
@@ -125,7 +140,7 @@ export default function DemoTokenBox({
               )}
             >
               <span className="block text-14 font-medium">{standard}</span>
-              <span className="block text-12 text-secondary-text">
+              <span className="block text-12 text-secondary-text break-words">
                 {t("balance", { amount: format(balances[standard], 4) })}
               </span>
             </button>

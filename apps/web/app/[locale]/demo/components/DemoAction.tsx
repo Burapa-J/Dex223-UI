@@ -36,7 +36,7 @@ export default function DemoAction({
   const active = isTarget && status === "idle" && !disabledLabel;
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex min-w-0 flex-col gap-3">
       <Button
         type="button"
         fullWidth
@@ -56,7 +56,7 @@ export default function DemoAction({
         {disabledLabel ?? (isTarget && status === "signing" ? t("signing") : label)}
       </Button>
       {active && hint && (
-        <span className="max-sm:hidden">
+        <span className="max-sm:hidden self-end max-w-full">
           <DemoHint step={stepNumber} text={hint} purple={purple} />
         </span>
       )}

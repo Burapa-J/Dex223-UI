@@ -4,9 +4,10 @@ import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
 import React, { PropsWithChildren, useEffect, useMemo, useState } from "react";
 import SimpleBar from "simplebar-react";
-import { parseUnits } from "viem";
+import { formatUnits, parseUnits } from "viem";
 
 import timestampToDateString from "@/app/[locale]/margin-trading/helpers/timestampToDateString";
+import LiquidationRiskBlock from "@/app/[locale]/margin-trading/lending-order/[id]/borrow/components/LiquidationRiskBlock";
 import useCreateMarginPosition, {
   useCreatePositionApproveSteps,
 } from "@/app/[locale]/margin-trading/lending-order/[id]/borrow/hooks/useCreateMarginPosition";
@@ -48,11 +49,13 @@ function CreateMarginPositionActionButton({
   order,
   amountToApprove,
   feeAmountToApprove,
+  confirmDisabled,
 }: {
   orderId: string;
   order: LendingOrder;
   amountToApprove: string;
   feeAmountToApprove: string;
+  confirmDisabled: boolean;
 }) {
   const t = useTranslations("Margin");
   const { handleCreateMarginPosition } = useCreateMarginPosition(order);
@@ -66,16 +69,12 @@ function CreateMarginPositionActionButton({
   } = useCreateMarginPositionStatusStore();
   const { values } = useCreateMarginPositionConfigStore();
 
-  const orderedHashes =
-    values.collateralToken &&
-    order.liquidationRewardAsset.equals(values.collateralToken) &&
-    values.collateralTokenStandard === Standard.ERC20
-      ? [approveBorrowHash, borrowHash]
-      : [
-          values.collateralTokenStandard === Standard.ERC20 ? approveBorrowHash : transferHash,
-          approveLiquidationFeeHash,
-          borrowHash,
-        ];
+  const hashesByStep: Partial<Record<CreateMarginPositionStatus, `0x${string}` | undefined>> = {
+    [CreateMarginPositionStatus.PENDING_APPROVE_BORROW]: approveBorrowHash,
+    [CreateMarginPositionStatus.PENDING_TRANSFER]: transferHash,
+    [CreateMarginPositionStatus.PENDING_APPROVE_LIQUIDATION_FEE]: approveLiquidationFeeHash,
+    [CreateMarginPositionStatus.PENDING_BORROW]: borrowHash,
+  };
 
   const { allSteps: marginSteps } = useCreatePositionApproveSteps(order);
 
@@ -86,7 +85,7 @@ function CreateMarginPositionActionButton({
           <OperationStepRow
             key={index}
             iconName={step.iconName}
-            hash={orderedHashes[index]}
+            hash={hashesByStep[step.pending]}
             statusTextMap={step.textMap}
             status={operationStatusToStepStatus({
               currentStatus: status,
@@ -106,6 +105,7 @@ function CreateMarginPositionActionButton({
   return (
     <Button
       fullWidth
+      disabled={confirmDisabled}
       onClick={() => handleCreateMarginPosition(orderId, amountToApprove, feeAmountToApprove)}
     >
       {t("confirm_borrow")}
@@ -127,13 +127,24 @@ export default function ReviewBorrowDialog({
   const { values, setValues } = useCreateMarginPositionConfigStore();
   const { status, setStatus } = useCreateMarginPositionStatusStore();
   const [isEditApproveActive, setEditApproveActive] = React.useState(false);
+  const [riskAcknowledged, setRiskAcknowledged] = useState(false);
   const [isEditApproveFeeActive, setEditApproveFeeActive] = React.useState(false);
 
   const { positionId, setPositionId } = useNewlyCreatedPositionId();
 
   const isFeeAndCollateralSame = useMemo(() => {
-    return values.collateralToken?.equals(order.liquidationRewardAsset);
-  }, [order.liquidationRewardAsset, values.collateralToken]);
+    return (
+      !values.collateralToken?.isNative &&
+      values.collateralTokenStandard === Standard.ERC20 &&
+      order.liquidationRewardAssetStandard === Standard.ERC20 &&
+      values.collateralToken?.equals(order.liquidationRewardAsset)
+    );
+  }, [
+    order.liquidationRewardAsset,
+    order.liquidationRewardAssetStandard,
+    values.collateralToken,
+    values.collateralTokenStandard,
+  ]);
 
   const [amountToApprove, setAmountToApprove] = useState(values.collateralAmount);
   const [feeAmountToApprove, setFeeAmountToApprove] = useState(
@@ -147,10 +158,19 @@ export default function ReviewBorrowDialog({
 
     if (isFeeAndCollateralSame) {
       setAmountToApprove(
-        (+values.collateralAmount + +order.liquidationRewardAmount.formatted).toString(),
+        formatUnits(
+          parseUnits(values.collateralAmount, values.collateralToken?.decimals ?? 18) +
+            order.liquidationRewardAmount.value,
+          values.collateralToken?.decimals ?? 18,
+        ),
       );
     }
-  }, [isFeeAndCollateralSame, order.liquidationRewardAmount.formatted, values.collateralAmount]);
+  }, [
+    isFeeAndCollateralSame,
+    order.liquidationRewardAmount.value,
+    values.collateralAmount,
+    values.collateralToken?.decimals,
+  ]);
 
   const chainId = useCurrentChainId();
 
@@ -158,6 +178,7 @@ export default function ReviewBorrowDialog({
   const isFinalStatus = useMemo(
     () =>
       status === CreateMarginPositionStatus.SUCCESS ||
+      status === CreateMarginPositionStatus.ERROR_TRANSFER ||
       status === CreateMarginPositionStatus.ERROR_BORROW ||
       status === CreateMarginPositionStatus.ERROR_APPROVE_BORROW ||
       status === CreateMarginPositionStatus.ERROR_APPROVE_LIQUIDATION_FEE,
@@ -167,6 +188,10 @@ export default function ReviewBorrowDialog({
     () => !isInitialStatus && !isFinalStatus,
     [isFinalStatus, isInitialStatus],
   );
+
+  useEffect(() => {
+    setRiskAcknowledged(false);
+  }, [isOpen]);
 
   useEffect(() => {
     if (isFinalStatus && !isOpen) {
@@ -216,10 +241,10 @@ export default function ReviewBorrowDialog({
         {!isFinalStatus && (
           <>
             <InputLabel inputSize={InputSize.LARGE} label={t("you_send")} />
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-tertiary-bg rounded-3 py-4 px-5 mb-4 text-14">
+            <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 mb-4">
+              <div className="bg-tertiary-bg rounded-3 py-4 px-3 sm:px-5 text-14 min-w-0">
                 <p className="text-secondary-text ">{t("collateral")}</p>
-                <div className="flex items-center gap-1 items-center my-1">
+                <div className="flex flex-wrap items-center gap-1 my-1 break-all">
                   <Image
                     className="mr-1"
                     src={"/images/tokens/placeholder.svg"}
@@ -238,9 +263,9 @@ export default function ReviewBorrowDialog({
                   />
                 </div>
               </div>
-              <div className="bg-tertiary-bg rounded-3 py-4 px-5 mb-4 text-14">
+              <div className="bg-tertiary-bg rounded-3 py-4 px-3 sm:px-5 text-14 min-w-0">
                 <p className="text-secondary-text ">{t("liquidation_fee")}</p>
-                <div className="flex items-center gap-1 items-center my-1">
+                <div className="flex flex-wrap items-center gap-1 my-1 break-all">
                   <Image
                     className="mr-1"
                     src={"/images/tokens/placeholder.svg"}
@@ -261,9 +286,9 @@ export default function ReviewBorrowDialog({
               </div>
             </div>
             <InputLabel inputSize={InputSize.LARGE} label={t("you_receive")} />
-            <div className="bg-tertiary-bg rounded-3 py-[14px] px-5 mb-4 text-14 flex items-center justify-between">
+            <div className="bg-tertiary-bg rounded-3 py-[14px] px-3 sm:px-5 mb-4 text-14 flex flex-wrap items-center justify-between gap-2 min-w-0">
               <p className="text-secondary-text ">{t("borrow")}</p>
-              <div className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center gap-1 min-w-0 break-all">
                 <Image
                   className="mr-1"
                   src={"/images/tokens/placeholder.svg"}
@@ -334,19 +359,19 @@ export default function ReviewBorrowDialog({
               />
             </div>
             <div className="bg-tertiary-bg rounded-3 px-5 pb-5 pt-3">
-              <div className="flex justify-between mb-3 items-center">
-                <div className="flex items-center gap-2 mb-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center mb-3">
+                <div className="flex items-center gap-2 min-w-0">
                   <h3 className="text-tertiary-text flex items-center gap-1 text-14">
                     <Tooltip text={t("tokens_allowed_tooltip")} iconSize={20} />
                     {t("tokens_allowed_trading")}
                   </h3>
                 </div>
-                <div>
+                <div className="w-full sm:w-[180px] shrink-0">
                   <SearchInput
                     value={searchTradableTokenValue}
                     onChange={(e) => setSearchTradableTokenValue(e.target.value)}
                     placeholder={t("token_name")}
-                    className="h-8 text-14 w-[180px] rounded-2"
+                    className="h-8 text-14 w-full rounded-2"
                   />
                 </div>
               </div>
@@ -379,48 +404,56 @@ export default function ReviewBorrowDialog({
             </div>
             {isFeeAndCollateralSame ? (
               <>
-                {values.collateralToken && (
-                  <ApproveAmountConfig
-                    amountToApprove={amountToApprove}
-                    setAmountToApprove={setAmountToApprove}
-                    minAmount={
-                      parseUnits(values.collateralAmount, values.collateralToken?.decimals ?? 18) +
-                      order.liquidationRewardAmount.value
-                    }
-                    isEditApproveActive={isEditApproveActive}
-                    setEditApproveActive={setEditApproveActive}
-                    asset={values.collateralToken}
-                  />
-                )}
-              </>
-            ) : (
-              <>
-                <>
-                  {values.collateralToken && (
+                {values.collateralToken &&
+                  !order.liquidationRewardAsset.isNative &&
+                  order.liquidationRewardAssetStandard === Standard.ERC20 && (
                     <ApproveAmountConfig
                       amountToApprove={amountToApprove}
                       setAmountToApprove={setAmountToApprove}
-                      minAmount={parseUnits(
-                        values.collateralAmount,
-                        values.collateralToken?.decimals ?? 18,
-                      )}
+                      minAmount={
+                        parseUnits(
+                          values.collateralAmount,
+                          values.collateralToken?.decimals ?? 18,
+                        ) + order.liquidationRewardAmount.value
+                      }
                       isEditApproveActive={isEditApproveActive}
                       setEditApproveActive={setEditApproveActive}
                       asset={values.collateralToken}
                     />
                   )}
+              </>
+            ) : (
+              <>
+                <>
+                  {values.collateralToken &&
+                    !values.collateralToken.isNative &&
+                    values.collateralTokenStandard === Standard.ERC20 && (
+                      <ApproveAmountConfig
+                        amountToApprove={amountToApprove}
+                        setAmountToApprove={setAmountToApprove}
+                        minAmount={parseUnits(
+                          values.collateralAmount,
+                          values.collateralToken?.decimals ?? 18,
+                        )}
+                        isEditApproveActive={isEditApproveActive}
+                        setEditApproveActive={setEditApproveActive}
+                        asset={values.collateralToken}
+                      />
+                    )}
                 </>
                 <>
-                  {values.collateralToken && (
-                    <ApproveAmountConfig
-                      amountToApprove={feeAmountToApprove}
-                      setAmountToApprove={setFeeAmountToApprove}
-                      minAmount={order.liquidationRewardAmount.value}
-                      isEditApproveActive={isEditApproveFeeActive}
-                      setEditApproveActive={setEditApproveFeeActive}
-                      asset={order.liquidationRewardAsset}
-                    />
-                  )}
+                  {values.collateralToken &&
+                    !order.liquidationRewardAsset.isNative &&
+                    order.liquidationRewardAssetStandard === Standard.ERC20 && (
+                      <ApproveAmountConfig
+                        amountToApprove={feeAmountToApprove}
+                        setAmountToApprove={setFeeAmountToApprove}
+                        minAmount={order.liquidationRewardAmount.value}
+                        isEditApproveActive={isEditApproveFeeActive}
+                        setEditApproveActive={setEditApproveFeeActive}
+                        asset={order.liquidationRewardAsset}
+                      />
+                    )}
                 </>
               </>
             )}
@@ -502,11 +535,20 @@ export default function ReviewBorrowDialog({
             )}
           </div>
         )}
+        {!isFinalStatus && (
+          <LiquidationRiskBlock
+            order={order}
+            isOpen={isOpen}
+            acknowledged={riskAcknowledged}
+            onAcknowledgedChange={setRiskAcknowledged}
+          />
+        )}
         <CreateMarginPositionActionButton
           orderId={orderId}
           order={order}
           amountToApprove={amountToApprove}
           feeAmountToApprove={feeAmountToApprove}
+          confirmDisabled={!riskAcknowledged}
         />
       </div>
     </DrawerDialog>

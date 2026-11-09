@@ -76,7 +76,7 @@ export default function SwapTracker() {
   const pathname = usePathname();
 
   const { snapshot, startedAt, hide } = useSwapTrackerStore();
-  const { status, swapHash, approveHash, setStatus } = useSwapStatusStore();
+  const { status, swapHash, approveHash, setStatus, isReceiptUnavailable } = useSwapStatusStore();
   const { setIsOpen: setConfirmOpen } = useConfirmSwapDialogStore();
   const [finishedIn, setFinishedIn] = useState<number | null>(null);
 
@@ -87,7 +87,7 @@ export default function SwapTracker() {
   const dismiss = () => {
     hide();
     setFinishedIn(null);
-    if (isSuccess || isFailed) setStatus(SwapStatus.INITIAL);
+    if (isSuccess || isFailed || isReceiptUnavailable) setStatus(SwapStatus.INITIAL);
   };
 
   useEffect(() => {

@@ -46,6 +46,7 @@ export enum RecentTransactionTitleTemplate {
   MSIG_TRANSACTION_CONFIRMED,
   MSIG_DECLINE,
   CLAIM,
+  UNFREEZE_MARGIN_POSITION,
 }
 
 type RecentTransactionGasLimit =
@@ -174,6 +175,9 @@ export type IRecentTransactionTitle =
       template: RecentTransactionTitleTemplate.FREEZE_MARGIN_POSITION;
     } & MarginPositionTitle)
   | ({
+      template: RecentTransactionTitleTemplate.UNFREEZE_MARGIN_POSITION;
+    } & MarginPositionTitle)
+  | ({
       template: RecentTransactionTitleTemplate.WITHDRAW_FROM_CLOSED_POSITION;
     } & MarginPositionTitle)
   | ({
@@ -207,7 +211,8 @@ export type IRecentTransaction = {
   id: Address;
   status: RecentTransactionStatus;
   hash: Address;
-  nonce: number;
+  // Broadcasts can be tracked by hash before RPC transaction metadata is available.
+  nonce?: number;
   chainId: number;
   gas: { gas: string } & RecentTransactionGasLimit;
   params: IncreaseLiquidityParams | SwapParams | RemoveLiquidityParams | ApproveTokenParams;

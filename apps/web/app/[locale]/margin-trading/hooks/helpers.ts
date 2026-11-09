@@ -1,6 +1,7 @@
 import { Address, formatUnits, Hash } from "viem";
 
 import { LendingOrder, MarginPosition } from "@/app/[locale]/margin-trading/types";
+import { listedLogo, TokenListLogos } from "@/hooks/useTokenListLogos";
 import { ORACLE_ADDRESS, ZERO_ADDRESS } from "@/sdk_bi/addresses";
 import { DexChainId } from "@/sdk_bi/chains";
 import { Currency } from "@/sdk_bi/entities/currency";
@@ -44,6 +45,7 @@ export type GqlPosition = {
   collateralToken: GqlToken;
   collateralAmount: bigint;
   leverage: number;
+  frozenTime?: string | number | null;
 };
 
 export type GqlOrder = {
@@ -127,7 +129,11 @@ export type GqlRecentTransaction = {
   positionClosed: BaseGqlRecentTransaction;
 };
 
-export function gqlTokenToCurrency(gqlToken: GqlToken, chainId: DexChainId): Currency {
+export function gqlTokenToCurrency(
+  gqlToken: GqlToken,
+  chainId: DexChainId,
+  logos?: TokenListLogos,
+): Currency {
   if (gqlToken.addressERC20.toLowerCase() === ZERO_ADDRESS) {
     return NativeCoin.onChain(chainId);
   }
@@ -139,16 +145,48 @@ export function gqlTokenToCurrency(gqlToken: GqlToken, chainId: DexChainId): Cur
     +gqlToken.decimals,
     gqlToken.symbol,
     gqlToken.name,
-    "/images/tokens/placeholder.svg",
+    listedLogo(logos, gqlToken.addressERC20, gqlToken.addressERC223),
   );
 }
 
 export function serializeGqlOrder(
   gqlOrder: GqlOrder,
   chainId: DexChainId,
+  logos?: TokenListLogos,
 ): Omit<LendingOrder, "positions"> {
   const { positions, duration, liquidationRewardAmount, balance, minLoan, createdAt, ...rest } =
     gqlOrder;
+
+  const baseAsset = gqlTokenToCurrency(gqlOrder.baseAssetToken, chainId, logos);
+  const baseAssetStandard =
+    gqlOrder.baseAsset.toLowerCase() === gqlOrder.baseAssetToken.addressERC20.toLowerCase()
+      ? Standard.ERC20
+      : Standard.ERC223;
+  const tradingErc223Set = new Set(
+    (gqlOrder.whitelist?.allowedForTradingTokens ?? [])
+      .map((token) => token.addressERC223?.toLowerCase())
+      .filter((addr): addr is string => Boolean(addr && addr !== ZERO_ADDRESS)),
+  );
+  const collateralErc223Set = new Set(
+    (gqlOrder.collateralTokens ?? [])
+      .map((token) => token.addressERC223?.toLowerCase())
+      .filter((addr): addr is string => Boolean(addr && addr !== ZERO_ADDRESS)),
+  );
+  const hasWhitelistedErc223 = Boolean(
+    gqlOrder.whitelist?.allowedForTrading?.some((addr) =>
+      tradingErc223Set.has(addr.toLowerCase()),
+    ) ||
+      (gqlOrder.whitelist?.allowedForTrading &&
+        gqlOrder.whitelist.allowedForTrading.length >
+          gqlOrder.whitelist.allowedForTradingTokens.length),
+  );
+  const hasCollateralErc223 = Boolean(
+    gqlOrder.collaterals?.some((addr) => collateralErc223Set.has(addr.toLowerCase())),
+  );
+  const hasAutolisting = Boolean(
+    gqlOrder.whitelist?.autolisting &&
+      gqlOrder.whitelist.autolisting.toLowerCase() !== ZERO_ADDRESS,
+  );
 
   return {
     ...rest,
@@ -164,23 +202,27 @@ export function serializeGqlOrder(
     },
     balance: BigInt(balance),
     positionDuration: Number(duration),
-    liquidationRewardAsset: gqlTokenToCurrency(gqlOrder.liquidationRewardAssetToken, chainId),
-    baseAsset: gqlTokenToCurrency(gqlOrder.baseAssetToken, chainId),
-    baseAssetStandard:
-      gqlOrder.baseAsset.toLowerCase() === gqlOrder.baseAssetToken.addressERC20.toLowerCase()
-        ? Standard.ERC20
-        : Standard.ERC223,
+    liquidationRewardAsset: gqlTokenToCurrency(
+      gqlOrder.liquidationRewardAssetToken,
+      chainId,
+      logos,
+    ),
+    baseAsset,
+    baseAssetAddress: gqlOrder.baseAsset,
+    baseAssetStandard,
     collateralAddresses: gqlOrder.collaterals,
     allowedTradingAddresses: gqlOrder.whitelist.allowedForTrading,
+    whitelistAutoListing: gqlOrder.whitelist.autolisting,
     isErc223TradingAllowed:
-      gqlOrder.whitelist.allowedForTrading &&
-      gqlOrder.whitelist.allowedForTrading.length >
-        gqlOrder.whitelist.allowedForTradingTokens.length,
+      hasWhitelistedErc223 ||
+      hasCollateralErc223 ||
+      hasAutolisting ||
+      (!baseAsset.isNative && baseAssetStandard === Standard.ERC223),
     allowedCollateralAssets: gqlOrder.collateralTokens.map((collateralToken: GqlToken) =>
-      gqlTokenToCurrency(collateralToken, chainId),
+      gqlTokenToCurrency(collateralToken, chainId, logos),
     ),
     allowedTradingAssets: gqlOrder.whitelist.allowedForTradingTokens.map((tradingToken: GqlToken) =>
-      gqlTokenToCurrency(tradingToken, chainId),
+      gqlTokenToCurrency(tradingToken, chainId, logos),
     ),
     liquidationRewardAssetStandard:
       gqlOrder.liquidationRewardAsset.toLowerCase() ===
@@ -194,6 +236,7 @@ export function serializeGqlOrder(
 export function serializeGqlPosition(
   gqlPosition: GqlPosition,
   chainId: DexChainId,
+  logos?: TokenListLogos,
 ): Omit<MarginPosition, "order"> {
   const {
     assets,
@@ -207,6 +250,7 @@ export function serializeGqlPosition(
     collateralAmount,
     collateralToken,
     leverage,
+    frozenTime,
     ...rest
   } = gqlPosition;
 
@@ -216,16 +260,18 @@ export function serializeGqlPosition(
     liquidatedAt: +liquidatedAt,
     createdAt: +createdAt,
     loanAmount: BigInt(loanAmount),
-    loanAsset: gqlTokenToCurrency(baseAssetToken, chainId),
+    loanAsset: gqlTokenToCurrency(baseAssetToken, chainId, logos),
     assetAddresses: assets.map((asset) => ({ ...asset, balance: BigInt(asset.balance) })),
-    assets: assetsTokens.map((tradingToken: GqlToken) => gqlTokenToCurrency(tradingToken, chainId)),
+    assets: assetsTokens.map((tradingToken: GqlToken) =>
+      gqlTokenToCurrency(tradingToken, chainId, logos),
+    ),
     assetsWithBalances: assetsTokens.map((tradingToken: GqlToken) => {
       const addresses = new Set([
         tradingToken.addressERC20.toLowerCase(),
         tradingToken.addressERC223.toLowerCase(),
       ]);
       return {
-        asset: gqlTokenToCurrency(tradingToken, chainId),
+        asset: gqlTokenToCurrency(tradingToken, chainId, logos),
         balance: assets.reduce(
           (sum, asset) =>
             addresses.has(asset.address.toLowerCase()) ? sum + BigInt(asset.balance) : sum,
@@ -233,9 +279,10 @@ export function serializeGqlPosition(
         ),
       };
     }),
-    collateralAsset: gqlTokenToCurrency(collateralToken, chainId),
+    collateralAsset: gqlTokenToCurrency(collateralToken, chainId, logos),
     collateralAmount: BigInt(collateralAmount),
     initialLeverage: +leverage,
+    frozenTime: frozenTime ? Number(frozenTime) : 0,
   };
 }
 
@@ -319,6 +366,7 @@ const keyToFieldNameMap = {
 export function serializeGqlRecentTransactions(
   gqlRecentTransactions: GqlRecentTransaction[],
   chainId: DexChainId,
+  logos?: TokenListLogos,
 ): MarginPositionRecentTransaction[] {
   return gqlRecentTransactions.map((gqlTx) => {
     const fieldName = keyToFieldNameMap[gqlTx.key] as keyof GqlRecentTransaction;
@@ -335,8 +383,8 @@ export function serializeGqlRecentTransactions(
           timestamp,
           amountIn: BigInt(amountIn),
           amountOut: BigInt(amountOut),
-          assetInToken: gqlTokenToCurrency(assetInToken, chainId),
-          assetOutToken: gqlTokenToCurrency(assetOutToken, chainId),
+          assetInToken: gqlTokenToCurrency(assetInToken, chainId, logos),
+          assetOutToken: gqlTokenToCurrency(assetOutToken, chainId, logos),
         };
       }
       case "PositionWithdrawal": {
@@ -345,7 +393,7 @@ export function serializeGqlRecentTransactions(
           type: MarginPositionTransactionType.WITHDRAW,
           hash: gqlTx.id,
           timestamp,
-          assetToken: gqlTokenToCurrency(assetToken, chainId),
+          assetToken: gqlTokenToCurrency(assetToken, chainId, logos),
           amount: BigInt(quantity),
         };
       }
@@ -355,7 +403,7 @@ export function serializeGqlRecentTransactions(
           type: MarginPositionTransactionType.DEPOSIT,
           hash: gqlTx.id,
           timestamp,
-          assetToken: gqlTokenToCurrency(assetToken, chainId),
+          assetToken: gqlTokenToCurrency(assetToken, chainId, logos),
           amount: BigInt(amount),
         };
       }
@@ -365,7 +413,7 @@ export function serializeGqlRecentTransactions(
           type: MarginPositionTransactionType.BORROW,
           hash: gqlTx.id,
           timestamp,
-          assetToken: gqlTokenToCurrency(baseAssetToken, chainId),
+          assetToken: gqlTokenToCurrency(baseAssetToken, chainId, logos),
           amount: BigInt(loanAmount),
         };
       }

@@ -129,7 +129,7 @@ export default function TransactionSpeedUpDialog() {
       speedUpOption,
     },
     onSubmit: async (values, formikHelpers) => {
-      if (!transaction?.params || !walletClient || !address) {
+      if (!transaction?.params || transaction.nonce === undefined || !walletClient || !address) {
         return;
       }
 

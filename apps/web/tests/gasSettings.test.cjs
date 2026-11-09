@@ -644,10 +644,12 @@ const closeStatus = load(
   `${marginRoot}position/[id]/stores/usePositionCloseStatusStore.ts`,
   operationStoreMock,
 ).PositionCloseStatus;
-const depositStatus = load(
+const depositStore = load(
   `${marginRoot}position/[id]/stores/usePositionDepositStatusStore.ts`,
   operationStoreMock,
-).PositionDepositStatus;
+);
+const depositStatus = depositStore.PositionDepositStatus;
+const { SwapError } = depositStore;
 const borrowStatus = load(
   `${marginRoot}lending-order/[id]/borrow/stores/useCreateMarginPositionStatusStore.tsx`,
   operationStoreMock,
@@ -658,6 +660,7 @@ function flowHarness() {
   const states = [];
   const statusStore = () => ({
     setStatus: (value) => states.push(value),
+    setErrorType() {},
     setPositionCloseHash() {},
     setBorrowHash() {},
   });
@@ -702,6 +705,7 @@ function flowHarness() {
     },
     "@/app/[locale]/margin-trading/position/[id]/stores/usePositionDepositStatusStore": {
       PositionDepositStatus: depositStatus,
+      SwapError,
       useDepositPositionStatusStore: statusStore,
     },
     "@/app/[locale]/margin-trading/lending-order/[id]/borrow/stores/useCreateMarginPositionConfigStore":
@@ -715,6 +719,7 @@ function flowHarness() {
     "@/components/common/OperationStepRow": {},
     "@/config/abis/erc223": {},
     "@/config/abis/marginModule": { MARGIN_MODULE_ABI: marginAbi },
+    "@/config/abis/oracle": { ORACLE_ABI: [] },
     "@/config/modules": { isMarginDeployed: () => true },
     "@/functions/getTransactionWithRetries": {},
     "@/hooks/useAllowance": { useStoreAllowance: () => ({ isAllowed: true }) },
@@ -739,7 +744,7 @@ function flowHarness() {
     liquidationRewardAsset: token,
     liquidationRewardAmount: { value: 0n },
     baseAsset: token,
-    collateralAddresses: [account, contract],
+    collateralAddresses: ["0x0000000000000000000000000000000000000000", account, contract],
     currencyLimit: 2,
   };
   const position = {
@@ -846,8 +851,10 @@ function positionDepositHarness({ standard = Standard.ERC20, isAllowed = true } 
     },
     "@/app/[locale]/margin-trading/position/[id]/stores/usePositionDepositStatusStore": {
       PositionDepositStatus: depositStatus,
+      SwapError,
       useDepositPositionStatusStore: () => ({
         setStatus: (value) => flow.states.push(value),
+        setErrorType() {},
         setApproveHash() {},
         setTransferHash() {},
         setDepositHash() {},
@@ -956,6 +963,7 @@ test("create and edit estimates include unsaved third-step values without modify
     "@/sdk_bi/addresses": {
       MARGIN_TRADING_ADDRESS: { [chainId]: contract },
       ORACLE_ADDRESS: { [chainId]: contract },
+      ZERO_ADDRESS: "0x0000000000000000000000000000000000000000",
     },
   };
   const liveValues = {

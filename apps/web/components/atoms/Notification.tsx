@@ -117,6 +117,7 @@ export function NotificationSubTitle({ title }: { title: IRecentTransactionTitle
     case RecentTransactionTitleTemplate.LIQUIDATE_MARGIN_POSITION:
     case RecentTransactionTitleTemplate.WITHDRAW_FROM_CLOSED_POSITION:
     case RecentTransactionTitleTemplate.CLOSE_MARGIN_POSITION:
+    case RecentTransactionTitleTemplate.UNFREEZE_MARGIN_POSITION:
       return (
         <NotificationSubtitleText>
           {t("id_subtitle", { symbol: title.symbol, id: title.positionId })}
@@ -331,6 +332,14 @@ function NotificationTitle({
           {status === RecentTransactionStatus.SUCCESS
             ? t("freeze_margin_position_success_notification")
             : t("freeze_margin_position_revert_notification")}
+        </NotificationTitleText>
+      );
+    case RecentTransactionTitleTemplate.UNFREEZE_MARGIN_POSITION:
+      return (
+        <NotificationTitleText>
+          {status === RecentTransactionStatus.SUCCESS
+            ? t("unfreeze_margin_position_success_notification")
+            : t("unfreeze_margin_position_revert_notification")}
         </NotificationTitleText>
       );
     case RecentTransactionTitleTemplate.WITHDRAW_FROM_CLOSED_POSITION:

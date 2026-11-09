@@ -6,7 +6,15 @@ import clsx from "clsx";
 import { useFormik } from "formik";
 import Image from "next/image";
 import { useLocale, useTranslations } from "next-intl";
-import React, { use, useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  use,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import SimpleBar from "simplebar-react";
 import { formatUnits, parseUnits } from "viem";
 import { usePublicClient } from "wagmi";
@@ -127,6 +135,13 @@ function getMarks(max: number): Marks {
   }
 
   return marks;
+}
+
+/** Borrow opens at 2x. A lower order maximum wins, so a 1.5x order does not start above its cap. */
+function startingBorrowLeverage(maxLeverage: number): string {
+  const max = Number(maxLeverage);
+  const start = Number.isFinite(max) && max > 0 ? Math.min(2, max) : 2;
+  return start.toString();
 }
 
 const DECIMALS = 18n;
@@ -304,7 +319,12 @@ export default function BorrowPage({
 
   const formik = useFormik({
     validate,
-    initialValues: savedValues,
+    initialValues: {
+      ...savedValues,
+      borrowAmount: "",
+      collateralAmount: "",
+      leverage: startingBorrowLeverage(order?.leverage ?? 2),
+    },
     onSubmit: (values) => {
       if (isUnverifiedOracle) return;
       setValues(values);
@@ -312,62 +332,84 @@ export default function BorrowPage({
     },
   });
 
-  const { values, touched, setFieldValue, errors, handleSubmit, validateForm } = formik;
+  const {
+    values,
+    touched,
+    setFieldValue,
+    setValues: setFormValues,
+    resetForm,
+    errors,
+    handleSubmit,
+    validateForm,
+  } = formik;
   useBorrowGasEstimate(order, values);
+  // Changing leverage keeps the amount the user last entered and recalculates the other side.
+  const lastEditedAmount = useRef<"borrow" | "collateral">("collateral");
 
   const updateFromCollateral = useCallback(
-    async (collateralAmount: string, leverage: string, ratioOverride?: number) => {
-      const decimals = values.collateralToken?.decimals ?? 18;
-
-      const collateralBigInt = parseUnits(collateralAmount, decimals);
-      const leverageBigInt = parseUnits(leverage, 18);
-
+    async (
+      collateralAmount: string,
+      leverage: string,
+      ratioOverride?: number,
+      collateralToken = values.collateralToken,
+    ) => {
+      const nextValues = {
+        ...values,
+        collateralToken,
+        collateralAmount,
+        leverage,
+        borrowAmount: "",
+      };
       const effectiveRatio = ratioOverride ?? ratio;
-      if (!effectiveRatio) return; // protect against undefined
 
-      const price = getFixedPrice(effectiveRatio);
-      const B = recalculateFromCollateralFixed(collateralBigInt, leverageBigInt, price);
-      const formatted = formatUnits(B, order?.baseAsset.decimals ?? 18);
+      if (collateralAmount !== "" && effectiveRatio && collateralToken) {
+        const collateralBigInt = parseUnits(collateralAmount, collateralToken.decimals);
+        const leverageBigInt = parseUnits(leverage, 18);
+        const price = getFixedPrice(effectiveRatio);
+        const B = recalculateFromCollateralFixed(collateralBigInt, leverageBigInt, price);
+        nextValues.borrowAmount = formatUnits(B, order?.baseAsset.decimals ?? 18);
+      }
 
-      await setFieldValue("collateralAmount", collateralAmount, false);
-      await setFieldValue("borrowAmount", formatted, false);
-      await validateForm();
+      await setFormValues(nextValues, false);
+      await validateForm(nextValues);
     },
-    [order?.baseAsset.decimals, ratio, setFieldValue, validateForm, values.collateralToken],
+    [order?.baseAsset.decimals, ratio, setFormValues, validateForm, values],
   );
 
   const updateFromBorrow = useCallback(
-    async (borrowAmount: string) => {
+    async (
+      borrowAmount: string,
+      leverage = values.leverage.toString(),
+      ratioOverride?: number,
+      collateralToken = values.collateralToken,
+    ) => {
       const B = parseFloat(borrowAmount);
-      if (borrowAmount === "") {
-        await setFieldValue("borrowAmount", "");
-        await setFieldValue("collateralAmount", "");
-      }
-
-      if (isNaN(B)) return;
+      const nextValues = {
+        ...values,
+        collateralToken,
+        borrowAmount,
+        leverage,
+        collateralAmount: "",
+      };
+      const effectiveRatio = ratioOverride ?? ratio;
 
       try {
-        const borrowDecimals = order?.baseAsset?.decimals ?? 18;
-        const collateralDecimals = values.collateralToken?.decimals ?? 18;
-
-        const borrowFixed = parseUnits(B.toString(), borrowDecimals);
-        const L_fixed = parseUnits(values.leverage?.toString() || "1", 18);
-
-        if (ratio) {
-          const priceFixed = parseUnits(toFixedWithoutExp(1 / ratio, 18), 18);
+        if (!isNaN(B) && effectiveRatio && collateralToken) {
+          const borrowDecimals = order?.baseAsset?.decimals ?? 18;
+          const borrowFixed = parseUnits(B.toString(), borrowDecimals);
+          const L_fixed = parseUnits(leverage, 18);
+          const priceFixed = parseUnits(toFixedWithoutExp(1 / effectiveRatio, 18), 18);
           const C = recalculateFromBorrowFixed(borrowFixed, L_fixed, priceFixed); // bigint
-
-          const formattedCollateral = formatUnits(C, collateralDecimals);
-          await setFieldValue("collateralAmount", formattedCollateral);
+          nextValues.collateralAmount = formatUnits(C, collateralToken.decimals);
         }
 
-        await setFieldValue("borrowAmount", B);
-        await validateForm();
+        await setFormValues(nextValues, false);
+        await validateForm(nextValues);
       } catch (err) {
         console.error("borrowAmount calc error:", err);
       }
     },
-    [order, ratio, setFieldValue, validateForm, values.collateralToken?.decimals, values.leverage],
+    [order, ratio, setFormValues, validateForm, values],
   );
 
   const getOracleRatio = useCallback(
@@ -489,7 +531,49 @@ export default function BorrowPage({
     values.collateralToken,
   ]);
 
-  const [leverageInput, setLeverageInput] = useState(values.leverage?.toString() ?? "1.01");
+  const [leverageInput, setLeverageInput] = useState(() => values.leverage.toString());
+  const leverageInitializedForOrder = useRef<string | null>(null);
+
+  useLayoutEffect(() => {
+    const maxLeverage = Number(order?.leverage);
+    if (!order || !Number.isFinite(maxLeverage) || maxLeverage <= 0) return;
+    const orderKey = `${chainId}:${orderId}`;
+    if (leverageInitializedForOrder.current === orderKey) return;
+    leverageInitializedForOrder.current = orderKey;
+    const start = startingBorrowLeverage(maxLeverage);
+    resetForm({
+      values: { ...savedValues, borrowAmount: "", collateralAmount: "", leverage: start },
+    });
+    lastEditedAmount.current = "collateral";
+    setLeverageInput(start);
+  }, [chainId, order, orderId, resetForm, savedValues]);
+
+  const updateLeverage = useCallback(
+    async (input: string) => {
+      if (!order) return;
+      const parsed = parseFloat(input.trim());
+      const leverage = Math.min(
+        order.leverage,
+        Math.max(
+          1.01,
+          Number.isFinite(parsed) ? parsed : Number(startingBorrowLeverage(order.leverage)),
+        ),
+      ).toString();
+
+      setLeverageInput(leverage);
+      try {
+        if (lastEditedAmount.current === "borrow") {
+          await updateFromBorrow(values.borrowAmount.toString(), leverage);
+        } else {
+          await updateFromCollateral(values.collateralAmount.toString(), leverage);
+        }
+      } catch (err) {
+        console.error("Leverage parse error:", err);
+      }
+    },
+    [order, updateFromBorrow, updateFromCollateral, values.borrowAmount, values.collateralAmount],
+  );
+
   const [tokenForPortfolio, setTokenForPortfolio] = useState<Token | null>(null);
   const [oraclePriceError, setOraclePriceError] = useState<string | undefined>();
 
@@ -569,17 +653,29 @@ export default function BorrowPage({
     return t("loading");
   }
 
+  const leverageSpan = order.leverage - 1;
+  const leverageCurrent = Number(values.leverage);
+  const leverageFillPercent =
+    leverageSpan > 0 && Number.isFinite(leverageCurrent)
+      ? Math.min(100, Math.max(0, ((leverageCurrent - 1) / leverageSpan) * 100))
+      : 0;
+
   return (
     <Container>
       <div
         className={clsx(
-          "grid py-4 lg:py-[40px] grid-cols-1 mx-auto",
+          "grid grid-cols-1 items-start gap-4 py-4 lg:py-[40px] mx-auto",
           showRecentTransactions
-            ? "xl:grid-cols-[580px_600px] xl:max-w-[1200px] gap-4 xl:grid-areas-[left_right] grid-areas-[right,left]"
-            : "xl:grid-cols-[600px] xl:max-w-[600px] grid-areas-[right]",
+            ? "grid-areas-[form,recent] xl:grid-areas-[recent_form] xl:grid-cols-[minmax(0,1fr)_600px] xl:max-w-[1200px] xl:gap-6"
+            : "grid-areas-[form] xl:grid-cols-[600px] xl:max-w-[600px]",
         )}
       >
-        <div className="grid-in-[left] flex justify-center">
+        <div
+          className={clsx(
+            "grid-in-[recent] min-w-0 flex justify-center",
+            !showRecentTransactions && "hidden",
+          )}
+        >
           <div className="w-full sm:max-w-[600px] xl:max-w-full">
             <RecentTransactions
               showRecentTransactions={showRecentTransactions}
@@ -589,9 +685,9 @@ export default function BorrowPage({
           </div>
         </div>
 
-        <div className="flex justify-center grid-in-[right]">
-          <div className="flex flex-col gap-4 md:gap-6 lg:gap-5 w-full sm:max-w-[600px] xl:max-w-full">
-            <div className="card-spacing pt-2.5 bg-primary-bg rounded-5 grid gap-3">
+        <div className="grid-in-[form] min-w-0 flex justify-center">
+          <div className="flex flex-col gap-4 md:gap-6 lg:gap-5 w-full min-w-0 sm:max-w-[600px] xl:max-w-full">
+            <div className="card-spacing pt-2.5 bg-primary-bg rounded-5 grid grid-cols-1 min-w-0 gap-3">
               <div className="mb-2.5 flex justify-between items-center -mx-3">
                 <IconButton
                   variant={IconButtonVariant.BACK}
@@ -611,22 +707,22 @@ export default function BorrowPage({
               </div>
 
               {!isUnverifiedOracle ? (
-                <div className="flex justify-between shadow px-4 py-3 rounded-3 mb-2 bg-tertiary-bg">
-                  <div className="flex items-center gap-1">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between shadow px-4 py-3 rounded-3 mb-2 bg-tertiary-bg">
+                  <div className="flex items-center gap-1 min-w-0">
                     <Svg iconName="done" className="text-green" />
                     {t("price_oracle")}
                   </div>
-                  <span className="flex items-center gap-1 rounded-3">
+                  <span className="flex items-center gap-1 min-w-0 rounded-3">
                     {t("default_dex223_oracle")} <Tooltip text={t("default_oracle_tooltip")} />
                   </span>
                 </div>
               ) : (
-                <div className="flex justify-between shadow shadow-red-light px-4 py-3 rounded-3 bg-red-bg mb-2">
-                  <div className="flex items-center gap-1">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between shadow shadow-red-light px-4 py-3 rounded-3 bg-red-bg mb-2">
+                  <div className="flex items-center gap-1 min-w-0">
                     <Svg iconName="warning" className="text-red-light" />
                     {t("price_oracle")}
                   </div>
-                  <span className="text-red-light flex items-center gap-1 rounded-3 ">
+                  <span className="text-red-light flex items-center gap-1 min-w-0 rounded-3 ">
                     {t("unknown_oracle")} <Svg iconName="info" />
                   </span>
                 </div>
@@ -636,8 +732,8 @@ export default function BorrowPage({
                   <Alert text={t("unverified_oracle_blocked")} type="error" />
                 </div>
               )}
-              <form onSubmit={handleSubmit}>
-                <div className="bg-tertiary-bg rounded-3 p-5 mb-4">
+              <form className="min-w-0" onSubmit={handleSubmit}>
+                <div className="bg-tertiary-bg rounded-3 p-3 sm:p-5 mb-4 min-w-0">
                   <LendingOrderTokenSelect
                     allowedErc223={Boolean(
                       order.collateralAddresses.find(
@@ -659,13 +755,22 @@ export default function BorrowPage({
 
                           if (r !== undefined) setRatio(r);
 
-                          // if we already have inputs, recompute borrow using the fresh ratio
-                          if (values.collateralAmount && values.leverage && r !== undefined) {
-                            await updateFromCollateral(
-                              values.collateralAmount.toString(),
-                              values.leverage.toString(),
-                              r,
-                            );
+                          if (r !== undefined) {
+                            if (lastEditedAmount.current === "borrow" && values.borrowAmount) {
+                              await updateFromBorrow(
+                                values.borrowAmount.toString(),
+                                values.leverage.toString(),
+                                r,
+                                token,
+                              );
+                            } else if (values.collateralAmount) {
+                              await updateFromCollateral(
+                                values.collateralAmount.toString(),
+                                values.leverage.toString(),
+                                r,
+                                token,
+                              );
+                            }
                           }
                         }
                       } catch (error) {
@@ -674,6 +779,7 @@ export default function BorrowPage({
                     }}
                     amount={values.collateralAmount}
                     setAmount={async (collateralAmount: string) => {
+                      lastEditedAmount.current = "collateral";
                       try {
                         await updateFromCollateral(
                           collateralAmount.toString(),
@@ -709,47 +815,29 @@ export default function BorrowPage({
                     label={t("leverage")}
                     tooltipText={t("leverage_borrow_tooltip")}
                   />
-                  <div className="flex items-center gap-2">
-                    <div className="mb-4 flex-grow">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="mb-4 flex-grow min-w-0">
                       <input
                         min={1}
                         max={order.leverage}
                         value={values.leverage}
-                        onChange={async (e) => {
-                          let input = e.target.value.trim();
-                          let L = parseFloat(input);
-
-                          if (isNaN(L)) {
-                            L = 1.01;
-                          }
-
-                          // Clamp leverage
-                          if (L < 1.01) L = 1.01;
-                          if (L > order.leverage) L = order.leverage;
-
-                          try {
-                            await setFieldValue("leverage", L, false);
-                            setLeverageInput(L.toString());
-                            await updateFromCollateral(values.collateralAmount, L.toString());
-                          } catch (err) {
-                            console.error("Leverage parse error:", err);
-                          }
-                        }}
-                        step={1}
+                        onChange={(e) => updateLeverage(e.target.value)}
+                        step="any"
                         type="range"
                         className="mb-1.5 w-full"
                         style={{
-                          backgroundImage: `linear-gradient(to right, #7DA491 0%, #7DA491 ${((+values.leverage - 1) / (order.leverage - 1)) * 100}%, #0F0F0F ${values?.leverage}%, #0F0F0F 100%)`,
+                          backgroundImage: `linear-gradient(to right, #7DA491 0%, #7DA491 ${leverageFillPercent}%, #0F0F0F ${leverageFillPercent}%, #0F0F0F 100%)`,
                         }}
                       />
 
-                      <div className="z-10 relative text-12 text-secondary-text px-[13px]">
+                      <div className="z-10 relative h-4 text-12 text-secondary-text px-[13px]">
                         <div className="relative">
-                          {getMarks(order.leverage).map((_, i) => (
+                          {getMarks(order.leverage).map((_, i, marks) => (
                             <span
                               key={_}
                               className={clsx(
-                                "min-w-[28px] flex justify-center absolute before:h-3 before:w-0.5 before:absolute before:left-1/2 before:-top-[16px] before:-translate-x-1/2 before:pointer-events-none -translate-x-1/2",
+                                "min-w-[28px] justify-center absolute before:h-3 before:w-0.5 before:absolute before:left-1/2 before:-top-[16px] before:-translate-x-1/2 before:pointer-events-none -translate-x-1/2",
+                                i === 0 || i === marks.length - 1 ? "flex" : "hidden sm:flex",
                                 +values.leverage <= _
                                   ? "before:bg-quaternary-bg"
                                   : "before:bg-green-hover",
@@ -764,33 +852,17 @@ export default function BorrowPage({
                     </div>
                     <Input
                       max={order.leverage}
-                      className="w-[111px]"
+                      className="w-[72px] sm:w-[111px] shrink-0"
                       value={leverageInput}
                       onChange={(e) => {
                         setLeverageInput(e.target.value); // do not validate yet
                       }}
-                      onBlur={async (e) => {
-                        let input = e.target.value.trim();
-                        let L = parseFloat(input);
-
-                        if (isNaN(L)) {
-                          L = 1.01;
-                        }
-
-                        // Clamp leverage
-                        if (L < 1.01) L = 1.01;
-                        if (L > order.leverage) L = order.leverage;
-
-                        try {
-                          await setFieldValue("leverage", L, false);
-                          setLeverageInput(L.toString());
-                          await updateFromCollateral(values.collateralAmount, L.toString());
-                        } catch (err) {
-                          console.error("Leverage parse error:", err);
-                        }
-                      }}
+                      onBlur={(e) => updateLeverage(e.target.value)}
                     />
                   </div>
+                  <p className="text-12 text-tertiary-text leading-4 mb-4">
+                    {t("leverage_starts_hint")}
+                  </p>
                 </div>
                 {oraclePriceError && (
                   <div className="pb-4">
@@ -799,6 +871,7 @@ export default function BorrowPage({
                 )}
 
                 <TextField
+                  className="pr-[80px]"
                   placeholder={t("enter_borrow_amount")}
                   label={t("i_want_to_borrow")}
                   helperText={
@@ -814,6 +887,7 @@ export default function BorrowPage({
                   internalText={order.baseAsset.symbol}
                   value={values.borrowAmount}
                   onChange={async (e) => {
+                    lastEditedAmount.current = "borrow";
                     await updateFromBorrow(e.target.value.trim());
                   }}
                   error={touched.borrowAmount && errors.borrowAmount}
@@ -825,11 +899,21 @@ export default function BorrowPage({
                     inputSize={InputSize.LARGE}
                     tooltipText={t("total_liquidation_fee_tooltip")}
                   />
-                  <div className="flex justify-between items-center bg-tertiary-bg py-3 px-5 rounded-3">
-                    <div className="flex items-center gap-2">
-                      <Image src="/images/tokens/placeholder.svg" alt="" width={24} height={24} />
-                      {order?.liquidationRewardAmount.formatted}{" "}
-                      {order.liquidationRewardAsset.symbol}
+                  <div className="flex flex-wrap gap-2 justify-between items-center bg-tertiary-bg py-3 px-3 sm:px-5 rounded-3">
+                    <div className="flex items-center gap-2 min-w-0 text-14 sm:text-16">
+                      <Image
+                        className="shrink-0"
+                        src={
+                          order?.liquidationRewardAsset.logoURI || "/images/tokens/placeholder.svg"
+                        }
+                        alt=""
+                        width={24}
+                        height={24}
+                      />
+                      <span className="min-w-0 break-words">
+                        {order?.liquidationRewardAmount.formatted}{" "}
+                        <span className="inline-block">{order.liquidationRewardAsset.symbol}</span>
+                      </span>
                     </div>
 
                     {order.liquidationRewardAsset?.isNative ? (
@@ -844,7 +928,7 @@ export default function BorrowPage({
                   <HelperText helperText={t("liquidation_fee_borrower_lender")} />
                 </div>
 
-                <div className="rounded-3 bg-tertiary-bg justify-between flex px-5 py-3 mb-5">
+                <div className="rounded-3 bg-tertiary-bg flex flex-col gap-1 xs:flex-row xs:items-center xs:justify-between px-3 sm:px-5 py-3 mb-5">
                   <span className="text-tertiary-text">
                     {t("lending_order_id")}: <span className="text-secondary-text">{orderId}</span>
                   </span>
@@ -948,19 +1032,19 @@ export default function BorrowPage({
                       />
 
                       <div className="bg-primary-bg rounded-3 px-5 pb-5 pt-3">
-                        <div className="flex justify-between mb-3 items-center">
-                          <div className="flex items-center gap-2 mb-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center mb-3">
+                          <div className="flex items-center gap-2 min-w-0">
                             <h3 className="text-tertiary-text flex items-center gap-1 text-14">
                               <Tooltip text={t("tokens_allowed_tooltip")} iconSize={20} />
                               {t("tokens_allowed_trading")}
                             </h3>
                           </div>
-                          <div>
+                          <div className="w-full sm:w-[180px] shrink-0">
                             <SearchInput
                               value={searchTradableTokenValue}
                               onChange={(e) => setSearchTradableTokenValue(e.target.value)}
                               placeholder={t("token_name")}
-                              className="h-8 text-14 w-[180px] rounded-2"
+                              className="h-8 text-14 w-full rounded-2"
                             />
                           </div>
                         </div>
@@ -972,6 +1056,7 @@ export default function BorrowPage({
                                 return tradingToken.isToken ? (
                                   <button
                                     key={tradingToken.address0}
+                                    type="button"
                                     onClick={() =>
                                       setTokenForPortfolio(
                                         new Token(
@@ -981,7 +1066,7 @@ export default function BorrowPage({
                                           +tradingToken.decimals,
                                           tradingToken.symbol,
                                           tradingToken.name,
-                                          "/images/tokens/placeholder.svg",
+                                          tradingToken.logoURI || "/images/tokens/placeholder.svg",
                                           tokenLists
                                             ?.filter((tokenList) => {
                                               return !!tokenList.list.tokens.find(
@@ -994,14 +1079,21 @@ export default function BorrowPage({
                                         ),
                                       )
                                     }
-                                    className="bg-quaternary-bg text-secondary-text px-2 py-1 rounded-2 hocus:bg-green-bg duration-200"
+                                    className="group rounded-2"
                                   >
-                                    {tradingToken.symbol}
+                                    <Badge
+                                      color="grey"
+                                      text={tradingToken.symbol ?? ""}
+                                      className="rounded-2 py-1 duration-200 group-hover:bg-green-bg group-focus-visible:bg-green-bg"
+                                    />
                                   </button>
                                 ) : (
-                                  <div className="rounded-2 text-secondary-text border border-secondary-border px-2 flex items-center py-1">
-                                    {tradingToken.symbol}
-                                  </div>
+                                  <Badge
+                                    key={`${chainId}-${tradingToken.symbol ?? "native"}`}
+                                    color="grey_outline"
+                                    text={tradingToken.symbol ?? ""}
+                                    className="rounded-2 py-1"
+                                  />
                                 );
                               })}
                             </div>

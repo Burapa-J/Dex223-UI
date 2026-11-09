@@ -7,6 +7,9 @@ import React, { ReactNode, useCallback, useEffect, useMemo, useState } from "rea
 import { formatUnits, parseUnits } from "viem";
 import { useAccount, usePublicClient } from "wagmi";
 
+import { useOpenMarginSwapForPosition } from "@/app/[locale]/margin-swap/hooks/useOpenMarginSwapForPosition";
+import FrozenBadge from "@/app/[locale]/margin-trading/components/FrozenBadge";
+import FrozenPositionActions from "@/app/[locale]/margin-trading/components/FrozenPositionActions";
 import PositionProgressBar from "@/app/[locale]/margin-trading/components/PositionProgressBar";
 import {
   InfoBlockWithBorder,
@@ -15,13 +18,14 @@ import {
 import PositionHealthStatus from "@/app/[locale]/margin-trading/components/widgets/PositionHealthStatus";
 import timestampToDateString from "@/app/[locale]/margin-trading/helpers/timestampToDateString";
 import usePositionLiquidationCost from "@/app/[locale]/margin-trading/hooks/usePositionLiquidationCost";
+import usePositionLiquidationState from "@/app/[locale]/margin-trading/hooks/usePositionLiquidationState";
 import ClosedPositionWithdrawDialog from "@/app/[locale]/margin-trading/position/[id]/components/ClosedPositionWithdrawDialog";
 import PositionCloseDialog from "@/app/[locale]/margin-trading/position/[id]/components/PositionCloseDialog";
 import usePositionStatus from "@/app/[locale]/margin-trading/position/[id]/hooks/usePositionStatus";
 import { MarginPosition } from "@/app/[locale]/margin-trading/types";
 import Svg from "@/components/atoms/Svg";
 import Button, { ButtonColor, ButtonSize } from "@/components/buttons/Button";
-import { formatFloat } from "@/functions/formatFloat";
+import { formatFloat, formatLeverage } from "@/functions/formatFloat";
 import getExplorerLink, { ExplorerLinkType } from "@/functions/getExplorerLink";
 import truncateMiddle from "@/functions/truncateMiddle";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
@@ -213,7 +217,7 @@ export function InactiveMarginPositionCard({ position }: Props) {
         <SimpleInfoBlock
           title={t("initial_leverage")}
           tooltipText={t("initial_leverage_tooltip")}
-          value={`${formatFloat(position.initialLeverage, { trimZero: true })}x`}
+          value={formatLeverage(position.initialLeverage)}
         />
       </div>
 
@@ -347,12 +351,17 @@ export function calcLeverageFormattedFromBigints({
 
 export function LendingPositionCard({ position }: Props) {
   const t = useTranslations("Margin");
+  const openMarginSwap = useOpenMarginSwapForPosition();
   const { expectedBalance, actualBalance } = usePositionStatus(position);
+  const { isFrozen, isLiquidatable, isLiquidatableKnown, refetch } =
+    usePositionLiquidationState(position);
   const [positionToClose, setPositionToClose] = useState<MarginPosition | undefined>();
 
   const subjectToLiquidation = useMemo(() => {
     return actualBalance != null && expectedBalance != null && actualBalance <= expectedBalance;
   }, [actualBalance, expectedBalance]);
+
+  const atRisk = isLiquidatableKnown ? isLiquidatable : subjectToLiquidation;
 
   const isCompleted = useMemo(() => {
     return +position.deadline * 1000 < Date.now();
@@ -483,11 +492,14 @@ export function LendingPositionCard({ position }: Props) {
             )}
           </div>
 
-          <div className="min-w-[115px] text-green flex items-center gap-2 justify-end">
-            {isCompleted && address?.toLowerCase() === position.order.owner.toLowerCase()
-              ? t("status_completed")
-              : t("status_active")}
-            <span className="block w-2 h-2 rounded-2 bg-green" />
+          <div className="min-w-[115px] flex items-center gap-2 justify-end">
+            {isFrozen && <FrozenBadge />}
+            <div className="text-green flex items-center gap-2">
+              {isCompleted && address?.toLowerCase() === position.order.owner.toLowerCase()
+                ? t("status_completed")
+                : t("status_active")}
+              <span className="block w-2 h-2 rounded-2 bg-green" />
+            </div>
           </div>
         </div>
       </div>
@@ -522,7 +534,7 @@ export function LendingPositionCard({ position }: Props) {
         <SimpleInfoBlock
           title={t("initial_leverage")}
           tooltipText={t("initial_leverage_tooltip")}
-          value={`${formatFloat(position.initialLeverage, { trimZero: true })}x`}
+          value={formatLeverage(position.initialLeverage)}
         />
       </div>
 
@@ -558,19 +570,42 @@ export function LendingPositionCard({ position }: Props) {
           <div className="grid grid-cols-2 items-center gap-3">
             <div>
               {position.order.owner === address?.toLowerCase() &&
-                +position.deadline < Date.now() / 100 && (
-                  <Button fullWidth size={ButtonSize.LARGE}>
+                +position.deadline < Date.now() / 100 &&
+                (isFrozen && isLiquidatableKnown && isLiquidatable ? (
+                  <Tooltip
+                    text={t("frozen_close_tooltip")}
+                    renderTrigger={(ref, refProps) => (
+                      <span
+                        className="inline-flex w-full"
+                        tabIndex={0}
+                        ref={ref.setReference}
+                        {...refProps}
+                      >
+                        <Button disabled fullWidth size={ButtonSize.LARGE}>
+                          {t("close")}
+                        </Button>
+                      </span>
+                    )}
+                  />
+                ) : (
+                  <Button
+                    disabled={isFrozen && !isLiquidatableKnown}
+                    fullWidth
+                    size={ButtonSize.LARGE}
+                  >
                     {t("close")}
                   </Button>
-                )}
+                ))}
             </div>
 
             <Link href={`/margin-trading/position/${position.id}/liquidate`}>
               <Button
                 disabled={
-                  actualBalance != null &&
-                  expectedBalance != null &&
-                  actualBalance > expectedBalance
+                  isLiquidatableKnown
+                    ? !isLiquidatable
+                    : actualBalance != null &&
+                      expectedBalance != null &&
+                      actualBalance > expectedBalance
                 }
                 fullWidth
                 colorScheme={ButtonColor.RED}
@@ -584,40 +619,58 @@ export function LendingPositionCard({ position }: Props) {
       {position.owner === address?.toLowerCase() && (
         <div className="grid grid-cols-2 gap-3 items-center mb-5 w-full">
           <div className="grid grid-cols-3">{renderLiquidationInfoBlocks()}</div>
-          <div className="grid grid-cols-4 gap-3">
-            <Link
-              className={subjectToLiquidation ? "pointer-events-none" : ""}
-              href={"/margin-swap"}
-            >
-              <Button disabled={subjectToLiquidation} fullWidth colorScheme={buttonsColor}>
-                {t("trade")}
-              </Button>
-            </Link>
-            <Link href={`/margin-trading/position/${position.id}/deposit`}>
-              <Button fullWidth colorScheme={buttonsColor}>
-                {t("deposit")}
-              </Button>
-            </Link>
-            {subjectToLiquidation ? (
-              <div className="col-start-3 col-end-5">
-                <Link href={`/margin-trading/position/${position.id}/liquidate`}>
-                  <Button fullWidth colorScheme={ButtonColor.RED}>
-                    {t("liquidate")}
-                  </Button>
-                </Link>
-              </div>
+          <div className={isFrozen ? "flex flex-wrap justify-end gap-2" : "grid grid-cols-4 gap-3"}>
+            {isFrozen ? (
+              <FrozenPositionActions
+                position={position}
+                isLiquidatable={isLiquidatable}
+                isKnown={isLiquidatableKnown}
+                tradeDisabled={false}
+                onTrade={() => {
+                  openMarginSwap(position);
+                }}
+                onClose={() => setPositionToClose(position)}
+                onUnfrozen={refetch}
+              />
             ) : (
               <>
-                <Button disabled fullWidth colorScheme={buttonsColor}>
-                  {t("withdraw")}
-                </Button>
                 <Button
-                  onClick={() => setPositionToClose(position)}
+                  disabled={atRisk}
                   fullWidth
                   colorScheme={buttonsColor}
+                  onClick={() => {
+                    openMarginSwap(position);
+                  }}
                 >
-                  {t("close")}
+                  {t("trade")}
                 </Button>
+                <Link href={`/margin-trading/position/${position.id}/deposit`}>
+                  <Button fullWidth colorScheme={buttonsColor}>
+                    {t("deposit")}
+                  </Button>
+                </Link>
+                {atRisk ? (
+                  <div className="col-start-3 col-end-5">
+                    <Link href={`/margin-trading/position/${position.id}/liquidate`}>
+                      <Button fullWidth colorScheme={ButtonColor.RED}>
+                        {t("liquidate")}
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <>
+                    <Button disabled fullWidth colorScheme={buttonsColor}>
+                      {t("withdraw")}
+                    </Button>
+                    <Button
+                      onClick={() => setPositionToClose(position)}
+                      fullWidth
+                      colorScheme={buttonsColor}
+                    >
+                      {t("close")}
+                    </Button>
+                  </>
+                )}
               </>
             )}
           </div>

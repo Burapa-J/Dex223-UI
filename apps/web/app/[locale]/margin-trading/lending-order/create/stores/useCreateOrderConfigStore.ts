@@ -32,7 +32,6 @@ export type ThirdStepValues = {
   orderCurrencyLimit: string;
   liquidationFeeToken: Currency | undefined;
   liquidationFeeForLiquidator: string;
-  liquidationFeeForLender: string;
   priceSource: any;
 };
 
@@ -83,7 +82,6 @@ export const useCreateOrderConfigStore = create<CreateOrderConfig>((set, get) =>
     orderCurrencyLimit: "",
     liquidationFeeToken: undefined,
     liquidationFeeForLiquidator: "",
-    liquidationFeeForLender: "0",
     priceSource: "",
   },
 

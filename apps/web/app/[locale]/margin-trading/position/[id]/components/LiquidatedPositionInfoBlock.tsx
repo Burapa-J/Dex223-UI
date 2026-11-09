@@ -43,7 +43,7 @@ export default function LiquidatedPositionInfoBlock({ position }: { position: Ma
           bg="leverage"
         />
         <OrderInfoCard
-          value={position.initialLeverage}
+          value={formatFloat(position.initialLeverage, { trimZero: true })}
           title={t("initial_leverage")}
           tooltipText={t("initial_leverage_tooltip")}
           bg="leverage"
