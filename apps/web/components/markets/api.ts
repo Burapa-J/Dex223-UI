@@ -46,11 +46,23 @@ interface MarketsPage {
   coins: Coin[];
 }
 
+const REQUEST_TIMEOUT_MS = 15_000;
+
 async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(`${MARKET_API_URL}${path}`, { signal });
-  if (response.status === 404) throw new NotFoundError(path);
-  if (!response.ok) throw new Error(`Market API ${path} responded ${response.status}`);
-  return response.json() as Promise<T>;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const onAbort = () => controller.abort();
+  signal?.addEventListener("abort", onAbort, { once: true });
+  if (signal?.aborted) controller.abort();
+  try {
+    const response = await fetch(`${MARKET_API_URL}${path}`, { signal: controller.signal });
+    if (response.status === 404) throw new NotFoundError(path);
+    if (!response.ok) throw new Error(`Market API ${path} responded ${response.status}`);
+    return response.json() as Promise<T>;
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort", onAbort);
+  }
 }
 
 export class NotFoundError extends Error {}
