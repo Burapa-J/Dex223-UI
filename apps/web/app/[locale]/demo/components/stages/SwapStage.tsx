@@ -9,6 +9,7 @@ import { IconName } from "@/config/types/IconName";
 
 import { DEMO_D223_PER_USDT } from "../../flows";
 import DemoAction from "../DemoAction";
+import { DemoChip } from "../DemoChip";
 import DemoTokenBox from "../DemoTokenBox";
 import { DemoCard, DemoDetails, DemoHint, useDemoNumber } from "../DemoUi";
 import { StageProps } from "../stageTypes";
@@ -57,7 +58,7 @@ export default function SwapStage(props: StageProps) {
   const tf = useTranslations("Demo.flows.swap");
   const format = useDemoNumber();
 
-  const value = Number(amount.replace(/,/g, "")) || 0;
+  const value = Number(amount) || 0;
   const receive = value * DEMO_D223_PER_USDT;
 
   if (stepKey === "compare") {
@@ -133,13 +134,9 @@ export default function SwapStage(props: StageProps) {
 
   return (
     <DemoCard>
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-20 font-bold">{t("flows.swap.short")}</h3>
-        {chosen && (
-          <span className="text-12 rounded-1 bg-erc-20-bg text-erc-20-text px-2 py-0.5">
-            {t("pay_with", { standard: "ERC-20" })}
-          </span>
-        )}
+        {chosen && <DemoChip tone="erc20">{t("pay_with", { standard: "ERC-20" })}</DemoChip>}
       </div>
       <DemoTokenBox
         label={t("you_pay")}

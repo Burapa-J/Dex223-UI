@@ -46,6 +46,10 @@ export function formatFloat(
   }
 }
 
+export function formatLeverage(value: number | string): string {
+  return `${formatFloat(value, { trimZero: true, significantDigits: 2 })}x`;
+}
+
 export function formatNumber(num: string, maxPrecision = 15) {
   const [integerPart] = num.toString().split(".");
 

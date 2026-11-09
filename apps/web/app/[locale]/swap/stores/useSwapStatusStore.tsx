@@ -23,7 +23,9 @@ interface SwapStatusStore {
   approveHash: Address | undefined;
   swapHash: Address | undefined;
   errorType: SwapError;
+  isReceiptUnavailable: boolean;
 
+  setIsReceiptUnavailable: (unavailable: boolean) => void;
   setStatus: (status: SwapStatus) => void;
   setErrorType: (errorType: SwapError) => void;
   setApproveHash: (hash: Address) => void;
@@ -35,10 +37,13 @@ export const useSwapStatusStore = create<SwapStatusStore>((set, get) => ({
   approveHash: undefined,
   swapHash: undefined,
   errorType: SwapError.UNKNOWN,
+  isReceiptUnavailable: false,
+
+  setIsReceiptUnavailable: (isReceiptUnavailable) => set({ isReceiptUnavailable }),
 
   setStatus: (status) => {
     if (status === SwapStatus.INITIAL) {
-      set({ status, swapHash: undefined, approveHash: undefined });
+      set({ status, swapHash: undefined, approveHash: undefined, isReceiptUnavailable: false });
     }
 
     set({ status });

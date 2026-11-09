@@ -1,8 +1,11 @@
 import { useTranslations } from "next-intl";
 import React, { useEffect, useMemo, useState } from "react";
 import { formatEther, formatGwei, formatUnits, parseUnits } from "viem";
+import { useAccount } from "wagmi";
 
-import usePositionWithdraw from "@/app/[locale]/margin-trading/position/[id]/hooks/usePositionWithdraw";
+import usePositionWithdraw, {
+  positionWithdrawDeliversErc223,
+} from "@/app/[locale]/margin-trading/position/[id]/hooks/usePositionWithdraw";
 import {
   PositionWithdrawStatus,
   useWithdrawPositionStatusStore,
@@ -15,6 +18,7 @@ import EmptyStateIcon from "@/components/atoms/EmptyStateIcon";
 import Svg from "@/components/atoms/Svg";
 import { InputLabel } from "@/components/atoms/TextField";
 import Button, { ButtonColor, ButtonSize } from "@/components/buttons/Button";
+import Erc223ReceiveWarning from "@/components/common/Erc223ReceiveWarning";
 import OperationStepRow, {
   OperationRows,
   operationStatusToStepStatus,
@@ -23,6 +27,7 @@ import OperationStepRow, {
 import TokenInput from "@/components/common/TokenInput";
 import { IconName } from "@/config/types/IconName";
 import { formatFloat } from "@/functions/formatFloat";
+import useCanReceiveERC223 from "@/hooks/useCanReceiveERC223";
 import { Currency } from "@/sdk_bi/entities/currency";
 import { Standard } from "@/sdk_bi/standard";
 
@@ -66,6 +71,10 @@ function PositionDepositActionButton({
   const { handlePositionWithdraw } = usePositionWithdraw({
     position: position,
   });
+  const tSwap = useTranslations("Swap");
+  const { address } = useAccount();
+  const canReceiveERC223 = useCanReceiveERC223(address);
+  const cannotReceive = positionWithdrawDeliversErc223(position) && !canReceiveERC223;
 
   const { status, withdrawHash } = useWithdrawPositionStatusStore();
 
@@ -91,6 +100,17 @@ function PositionDepositActionButton({
           />
         ))}
       </OperationRows>
+    );
+  }
+
+  if (cannotReceive) {
+    return (
+      <>
+        <Erc223ReceiveWarning className="mb-4" />
+        <Button disabled fullWidth>
+          {tSwap("wallet_cannot_receive_erc223")}
+        </Button>
+      </>
     );
   }
 

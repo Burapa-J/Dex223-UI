@@ -1,7 +1,7 @@
 import { getTransaction } from "@wagmi/core";
 import { white } from "next/dist/lib/picocolors";
 import { useCallback, useEffect, useMemo } from "react";
-import { Address, TransactionNotFoundError, WaitForTransactionReceiptTimeoutError } from "viem";
+import { Address } from "viem";
 import { useAccount, usePublicClient } from "wagmi";
 
 import { addNotification } from "@/other/notification";
@@ -36,14 +36,7 @@ export function useRecentTransactionTracking() {
         return;
       }
 
-      try {
-        await publicClient.getTransaction({ hash });
-      } catch (e) {
-        if (e instanceof TransactionNotFoundError) {
-          updateTransactionStatus(id, RecentTransactionStatus.ERROR, address);
-        }
-      }
-
+      // Transaction/receipt absence at an RPC does not prove a broadcast has failed.
       const transaction = await publicClient.waitForTransactionReceipt({
         timeout: 1000 * 60 * 60,
         hash,
@@ -78,9 +71,9 @@ export function useRecentTransactionTracking() {
           return;
         } catch (e) {
           console.log(e);
-          if (!(e instanceof WaitForTransactionReceiptTimeoutError)) {
-            return;
-          }
+          // Transient RPC errors also leave the broadcast pending. Retry after a delay
+          // so receipt tracking resumes when the provider recovers.
+          await new Promise((resolve) => setTimeout(resolve, 5000));
         }
       }
     },

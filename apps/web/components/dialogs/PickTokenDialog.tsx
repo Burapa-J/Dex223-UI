@@ -22,7 +22,7 @@ import { Check, rateToScore, TrustMarker, TrustRateCheck } from "@/components/ba
 import Button, { ButtonSize } from "@/components/buttons/Button";
 import IconButton, { IconButtonSize, IconButtonVariant } from "@/components/buttons/IconButton";
 import { TokenPortfolioDialogContent } from "@/components/dialogs/TokenPortfolioDialog";
-import { db } from "@/db/db";
+import { addCustomToken } from "@/db/addCustomToken";
 import { clsxMerge } from "@/functions/clsxMerge";
 import { formatFloat } from "@/functions/formatFloat";
 import getExplorerLink, { ExplorerLinkType } from "@/functions/getExplorerLink";
@@ -32,7 +32,7 @@ import useCurrentChainId from "@/hooks/useCurrentChainId";
 import useDerivedTokenInfo from "@/hooks/useDerivedTokenInfo";
 import { useErc777Addresses } from "@/hooks/useErc777";
 import useTokenBalances from "@/hooks/useTokenBalances";
-import { useTokenLists, useTokens } from "@/hooks/useTokenLists";
+import { useTokens } from "@/hooks/useTokenLists";
 import { useUSDPrice } from "@/hooks/useUSDPrice";
 import addToast from "@/other/toast";
 import { Currency } from "@/sdk_bi/entities/currency";
@@ -534,7 +534,6 @@ function PickTokenDialogContent({
     }
   }, [isMobile, pinnedTokens.length]);
   const [checkedUnderstand, setCheckedUnderstand] = useState<boolean>(false);
-  const tokenLists = useTokenLists();
   const handleClose = useCallback(() => {
     setIsOpen(false);
     setTimeout(() => {
@@ -845,34 +844,9 @@ function PickTokenDialogContent({
                         disabled={!checkedUnderstand || isErc777}
                         onClick={async () => {
                           if (chainId && derivedToken) {
-                            const currentCustomList = tokenLists?.find(
-                              (t) => t.id === `custom-${chainId}`,
-                            );
-
-                            if (!currentCustomList) {
-                              await db.tokenLists.add({
-                                id: `custom-${chainId}`,
-                                enabled: true,
-                                chainId,
-                                list: {
-                                  name: "Custom token list",
-                                  version: {
-                                    minor: 0,
-                                    major: 0,
-                                    patch: 0,
-                                  },
-                                  tokens: [derivedToken],
-                                  logoURI: "/images/token-list-placeholder.svg",
-                                },
-                              });
-                            } else {
-                              (db.tokenLists as any).update(`custom-${chainId}`, {
-                                "list.tokens": [...currentCustomList.list.tokens, derivedToken],
-                              });
-                            }
+                            await addCustomToken(derivedToken);
+                            addToast(t("imported_successfully"));
                           }
-                          // setContent("default");
-                          addToast(t("imported_successfully"));
                         }}
                       >
                         {isErc777

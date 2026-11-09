@@ -47,9 +47,6 @@ export default function BuyCryptoPageClient() {
 
   // Switching tabs clears completedSymbol, so the success card always matches the current flow.
   const isSell = flow === "sell";
-  // Onramp is not crediting D223 sell deposits (task "Dex223 Selling tokens via Buy/Sell stuck?").
-  // "any" lets the user pick D223 inside the widget, so it is paused with D223.
-  const isSellPaused = isSell && (selectedAsset.id === "d223" || selectedAsset.id === "any");
   const steps = isSell
     ? [t("step_sell_send"), t("step_sell_fiat"), t("step_sell_use")]
     : [t("step_buy"), t("step_receive"), t("step_use")];
@@ -177,13 +174,7 @@ export default function BuyCryptoPageClient() {
 
               {isSell && (
                 <div className="bg-secondary-bg rounded-3 px-4 py-3 text-14 text-secondary-text">
-                  {t(
-                    isSellPaused
-                      ? "sell_paused"
-                      : selectedAsset.coinCode
-                        ? "sell_hint"
-                        : "sell_hint_any",
-                  )}
+                  {t(selectedAsset.coinCode ? "sell_hint" : "sell_hint_any")}
                 </div>
               )}
 
@@ -194,14 +185,12 @@ export default function BuyCryptoPageClient() {
                 </div>
               )}
 
-              {!isSellPaused && (
-                <BuyOnramp
-                  appId={appId}
-                  flow={flow}
-                  asset={selectedAsset}
-                  onCompleted={handleCompleted}
-                />
-              )}
+              <BuyOnramp
+                appId={appId}
+                flow={flow}
+                asset={selectedAsset}
+                onCompleted={handleCompleted}
+              />
             </section>
 
             {completedSymbol && (

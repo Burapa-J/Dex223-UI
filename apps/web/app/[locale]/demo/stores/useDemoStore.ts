@@ -22,8 +22,19 @@ interface DemoStore {
   completed: DemoFlowId[];
   balances: DemoBalances;
   completeFlow: (flow: DemoFlowId) => void;
-  changeBalances: (delta: Partial<DemoBalances>) => void;
+  canChangeBalances: (delta: Partial<DemoBalances>) => boolean;
+  changeBalances: (delta: Partial<DemoBalances>) => boolean;
   reset: () => void;
+}
+
+function updatedBalances(balances: DemoBalances, delta: Partial<DemoBalances>) {
+  const next = { ...balances };
+  for (const [key, value] of Object.entries(delta) as [keyof DemoBalances, number][]) {
+    const amount = next[key] + value;
+    if (!Number.isFinite(value) || !Number.isFinite(amount) || amount < 0) return null;
+    next[key] = amount;
+  }
+  return next;
 }
 
 // Progress and pretend balances live in this browser only. Nothing here is sent anywhere.
@@ -36,12 +47,12 @@ export const useDemoStore = create<DemoStore>()(
         if (get().completed.includes(flow)) return;
         set({ completed: [...get().completed, flow] });
       },
+      canChangeBalances: (delta) => updatedBalances(get().balances, delta) !== null,
       changeBalances: (delta) => {
-        const balances = { ...get().balances };
-        for (const [key, value] of Object.entries(delta) as [keyof DemoBalances, number][]) {
-          balances[key] = Math.max(0, balances[key] + value);
-        }
+        const balances = updatedBalances(get().balances, delta);
+        if (!balances) return false;
         set({ balances });
+        return true;
       },
       reset: () => set({ completed: [], balances: INITIAL_DEMO_BALANCES }),
     }),

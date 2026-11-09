@@ -1,5 +1,4 @@
 import Alert from "@repo/ui/alert";
-import ExternalTextLink from "@repo/ui/external-text-link";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import React, { useEffect, useMemo } from "react";
@@ -16,6 +15,7 @@ import DrawerDialog from "@/components/atoms/DrawerDialog";
 import EmptyStateIcon from "@/components/atoms/EmptyStateIcon";
 import Svg from "@/components/atoms/Svg";
 import Button, { ButtonColor } from "@/components/buttons/Button";
+import IconButton, { IconButtonSize, IconButtonVariant } from "@/components/buttons/IconButton";
 import OperationStepRow, {
   OperationRows,
   operationStatusToStepStatus,
@@ -24,7 +24,6 @@ import OperationStepRow, {
 import { networks } from "@/config/networks";
 import { IconName } from "@/config/types/IconName";
 import getExplorerLink, { ExplorerLinkType } from "@/functions/getExplorerLink";
-import truncateMiddle from "@/functions/truncateMiddle";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
 import { Link } from "@/i18n/routing";
 
@@ -136,6 +135,41 @@ function Card({ title, value }: { title: string; value: string }) {
   );
 }
 
+/** One contract of the new token: full address, Copy and View on explorer (Figma page 05). */
+function TokenContractRow({
+  label,
+  address,
+  chainId,
+}: {
+  label: string;
+  address: string;
+  chainId: number;
+}) {
+  const t = useTranslations("CreateToken");
+  return (
+    <div className="flex items-center gap-2 bg-tertiary-bg rounded-3 px-4 py-2.5">
+      <div className="flex flex-col min-w-0 flex-grow">
+        <span className="text-12 text-secondary-text">{label}</span>
+        <span className="text-14 font-medium break-all">{address}</span>
+      </div>
+      <IconButton
+        variant={IconButtonVariant.COPY}
+        buttonSize={IconButtonSize.SMALL}
+        text={address}
+      />
+      <a
+        href={getExplorerLink(ExplorerLinkType.ADDRESS, address, chainId)}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={t("view_on_explorer")}
+        className="text-secondary-text hocus:text-primary-text duration-200 flex-shrink-0"
+      >
+        <Svg size={20} iconName="forward" />
+      </a>
+    </div>
+  );
+}
+
 export default function ConfirmCreateTokenDialog({
   createTokenSettings,
 }: {
@@ -157,6 +191,7 @@ export default function ConfirmCreateTokenDialog({
     handleCreateToken,
     setTokenAddress,
     tokenAddress,
+    erc20Address,
     isReceiptUnavailable,
     setIsReceiptUnavailable,
   } = useCreateToken(createTokenSettings);
@@ -306,14 +341,6 @@ export default function ConfirmCreateTokenDialog({
               <div>
                 <h2 className="text-center mb-1 font-bold text-20 ">{t("success_title")}</h2>
                 <p className="text-center">{t("success_body")}</p>
-                {tokenAddress && (
-                  <div className="flex justify-center pt-3">
-                    <ExternalTextLink
-                      text={truncateMiddle(tokenAddress)}
-                      href={getExplorerLink(ExplorerLinkType.TOKEN, tokenAddress, chainId)}
-                    />
-                  </div>
-                )}
               </div>
             )}
             {status === CreateTokenStatus.ERROR_CREATE_TOKEN && (
@@ -333,6 +360,34 @@ export default function ConfirmCreateTokenDialog({
         {status === CreateTokenStatus.ERROR_CREATE_WRAPPER && (
           <Alert className="mt-4 mb-1" type="error" text={t("wrapper_failed")} />
         )}
+
+        {(status === CreateTokenStatus.SUCCESS ||
+          status === CreateTokenStatus.ERROR_CREATE_WRAPPER) &&
+          tokenAddress && (
+            <div className="flex flex-col gap-2 mt-4">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium">{t("token_contracts")}</span>
+                <span className="text-12 text-secondary-text">
+                  {t("token_symbol_decimals", {
+                    symbol: createTokenSettings.symbol ?? "",
+                    decimals: 18,
+                  })}
+                </span>
+              </div>
+              <TokenContractRow
+                label={t("erc223_contract_address")}
+                address={tokenAddress}
+                chainId={chainId}
+              />
+              {erc20Address && (
+                <TokenContractRow
+                  label={t("erc20_contract_address")}
+                  address={erc20Address}
+                  chainId={chainId}
+                />
+              )}
+            </div>
+          )}
 
         {(status === CreateTokenStatus.SUCCESS ||
           status === CreateTokenStatus.ERROR_CREATE_WRAPPER) && (

@@ -42,3 +42,13 @@ jobs:
       - name: Lint
         working-directory: apps/${{ matrix.app }}
         run: npx eslint -c .eslintrc.json --ext .js,.jsx,.ts,.tsx .
+
+      - name: Swap receipt regressions
+        if: matrix.app == 'web'
+        working-directory: apps/web
+        run: node tests/swapReceipt.test.cjs
+
+      - name: API key proxy regressions
+        if: matrix.app == 'web'
+        working-directory: apps/web
+        run: node tests/apiProxies.test.cjs

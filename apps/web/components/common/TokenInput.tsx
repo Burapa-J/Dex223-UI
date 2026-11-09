@@ -67,7 +67,7 @@ export default function TokenInput({
   const { price, isLoading } = useUSDPrice(token?.wrapped.address0);
 
   return (
-    <div className="p-5 bg-secondary-bg rounded-3 relative">
+    <div className="p-3 sm:p-5 bg-secondary-bg rounded-3 relative min-w-0">
       {label && (
         <div className="flex justify-between items-center mb-5 h-[22px]">
           <span className="text-14 block text-secondary-text">{label}</span>
@@ -85,8 +85,8 @@ export default function TokenInput({
         </div>
       )}
 
-      <div className="flex items-center mb-5 justify-between">
-        <div>
+      <div className="flex flex-wrap items-center gap-2 mb-5 justify-between min-w-0">
+        <div className="min-w-0 flex-[1_0_80px]">
           <NumericFormat
             allowedDecimalSeparators={[","]}
             decimalScale={token?.decimals}
@@ -103,8 +103,11 @@ export default function TokenInput({
             readOnly={readOnly}
             tabIndex={readOnly ? -1 : undefined}
             value={value}
-            onValueChange={(values) => {
-              onInputChange(values.value);
+            onValueChange={(values, sourceInfo) => {
+              // Calculated values arrive through props; only user edits should change the input side.
+              if (sourceInfo.source === "event") {
+                onInputChange(values.value);
+              }
             }}
             allowNegative={false}
             onBlur={handleBlur}
@@ -125,14 +128,17 @@ export default function TokenInput({
         </div>
         <SelectButton
           type="button"
-          className={clsx("flex-shrink-0", readOnlyToken && "pointer-events-none")}
+          className={clsx(
+            "ml-auto min-w-0 max-w-full flex-shrink-0",
+            readOnlyToken && "pointer-events-none",
+          )}
           variant="rounded"
           onClick={handleClick}
           size="large"
           colorScheme={colorScheme}
         >
           {token ? (
-            <span className="flex gap-2 items-center">
+            <span className="flex gap-2 items-center min-w-0">
               <Image
                 className="flex-shrink-0"
                 src={token?.logoURI || ""}
@@ -140,12 +146,12 @@ export default function TokenInput({
                 width={32}
                 height={32}
               />
-              <span className="max-w-[100px] md:max-w-[150px] overflow-ellipsis overflow-hidden whitespace-nowrap">
+              <span className="min-w-0 max-w-[100px] md:max-w-[150px] overflow-ellipsis overflow-hidden whitespace-nowrap">
                 {token.symbol}
               </span>
             </span>
           ) : (
-            <span className="whitespace-nowrap text-tertiary-text pl-2">{t("select_token")}</span>
+            <span className="min-w-0 truncate text-tertiary-text pl-2">{t("select_token")}</span>
           )}
         </SelectButton>
       </div>

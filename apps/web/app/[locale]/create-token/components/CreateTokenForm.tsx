@@ -1,5 +1,5 @@
 import Checkbox from "@repo/ui/checkbox";
-import { Formik } from "formik";
+import { Formik, useFormikContext } from "formik";
 import React, { useMemo, useState } from "react";
 
 import ConfirmCreateTokenDialog from "@/app/[locale]/create-token/components/ConfirmCreateTokenDialog";
@@ -66,6 +66,12 @@ function getCreateTokenSchema(t: ReturnType<typeof useTranslations>) {
   });
 }
 
+function CreateTokenGasEstimator() {
+  const { values } = useFormikContext<typeof initialCreateTokenSettings>();
+  useCreateTokenEstimatedGas(values);
+  return null;
+}
+
 export default function CreateTokenForm() {
   const chainId = useCurrentChainId();
   const isDeployerAvailable = ERC223_TOKEN_DEPLOYER_ADDRESS[chainId] !== ZERO_ADDRESS;
@@ -103,8 +109,6 @@ export default function CreateTokenForm() {
     });
   }, [baseFee, chainId, gasPrice, gasPriceOption, gasPriceSettings]);
 
-  useCreateTokenEstimatedGas(createTokenSettings);
-
   return (
     <>
       <Formik
@@ -128,6 +132,7 @@ export default function CreateTokenForm() {
               props.handleSubmit();
             }}
           >
+            <CreateTokenGasEstimator />
             <div className="flex flex-col gap-1 mb-3">
               <TextField
                 label={t("token_name")}

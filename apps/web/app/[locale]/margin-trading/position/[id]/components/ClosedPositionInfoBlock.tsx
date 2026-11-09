@@ -62,7 +62,7 @@ export default function ClosedPositionInfoBlock({
           bg="borrowed"
         />
         <OrderInfoCard
-          value={formatFloat(position.initialLeverage)}
+          value={formatFloat(position.initialLeverage, { trimZero: true })}
           title={t("initial_leverage")}
           tooltipText={t("initial_leverage_tooltip")}
           bg="borrowed"
