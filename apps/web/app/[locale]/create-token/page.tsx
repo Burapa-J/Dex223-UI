@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import { useTranslations } from "next-intl";
-import React, { useEffect, useRef } from "react";
+import React from "react";
 
 import CreateTokenForm from "@/app/[locale]/create-token/components/CreateTokenForm";
 import { useCreateTokenRecentTransactionsStore } from "@/app/[locale]/create-token/stores/useCreateTokenRecentTransactions";
@@ -15,57 +15,6 @@ export default function DecreaseLiquidityPage() {
   const t = useTranslations("CreateToken");
   const { isOpened: showRecentTransactions, setIsOpened: setShowRecentTransactions } =
     useCreateTokenRecentTransactionsStore();
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const card = cardRef.current;
-    if (!card) return;
-
-    let frame = 0;
-    let previousMargin = -1;
-    let previousViewportHeight = -1;
-
-    const keepActionsVisible = () => {
-      const notificationHeight =
-        parseFloat(
-          getComputedStyle(document.documentElement).getPropertyValue(
-            "--bottom-notifications-height",
-          ),
-        ) || 0;
-      const margin = parseFloat(getComputedStyle(card).scrollMarginBottom);
-      const viewportHeight = window.innerHeight;
-
-      if (margin === previousMargin && viewportHeight === previousViewportHeight) return;
-      previousMargin = margin;
-      previousViewportHeight = viewportHeight;
-
-      if (
-        notificationHeight > 0 &&
-        !card.contains(document.activeElement) &&
-        card.getBoundingClientRect().bottom > viewportHeight - margin
-      ) {
-        card.scrollIntoView({ block: "end", behavior: "instant" });
-      }
-    };
-
-    const scheduleScroll = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(keepActionsVisible);
-    };
-
-    // BottomNotifications measures after mount and whenever its warning content changes.
-    const observer = new MutationObserver(scheduleScroll);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["style"] });
-    window.addEventListener("resize", scheduleScroll);
-    scheduleScroll();
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", scheduleScroll);
-      cancelAnimationFrame(frame);
-    };
-  }, []);
-
   return (
     <Container>
       <div
@@ -87,10 +36,7 @@ export default function DecreaseLiquidityPage() {
         </div>
 
         <div>
-          <div
-            ref={cardRef}
-            className="lg:w-[600px] bg-primary-bg mx-auto card-spacing rounded-5 scroll-mb-[calc(var(--bottom-notifications-height,0px)+80px)] md:scroll-mb-[calc(var(--bottom-notifications-height,0px)+16px)]"
-          >
+          <div className="lg:w-[600px] bg-primary-bg mx-auto card-spacing rounded-5">
             <div className="flex justify-between py-1.5 -mr-3">
               <h1 className="text-18 lg:text-20 font-bold flex justify-center items-center text-nowrap">
                 {t("title")}
