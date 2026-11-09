@@ -16,6 +16,7 @@ import { MarginPosition } from "@/app/[locale]/margin-trading/types";
 import { chainToApolloClient } from "@/graphql/thegraph/apollo";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
 import useMarginModuleApolloClient from "@/hooks/useMarginModuleApolloClient";
+import { useTokenListLogos } from "@/hooks/useTokenListLogos";
 import { DexChainId } from "@/sdk_bi/chains";
 
 const queryOwner = gql(`
@@ -46,6 +47,7 @@ export function usePositionsByOwner({ owner }: { owner: Address | undefined }): 
 } {
   const apolloClient = useMarginModuleApolloClient();
   const chainId = useCurrentChainId();
+  const logos = useTokenListLogos();
 
   const { data, loading } = useQuery<any, any>(queryOwner, {
     variables: {
@@ -63,11 +65,11 @@ export function usePositionsByOwner({ owner }: { owner: Address | undefined }): 
 
     return data.positions.map((position: GqlPosition) => {
       return {
-        ...serializeGqlPosition(position, chainId),
-        order: serializeGqlOrder(position.order, chainId),
+        ...serializeGqlPosition(position, chainId, logos),
+        order: serializeGqlOrder(position.order, chainId, logos),
       };
     });
-  }, [chainId, data]);
+  }, [chainId, logos, data]);
 
   return { loading, positions };
 }
@@ -79,6 +81,7 @@ export default function useMarginPositionById({ id }: { id: string | undefined }
 } {
   const apolloClient = useMarginModuleApolloClient();
   const chainId = useCurrentChainId();
+  const logos = useTokenListLogos();
 
   const { data, loading, refetch } = useQuery<any, any>(queryById, {
     variables: {
@@ -95,10 +98,10 @@ export default function useMarginPositionById({ id }: { id: string | undefined }
     }
 
     return {
-      ...serializeGqlPosition(data.position, chainId),
-      order: serializeGqlOrder(data.position.order, chainId),
+      ...serializeGqlPosition(data.position, chainId, logos),
+      order: serializeGqlOrder(data.position.order, chainId, logos),
     };
-  }, [chainId, data]);
+  }, [chainId, logos, data]);
 
   return { loading, position, refetch };
 }
