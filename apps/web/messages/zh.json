@@ -762,6 +762,8 @@
   "Statistics": {
     "title": "统计",
     "description": "所选网络的协议概览。",
+    "chart_range": "图表范围",
+    "chart_range_days": "{days} 天图表范围",
     "tvl": "TVL",
     "volume": "总交易量",
     "pools": "流动性池",

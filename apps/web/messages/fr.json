@@ -762,6 +762,8 @@
   "Statistics": {
     "title": "Statistiques",
     "description": "Aperçu du protocole sur le réseau sélectionné.",
+    "chart_range": "Plage du graphique",
+    "chart_range_days": "Plage de graphique de {days} jours",
     "tvl": "TVL",
     "volume": "Volume total",
     "pools": "Pools",

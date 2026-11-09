@@ -762,6 +762,8 @@
   "Statistics": {
     "title": "Статистика",
     "description": "Обзор протокола в выбранной сети.",
+    "chart_range": "Диапазон графика",
+    "chart_range_days": "Диапазон графика: {days} дн.",
     "tvl": "TVL",
     "volume": "Общий объём",
     "pools": "Пулы",

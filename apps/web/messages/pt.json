@@ -762,6 +762,8 @@
   "Statistics": {
     "title": "Estatísticas",
     "description": "Visão geral do protocolo na rede selecionada.",
+    "chart_range": "Intervalo do gráfico",
+    "chart_range_days": "Intervalo de gráfico de {days} dias",
     "tvl": "TVL",
     "volume": "Volume total",
     "pools": "Pools",

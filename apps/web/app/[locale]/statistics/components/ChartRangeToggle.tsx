@@ -1,6 +1,7 @@
 "use client";
 
 import clsx from "clsx";
+import { useTranslations } from "next-intl";
 
 import { ChartRange } from "@/hooks/usePoolPriceChart";
 
@@ -13,8 +14,10 @@ export default function ChartRangeToggle({
   value: ChartRange;
   onChange: (days: ChartRange) => void;
 }) {
+  const t = useTranslations("Statistics");
+
   return (
-    <div className="flex gap-1" role="group" aria-label="Chart range">
+    <div className="flex gap-1" role="group" aria-label={t("chart_range")}>
       {RANGES.map((days) => {
         const selected = value === days;
         return (
@@ -22,7 +25,7 @@ export default function ChartRangeToggle({
             key={days}
             type="button"
             aria-pressed={selected}
-            aria-label={`${days} day chart range`}
+            aria-label={t("chart_range_days", { days })}
             onClick={() => onChange(days)}
             className={clsx(
               "px-2 h-7 rounded-2 text-12 duration-200",

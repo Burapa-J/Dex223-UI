@@ -767,6 +767,8 @@
   "Statistics": {
     "title": "Statistics",
     "description": "Protocol overview for the selected network.",
+    "chart_range": "Chart range",
+    "chart_range_days": "{days} day chart range",
     "tvl": "TVL",
     "volume": "Total volume",
     "pools": "Pools",

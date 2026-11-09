@@ -762,6 +762,8 @@
   "Statistics": {
     "title": "통계",
     "description": "선택한 네트워크의 프로토콜 개요입니다.",
+    "chart_range": "차트 범위",
+    "chart_range_days": "{days}일 차트 범위",
     "tvl": "TVL",
     "volume": "총 거래량",
     "pools": "풀",

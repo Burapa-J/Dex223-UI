@@ -110,7 +110,7 @@ export default function ValueChart({
     <svg
       width={width}
       height={height}
-      style={{ touchAction: "none" }}
+      style={{ touchAction: "pan-y" }}
       onMouseLeave={clearHover}
       onMouseMove={(e) => pickNearest(e.clientX, e.currentTarget)}
       onTouchStart={(e) => {
