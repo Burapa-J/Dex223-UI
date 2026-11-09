@@ -922,25 +922,6 @@ export const MARGIN_MODULE_ABI = [
     inputs: [
       {
         internalType: "uint256",
-        name: "id",
-        type: "uint256",
-      },
-    ],
-    name: "isOrderOpen",
-    outputs: [
-      {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
         name: "positionId",
         type: "uint256",
       },
@@ -1067,6 +1048,11 @@ export const MARGIN_MODULE_ABI = [
         internalType: "uint24",
         name: "_feeTier",
         type: "uint24",
+      },
+      {
+        internalType: "uint256",
+        name: "_minAmountOut",
+        type: "uint256",
       },
     ],
     name: "marginSwap223",
@@ -1222,6 +1208,44 @@ export const MARGIN_MODULE_ABI = [
     inputs: [
       {
         internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    name: "orderLiquidationKeeper",
+    outputs: [
+      {
+        internalType: "address",
+        name: "",
+        type: "address",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    name: "orderMaintenanceMarginBps",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
         name: "_orderId",
         type: "uint256",
       },
@@ -1232,6 +1256,29 @@ export const MARGIN_MODULE_ABI = [
       },
     ],
     name: "orderSetCollaterals",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
+        name: "_orderId",
+        type: "uint256",
+      },
+      {
+        internalType: "uint256",
+        name: "_maintenanceMarginBps",
+        type: "uint256",
+      },
+      {
+        internalType: "address",
+        name: "_keeper",
+        type: "address",
+      },
+    ],
+    name: "orderSetLenderProtection",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
@@ -1470,6 +1517,25 @@ export const MARGIN_MODULE_ABI = [
     inputs: [
       {
         internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    name: "positionUnderwaterSince",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "uint256",
         name: "positionId",
         type: "uint256",
       },
@@ -1541,30 +1607,6 @@ export const MARGIN_MODULE_ABI = [
       },
     ],
     stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "address[]",
-        name: "tokens",
-        type: "address[]",
-      },
-      {
-        internalType: "bool",
-        name: "isContract",
-        type: "bool",
-      },
-    ],
-    name: "predictTokenListsID",
-    outputs: [
-      {
-        internalType: "bytes32",
-        name: "",
-        type: "bytes32",
-      },
-    ],
-    stateMutability: "pure",
     type: "function",
   },
   {

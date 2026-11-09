@@ -131,7 +131,7 @@ export default function ActivePositionAssetsBlock({ position }: { position: Marg
                           +tradingToken.decimals,
                           tradingToken.symbol,
                           tradingToken.name,
-                          "/images/tokens/placeholder.svg",
+                          tradingToken.logoURI || "/images/tokens/placeholder.svg",
                           tokenLists
                             ?.filter((tokenList) => {
                               return !!tokenList.list.tokens.find(

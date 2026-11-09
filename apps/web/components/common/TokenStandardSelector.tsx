@@ -17,6 +17,7 @@ function StandardOption({
   disabled,
   handleStandardSelect,
   colorScheme = ThemeColors.GREEN,
+  compact = false,
 }: {
   balance: string | undefined;
   symbol: string | undefined;
@@ -26,6 +27,7 @@ function StandardOption({
   gas?: string;
   disabled?: boolean;
   colorScheme?: ThemeColors;
+  compact?: boolean;
 }) {
   const t = useTranslations("Swap");
   const isActive = useMemo(() => {
@@ -38,12 +40,13 @@ function StandardOption({
   };
 
   return (
-    <div className="flex flex-col min-w-0">
+    <div className={clsx("flex flex-col", compact && "min-w-0")}>
       <button
         type="button"
         onClick={() => handleStandardSelect(standard)}
         className={clsxMerge(
-          "*:z-10 flex flex-col gap-1 px-3 pt-10 pb-2.5 @[480px]:py-2.5 rounded-2 before:absolute before:rounded-3 before:w-full before:h-full before:left-0 before:top-0 before:duration-200 relative before:bg-gradient-to-r hocus:cursor-pointer text-12 group",
+          "*:z-10 flex flex-col gap-1 px-3 py-2.5 rounded-2 before:absolute before:rounded-3 before:w-full before:h-full before:left-0 before:top-0 before:duration-200 relative before:bg-gradient-to-r hocus:cursor-pointer text-12 group",
+          compact ? "pt-10" : "max-md:pt-10",
           gradientColorMap[colorScheme],
           isActive ? "before:opacity-100" : "before:opacity-0 hocus:before:opacity-100",
           standard === Standard.ERC223 &&
@@ -51,15 +54,16 @@ function StandardOption({
           standard === Standard.ERC20 && "bg-gradient-to-r from-primary-bg to-secondary-bg",
           disabled &&
             "before:opacity-0 hocus:before:opacity-0 before:cursor-default cursor-default pointer-events-none",
-          gas &&
-            standard === Standard.ERC20 &&
-            "@[480px]:rounded-b-0 @[480px]:before:rounded-b-0",
-          gas &&
-            standard === Standard.ERC223 &&
-            "@[480px]:rounded-b-0 @[480px]:before:rounded-t-0",
+          !compact && gas && standard === Standard.ERC20 && "md:rounded-b-0 md:before:rounded-b-0",
+          !compact && gas && standard === Standard.ERC223 && "md:rounded-b-0 md:before:rounded-t-0",
         )}
       >
-        <div className="hidden @[480px]:flex items-center gap-1 cursor-default">
+        <div
+          className={clsx(
+            "flex items-center gap-1 cursor-default",
+            compact ? "hidden" : "max-md:hidden",
+          )}
+        >
           <span
             className={clsxMerge(
               "text-12 text-secondary-text",
@@ -92,13 +96,17 @@ function StandardOption({
         ) : (
           <span
             className={clsx(
-              "w-full @[480px]:w-[calc(100%-55px)] table table-fixed",
+              "w-full table table-fixed",
+              !compact && "md:w-[calc(100%-55px)]",
               standard === active ? "text-secondary-text" : "text-tertiary-text",
             )}
           >
             <span
               className={clsx(
-                "flex flex-col text-12 whitespace-nowrap overflow-ellipsis overflow-hidden @[480px]:table-cell",
+                "whitespace-nowrap overflow-ellipsis overflow-hidden",
+                compact
+                  ? "flex flex-col text-12"
+                  : "table-cell max-md:flex max-md:flex-col max-md:text-12",
                 standard === active ? "text-primary-text" : "text-tertiary-text",
                 standard === Standard.ERC223 ? "text-right" : "text-left",
               )}
@@ -114,7 +122,8 @@ function StandardOption({
       {gas && (
         <div
           className={clsx(
-            "py-1 px-3 text-12 bg-swap-gas-gradient hidden @[480px]:flex items-center text-tertiary-text w-fit",
+            "py-1 px-3 text-12 bg-swap-gas-gradient items-center text-tertiary-text w-fit",
+            compact ? "hidden" : "flex max-md:hidden",
             standard === Standard.ERC20 &&
               "bg-gradient-to-r from-primary-bg to-secondary-bg rounded-bl-2",
             standard === Standard.ERC223 &&
@@ -134,13 +143,16 @@ export function StandardButton({
   disabled,
   standard,
   colorScheme = ThemeColors.GREEN,
+  compact = false,
 }: {
   standard: Standard;
   handleStandardSelect: (standard: Standard) => void;
   disabled?: boolean;
   selectedStandard: Standard;
   colorScheme?: ThemeColors;
+  compact?: boolean;
 }) {
+  const t = useTranslations("Swap");
   const activeColorMap: Record<ThemeColors, string> = {
     [ThemeColors.GREEN]: "bg-green text-black shadow shadow-green/60",
     [ThemeColors.PURPLE]: "bg-purple text-black shadow shadow-purple/60",
@@ -155,13 +167,15 @@ export function StandardButton({
     <button
       type="button"
       className={clsxMerge(
-        "h-6 rounded-3 duration-200 flex items-center justify-center gap-1 px-2 min-w-[58px] w-auto whitespace-nowrap text-secondary-text",
+        "h-6 rounded-3 duration-200 flex items-center justify-center gap-1 px-2 min-w-[58px] whitespace-nowrap text-secondary-text",
+        compact ? "w-full" : "max-md:w-full",
         selectedStandard === standard ? activeColorMap[colorScheme] : inactiveColorMap[colorScheme],
         disabled && standard === Standard.ERC20 && "bg-primary-bg shadow-none",
         disabled && "text-tertiary-text pointer-events-none",
       )}
       onClick={() => handleStandardSelect(standard)}
     >
+      <span className={compact ? "inline" : "hidden xs:inline md:hidden"}>{t("standard")}</span>
       {standard}
     </button>
   );
@@ -178,6 +192,7 @@ export default function TokenStandardSelector({
   gasERC223,
   colorScheme = ThemeColors.GREEN,
   allowedErc223 = true,
+  compact = false,
 }: {
   selectedStandard: Standard;
   handleStandardSelect: (standard: Standard) => void;
@@ -189,55 +204,57 @@ export default function TokenStandardSelector({
   gasERC223?: string;
   colorScheme?: ThemeColors;
   allowedErc223?: boolean;
+  /** Stacked layout for the landing hero, which is narrower than the desktop form. */
+  compact?: boolean;
 }) {
-  // Follow this control's width, not the window. Above ~1280px the swap+chart
-  // layout pins the form at 480/540px, so viewport `md:` (and a 340px container
-  // query) still paint the wide layout and the toggle covers the labels. 480px
-  // stays above the home preview and swap+chart form, under the full 600px forms.
   return (
-    <div className="@container min-w-0 w-full">
-      <div className="gap-1 @[480px]:gap-3 relative @[480px]:pb-2 grid grid-cols-2">
-        <StandardOption
-          active={selectedStandard}
-          standard={Standard.ERC20}
-          symbol={symbol}
-          balance={balance0}
-          gas={gasERC20}
-          handleStandardSelect={handleStandardSelect}
-          disabled={disabled}
-          colorScheme={colorScheme}
-        />
-        <div
-          className={clsxMerge(
-            "mx-auto z-10 text-10 w-auto h-[32px] top-1 left-1/2 -translate-x-1/2 rounded-20 border p-1 flex gap-1 items-center absolute @[480px]:top-[14px]",
-            colorScheme === ThemeColors.GREEN ? "border-green" : "border-purple",
-            disabled && "border-secondary-border",
-          )}
-        >
-          {[Standard.ERC20, Standard.ERC223].map((standard) => {
-            return (
-              <StandardButton
-                colorScheme={colorScheme}
-                key={standard}
-                handleStandardSelect={handleStandardSelect}
-                standard={standard}
-                selectedStandard={selectedStandard}
-                disabled={disabled || (standard === Standard.ERC223 && !allowedErc223)}
-              />
-            );
-          })}
-        </div>
-        <StandardOption
-          active={selectedStandard}
-          standard={Standard.ERC223}
-          symbol={symbol}
-          balance={balance1}
-          gas={gasERC223}
-          disabled={disabled || !allowedErc223}
-          handleStandardSelect={handleStandardSelect}
-          colorScheme={colorScheme}
-        />
+    <div
+      className={clsx("gap-1 relative grid grid-cols-2", compact ? "min-w-0" : "md:gap-3 md:pb-2")}
+    >
+      <StandardOption
+        active={selectedStandard}
+        standard={Standard.ERC20}
+        symbol={symbol}
+        balance={balance0}
+        gas={gasERC20}
+        handleStandardSelect={handleStandardSelect}
+        disabled={disabled}
+        colorScheme={colorScheme}
+        compact={compact}
+      />
+      <div
+        className={clsxMerge(
+          "mx-auto z-10 text-10 h-[32px] top-1 left-1/2 -translate-x-1/2 rounded-20 border p-1 flex gap-1 items-center absolute",
+          compact ? "w-[calc(100%-24px)]" : "w-[calc(100%-24px)] md:w-auto md:top-[14px]",
+          colorScheme === ThemeColors.GREEN ? "border-green" : "border-purple",
+          disabled && "border-secondary-border",
+        )}
+      >
+        {[Standard.ERC20, Standard.ERC223].map((standard) => {
+          return (
+            <StandardButton
+              colorScheme={colorScheme}
+              key={standard}
+              handleStandardSelect={handleStandardSelect}
+              standard={standard}
+              selectedStandard={selectedStandard}
+              disabled={disabled || (standard === Standard.ERC223 && !allowedErc223)}
+              compact={compact}
+            />
+          );
+        })}
       </div>
+      <StandardOption
+        active={selectedStandard}
+        standard={Standard.ERC223}
+        symbol={symbol}
+        balance={balance1}
+        gas={gasERC223}
+        disabled={disabled || !allowedErc223}
+        handleStandardSelect={handleStandardSelect}
+        colorScheme={colorScheme}
+        compact={compact}
+      />
     </div>
   );
 }

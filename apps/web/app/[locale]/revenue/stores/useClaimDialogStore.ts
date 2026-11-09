@@ -12,7 +12,7 @@ export type ClaimDialogState =
   | "error";
 
 export interface ClaimToken {
-  id: number;
+  id: string;
   name: string;
   symbol: string;
   logoURI: string;
@@ -35,7 +35,7 @@ export interface ClaimDialogData {
   selectedTokens: ClaimToken[];
   totalReward: number;
   selectedStandard?: "ERC-20" | "ERC-223"; // Global standard for single token
-  tokenStandards?: Record<number, "ERC-20" | "ERC-223">; // Per-token standards for multiple tokens
+  tokenStandards?: Record<string, "ERC-20" | "ERC-223">; // Per-token standards for multiple tokens
   errorMessage?: string;
   deliveryTransactionHash?: string;
   claimTransactionHash?: string;
@@ -55,7 +55,7 @@ interface ClaimDialogStore {
   setError: (errorMessage: string) => void;
   setDeliveryTransactionHash: (hash: string) => void;
   setClaimTransactionHash: (hash: string) => void;
-  setTokenStandard: (tokenId: number, standard: "ERC-20" | "ERC-223") => void;
+  setTokenStandard: (tokenId: string, standard: "ERC-20" | "ERC-223") => void;
   resetClaim: () => void;
 }
 

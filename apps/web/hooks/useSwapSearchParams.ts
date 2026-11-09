@@ -18,18 +18,18 @@ enum SwapQueryParams {
 }
 
 // Pair preselected on the swap page when the URL names no tokens, so the trading chart shows right
-// away: the chain's native coin against this token. Sepolia USDC is the test v3 token with a live
-// WETH pool. It is spelled out here because otherwise it only arrives through the core subgraph,
-// which Studio often rate-limits.
+// away: the chain's native coin against this token. Sepolia RED is an open-mint test token with a live
+// WETH pool on the v4 factory. It is spelled out here because otherwise it only arrives through the
+// core subgraph, which Studio often rate-limits.
 const DEFAULT_SWAP_TOKEN_B: Partial<Record<DexChainId, Token>> = {
   [DexChainId.SEPOLIA]: new Token(
     DexChainId.SEPOLIA,
-    "0xFC86A38E97F63852B49b61d44Eee4f937251ae1A",
-    "0x501bfF357609c160B56861EA4478B6592fB85657",
-    6,
-    "USDC",
-    "USD Coin (test v3)",
-    "/images/tokens/USDC.svg",
+    "0x1DEf777468F76ed1E74fC87bD32334d3Ccb520d0",
+    "0x0a67Cc4D3Ac29a133a597b5Bef3fe9A6028ACad2",
+    18,
+    "RED",
+    "RED (test)",
+    "/images/tokens/placeholder.svg",
   ),
 };
 

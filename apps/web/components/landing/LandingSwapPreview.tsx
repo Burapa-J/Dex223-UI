@@ -62,6 +62,7 @@ function PreviewTokenInput({
       </div>
 
       <TokenStandardSelector
+        compact
         selectedStandard={standard}
         handleStandardSelect={noop}
         symbol={symbol}

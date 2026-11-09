@@ -196,6 +196,12 @@ function formatIPFS(logoURI: string | undefined) {
     : logoURI;
 }
 
+const LOGO_PLACEHOLDER = "/images/tokens/placeholder.svg";
+
+function hasRealLogo(logoURI: string | undefined | null): boolean {
+  return !!logoURI && logoURI !== LOGO_PLACEHOLDER;
+}
+
 export function useTokens(onlyCustom: boolean = false): Currency[] {
   const tokenLists = useTokenLists(onlyCustom);
   const chainId = useCurrentChainId();
@@ -216,8 +222,16 @@ export function useTokens(onlyCustom: boolean = false): Currency[] {
             const existing = map.get(lowercaseAddress);
 
             const isFromMain = id === mainListId;
+            // The default list's logo wins; otherwise a real logo beats a missing one. Lists built
+            // from on-chain data (Free / Paid Autolisting) carry no images, so without the last rule
+            // a token that is also in the user's custom list (with the logo set at Create token)
+            // showed the placeholder whenever the autolisting list was read first.
             const shouldOverwriteLogo =
-              !existing || (isFromMain && existing.logoSourceId !== mainListId);
+              !existing ||
+              (isFromMain && existing.logoSourceId !== mainListId) ||
+              (existing.logoSourceId !== mainListId &&
+                !hasRealLogo(existing.token.logoURI) &&
+                hasRealLogo(item?.logoURI));
             const logoURI = shouldOverwriteLogo
               ? formatIPFS(item?.logoURI) || "/images/tokens/placeholder.svg"
               : formatIPFS(existing?.token.logoURI) || "/images/tokens/placeholder.svg";

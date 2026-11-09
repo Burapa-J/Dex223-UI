@@ -8,18 +8,19 @@ import { DexChainId } from "@/sdk_bi/chains";
 import { Token } from "@/sdk_bi/entities/token";
 
 // Pair preselected on the margin swap page when no tokens are picked yet, so the trading chart shows
-// right away: the chain's native coin against this token. Sepolia D223 has a live WETH pool. It is
+// right away: the chain's native coin against this token. Sepolia RED has a live WETH pool on the v4
+// factory, and the margin oracle prices it. It is
 // spelled out here because otherwise it only arrives through the core subgraph, which Studio often
 // rate-limits.
 const DEFAULT_MARGIN_SWAP_TOKEN_B: Partial<Record<DexChainId, Token>> = {
   [DexChainId.SEPOLIA]: new Token(
     DexChainId.SEPOLIA,
-    "0xc7231d0F96e83cE98E0650fc4Be8Ca92e2E24cc5",
-    "0xD22051AccB04Cee5d5Eaed03aD032C3d8925Cdc3",
+    "0x1DEf777468F76ed1E74fC87bD32334d3Ccb520d0",
+    "0x0a67Cc4D3Ac29a133a597b5Bef3fe9A6028ACad2",
     18,
-    "D223",
-    "Dex223 (test)",
-    "/images/tokens/DEX.svg",
+    "RED",
+    "RED (test)",
+    "/images/tokens/placeholder.svg",
   ),
 };
 
