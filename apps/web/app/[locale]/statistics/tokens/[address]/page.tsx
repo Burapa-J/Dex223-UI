@@ -25,7 +25,7 @@ export default function StatisticsTokenDetailPage({
   const chainId = useCurrentChainId();
   const tokenMeta = useTokenMeta();
   const [days, setDays] = useState<ChartRange>(30);
-  const { token, priceSeries, volumeSeries, loading, error } = useTokenDetail(
+  const { token, pools, priceSeries, volumeSeries, loading, error } = useTokenDetail(
     chainId,
     address,
     days,
@@ -121,7 +121,7 @@ export default function StatisticsTokenDetailPage({
             <div className="bg-primary-bg rounded-5 px-5 py-4">
               <div className="text-14 text-secondary-text">{t("pools")}</div>
               <div className="text-20 font-medium">
-                {formatNumberKilos(Number(token.poolCount), { trimZero: true })}
+                {formatNumberKilos(pools.length, { trimZero: true })}
               </div>
             </div>
           </div>
@@ -181,10 +181,10 @@ export default function StatisticsTokenDetailPage({
             <div className="px-5 py-4 border-b border-secondary-border">
               <h3 className="text-18 font-medium">{t("token_pools")}</h3>
             </div>
-            {(token.whitelistPools?.length ?? 0) === 0 ? (
+            {pools.length === 0 ? (
               <div className="px-5 py-8 text-center text-secondary-text">{t("no_pools")}</div>
             ) : (
-              <PoolRows pools={token.whitelistPools} chainId={chainId} tvlLabel={t("tvl")} />
+              <PoolRows pools={pools} chainId={chainId} tvlLabel={t("tvl")} />
             )}
           </div>
         </>

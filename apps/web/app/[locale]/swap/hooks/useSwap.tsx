@@ -1,5 +1,5 @@
 import { useTranslations } from "next-intl";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   Address,
   encodeAbiParameters,
@@ -51,6 +51,7 @@ import { useComputePoolAddressDex } from "@/sdk_bi/utils/computePoolAddress";
 import { TickMath } from "@/sdk_bi/utils/tickMath";
 import { useGlobalFees } from "@/shared/hooks/useGlobalFees";
 import { useConfirmInWalletAlertStore } from "@/stores/useConfirmInWalletAlertStore";
+import { _usePoolsStore } from "@/stores/usePoolsStore";
 import {
   RecentTransactionTitleTemplate,
   stringifyObject,
@@ -292,9 +293,12 @@ export function useSwapEstimatedGas({ trade }: { trade: Trade<any, any, any> | n
   const chainId = useCurrentChainId();
   const { typedValue } = useSwapAmountsStore();
 
+  const isConversion = Boolean(tokenA && tokenB && tokenA.equals(tokenB));
+  const allowanceTarget = isConversion ? CONVERTER_ADDRESS[chainId] : ROUTER_ADDRESS[chainId];
+
   const { isAllowed: isAllowedA } = useStoreAllowance({
     token: tokenA,
-    contractAddress: ROUTER_ADDRESS[chainId],
+    contractAddress: allowanceTarget,
     amountToCheck: parseUnits(typedValue, tokenA?.decimals ?? 18),
   });
 
@@ -349,6 +353,13 @@ export default function useSwap() {
     setErrorType,
     setIsReceiptUnavailable,
   } = useSwapStatusStore();
+
+  // A confirmed swap moves the pool's price and liquidity; mark cached pools stale so the next
+  // quote is computed against the new state instead of the pre-swap one.
+  const invalidatePools = _usePoolsStore((state) => state.invalidateAll);
+  useEffect(() => {
+    if (swapStatus === SwapStatus.SUCCESS) invalidatePools();
+  }, [swapStatus, invalidatePools]);
 
   const { openConfirmInWalletAlert, closeConfirmInWalletAlert } = useConfirmInWalletAlertStore();
 
