@@ -52,6 +52,7 @@ export default function CoinChart({
       pageSize={Number.isFinite(range.bars) ? Math.max(300, range.bars + 10) : 1000}
       heightClassName="h-[420px] md:h-[520px]"
       onLastBar={onLastBar}
+      alerts={!symbol.startsWith("COINGECKO:")}
     />
   );
 }

@@ -80,6 +80,7 @@ export default function DrawingToolbar({
   drawingCount,
   onClearAll,
   accent,
+  alerts = true,
 }: {
   tool: DrawingTool;
   onTool: (tool: DrawingTool) => void;
@@ -90,8 +91,10 @@ export default function DrawingToolbar({
   drawingCount: number;
   onClearAll: () => void;
   accent: AccentClasses;
+  alerts?: boolean;
 }) {
   const t = useTranslations("TradingChart");
+  const tools = alerts ? TOOLS : TOOLS.filter((key) => key !== "alert");
   return (
     <div
       role="toolbar"
@@ -99,7 +102,7 @@ export default function DrawingToolbar({
       aria-orientation="vertical"
       className="flex flex-col items-center gap-0.5 py-2 w-10 shrink-0 border-r border-secondary-border bg-primary-bg no-scrollbar max-sm:overflow-y-auto"
     >
-      {TOOLS.map((key) => (
+      {tools.map((key) => (
         <Button
           key={key}
           accent={accent}
