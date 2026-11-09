@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import React, { useMemo } from "react";
 
-import { usePoolsData } from "@/app/[locale]/pools/hooks";
+import { usePoolPriceIndex, usePoolsData } from "@/app/[locale]/pools/hooks";
 import PoolRows from "@/app/[locale]/statistics/components/PoolRows";
 import StatisticsShell from "@/app/[locale]/statistics/components/StatisticsShell";
 import { sortPoolsByTvl } from "@/app/[locale]/statistics/formatLiquidity";
@@ -13,12 +13,16 @@ import { Link } from "@/i18n/routing";
 export default function StatisticsPoolsPage() {
   const t = useTranslations("Statistics");
   const chainId = useCurrentChainId();
+  const { priceIndex } = usePoolPriceIndex(chainId);
   const { data, loading, error } = usePoolsData({
     first: 50,
     orderDirection: "desc",
     chainId,
   });
-  const pools = useMemo(() => sortPoolsByTvl(data?.pools ?? []), [data?.pools]);
+  const pools = useMemo(
+    () => sortPoolsByTvl(data?.pools ?? [], priceIndex),
+    [data?.pools, priceIndex],
+  );
 
   return (
     <StatisticsShell>
@@ -31,7 +35,7 @@ export default function StatisticsPoolsPage() {
           <div className="px-5 py-4 border-b border-secondary-border flex items-center justify-between">
             <h2 className="text-18 md:text-20 font-medium">{t("top_pools")}</h2>
             <Link href="/pools" className="text-14 text-green hocus:text-green-hover duration-200">
-              {t("view_all_pools")}
+              {t("open_pools")}
             </Link>
           </div>
 
@@ -40,7 +44,7 @@ export default function StatisticsPoolsPage() {
           ) : pools.length === 0 ? (
             <div className="px-5 py-8 text-center text-secondary-text">{t("no_pools")}</div>
           ) : (
-            <PoolRows pools={pools} chainId={chainId} tvlLabel={t("tvl")} />
+            <PoolRows pools={pools} chainId={chainId} priceIndex={priceIndex} tvlLabel={t("tvl")} />
           )}
         </div>
       )}

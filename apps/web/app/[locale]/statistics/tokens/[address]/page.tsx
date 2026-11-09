@@ -3,11 +3,12 @@
 import { useTranslations } from "next-intl";
 import React, { use, useEffect, useRef, useState } from "react";
 
+import { usePoolPriceIndex } from "@/app/[locale]/pools/hooks";
 import ChartRangeToggle from "@/app/[locale]/statistics/components/ChartRangeToggle";
 import PoolRows from "@/app/[locale]/statistics/components/PoolRows";
 import StatisticsShell from "@/app/[locale]/statistics/components/StatisticsShell";
 import ValueChart, { ValuePoint } from "@/app/[locale]/statistics/components/ValueChart";
-import { formatTokenTvl } from "@/app/[locale]/statistics/formatLiquidity";
+import { formatUsd, tokenTvlUsd } from "@/app/[locale]/statistics/formatLiquidity";
 import { useTokenDetail } from "@/app/[locale]/statistics/hooks";
 import { useTokenMeta } from "@/app/[locale]/statistics/tokenMeta";
 import TokenLogo from "@/components/atoms/TokenLogo";
@@ -24,9 +25,10 @@ export default function StatisticsTokenDetailPage({
   const { address } = use(params);
   const t = useTranslations("Statistics");
   const chainId = useCurrentChainId();
+  const { priceIndex } = usePoolPriceIndex(chainId);
   const tokenMeta = useTokenMeta();
   const [days, setDays] = useState<ChartRange>(30);
-  const { token, priceSeries, volumeSeries, loading, error } = useTokenDetail(
+  const { token, pools, priceSeries, volumeSeries, loading, error } = useTokenDetail(
     chainId,
     address,
     days,
@@ -104,11 +106,9 @@ export default function StatisticsTokenDetailPage({
             <div className="bg-primary-bg rounded-5 px-5 py-4">
               <div className="text-14 text-secondary-text">{t("tvl")}</div>
               <div className="text-20 font-medium">
-                {formatTokenTvl(
-                  token.totalValueLockedUSD,
-                  token.totalValueLocked,
-                  token.derivedETH,
-                )}
+                {tokenTvlUsd(priceIndex, token)
+                  ? formatUsd(tokenTvlUsd(priceIndex, token) as number)
+                  : t("usd_unavailable")}
               </div>
             </div>
             <div className="bg-primary-bg rounded-5 px-5 py-4">
@@ -128,7 +128,7 @@ export default function StatisticsTokenDetailPage({
             <div className="bg-primary-bg rounded-5 px-5 py-4">
               <div className="text-14 text-secondary-text">{t("pools")}</div>
               <div className="text-20 font-medium">
-                {formatNumberKilos(Number(token.poolCount), { trimZero: true })}
+                {formatNumberKilos(pools.length, { trimZero: true })}
               </div>
             </div>
           </div>
@@ -139,10 +139,11 @@ export default function StatisticsTokenDetailPage({
                 <div>
                   <div className="text-14 text-secondary-text">{t("chart_price")}</div>
                   <div className="text-20 font-medium">
-                    $
-                    {formatNumberKilos(
-                      priceHover?.value ?? priceSeries[priceSeries.length - 1]?.value ?? 0,
-                    )}
+                    {priceHover?.value || priceSeries[priceSeries.length - 1]?.value
+                      ? formatUsd(
+                          priceHover?.value ?? priceSeries[priceSeries.length - 1]?.value ?? 0,
+                        )
+                      : t("usd_unavailable")}
                   </div>
                 </div>
                 <ChartRangeToggle value={days} onChange={setDays} />
@@ -188,10 +189,15 @@ export default function StatisticsTokenDetailPage({
             <div className="px-5 py-4 border-b border-secondary-border">
               <h3 className="text-18 font-medium">{t("token_pools")}</h3>
             </div>
-            {(token.whitelistPools?.length ?? 0) === 0 ? (
+            {pools.length === 0 ? (
               <div className="px-5 py-8 text-center text-secondary-text">{t("no_pools")}</div>
             ) : (
-              <PoolRows pools={token.whitelistPools} chainId={chainId} tvlLabel={t("tvl")} />
+              <PoolRows
+                pools={pools}
+                chainId={chainId}
+                priceIndex={priceIndex}
+                tvlLabel={t("tvl")}
+              />
             )}
           </div>
         </>

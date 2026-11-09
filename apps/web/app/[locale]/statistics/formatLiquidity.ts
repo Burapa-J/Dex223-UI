@@ -1,37 +1,53 @@
 import { formatNumberKilos } from "@/functions/formatFloat";
+import { computePoolTVL, TokenPriceIndex } from "@/functions/poolTvl";
 
-export function formatUsdOrEth(
-  usd: number | string | null | undefined,
-  eth?: number | string | null | undefined,
-): string {
-  const usdN = Number(usd) || 0;
-  const ethN = Number(eth) || 0;
-  if (usdN > 0) return `$${formatNumberKilos(usdN)}`;
-  if (ethN > 0) return `${formatNumberKilos(ethN)} ETH`;
-  return `$${formatNumberKilos(0)}`;
+export function positiveUsd(value: number | string | null | undefined): number | null {
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
 }
 
-export function formatTokenTvl(
-  usd: number | string | null | undefined,
-  tokenAmount?: number | string | null,
-  derivedEth?: number | string | null,
-): string {
-  const usdN = Number(usd) || 0;
-  if (usdN > 0) return `$${formatNumberKilos(usdN)}`;
-  const ethTvl = (Number(tokenAmount) || 0) * (Number(derivedEth) || 0);
-  if (ethTvl > 0) return `${formatNumberKilos(ethTvl)} ETH`;
-  if ((Number(tokenAmount) || 0) > 0) return "—";
-  return `$${formatNumberKilos(0)}`;
+export function formatUsd(amount: number): string {
+  return `$${formatNumberKilos(amount)}`;
 }
 
-export function sortPoolsByTvl<T extends { totalValueLockedUSD?: string; totalValueLockedETH?: string }>(
-  pools: T[],
-): T[] {
-  const list = [...pools];
-  const useUsd = list.some((p) => Number(p.totalValueLockedUSD) > 0);
-  list.sort((a, b) => {
-    const key = useUsd ? "totalValueLockedUSD" : "totalValueLockedETH";
-    return (Number(b[key]) || 0) - (Number(a[key]) || 0);
+export function tokenPriceUsd(
+  priceIndex: TokenPriceIndex,
+  tokenId: string | undefined,
+  subgraphPrice?: number | string | null,
+): number | null {
+  const indexed = tokenId ? priceIndex[tokenId.toLowerCase()]?.price : undefined;
+  if (indexed && indexed > 0) return indexed;
+  return positiveUsd(subgraphPrice);
+}
+
+export function tokenTvlUsd(
+  priceIndex: TokenPriceIndex,
+  token: {
+    id?: string;
+    totalValueLockedUSD?: string | number | null;
+    totalValueLocked?: string | number | null;
+  },
+): number | null {
+  const subgraph = positiveUsd(token.totalValueLockedUSD);
+  if (subgraph) return subgraph;
+  const price = token.id ? priceIndex[token.id.toLowerCase()]?.price : undefined;
+  const amount = Number(token.totalValueLocked);
+  if (price && price > 0 && amount > 0) return price * amount;
+  return null;
+}
+
+export function poolTvlUsd(priceIndex: TokenPriceIndex, pool: any): number | null {
+  const priced = computePoolTVL({
+    pool,
+    priceIndex,
+    subgraphFallback: false,
   });
-  return list;
+  if (priced && priced > 0) return priced;
+  return positiveUsd(pool?.totalValueLockedUSD);
+}
+
+export function sortPoolsByTvl<T>(pools: T[], priceIndex: TokenPriceIndex = {}): T[] {
+  return [...pools].sort(
+    (a, b) => (poolTvlUsd(priceIndex, b) ?? 0) - (poolTvlUsd(priceIndex, a) ?? 0),
+  );
 }

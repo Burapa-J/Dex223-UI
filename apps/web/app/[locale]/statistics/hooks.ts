@@ -110,24 +110,34 @@ export const TokenDetailDocument = gql`
       volumeUSD
       feesUSD
       txCount
-      poolCount
       derivedETH
-      whitelistPools(first: 10, orderBy: totalValueLockedUSD, orderDirection: desc) {
+    }
+    # All pools for this token (not whitelistPools — that list is for price derivation only
+    # and under-counts real trading pairs; subgraph poolCount is also often stale).
+    pools(
+      first: 50
+      orderBy: totalValueLockedETH
+      orderDirection: desc
+      where: { or: [{ token0: $id }, { token1: $id }] }
+    ) {
+      id
+      feeTier
+      totalValueLockedUSD
+      totalValueLockedETH
+      totalValueLockedToken0
+      totalValueLockedToken1
+      token0Price
+      token1Price
+      volumeUSD
+      token0 {
         id
-        feeTier
-        totalValueLockedUSD
-        totalValueLockedETH
-        volumeUSD
-        token0 {
-          id
-          symbol
-          addressERC223
-        }
-        token1 {
-          id
-          symbol
-          addressERC223
-        }
+        symbol
+        addressERC223
+      }
+      token1 {
+        id
+        symbol
+        addressERC223
       }
     }
     tokenDayDatas(first: $days, orderBy: date, orderDirection: desc, where: { token: $id }) {
@@ -158,6 +168,8 @@ export function useTokenDetail(
     fetchPolicy: "cache-and-network",
   });
 
+  const pools = useMemo(() => data?.pools ?? [], [data?.pools]);
+
   const priceSeries = useMemo(() => {
     const rows = data?.tokenDayDatas ?? [];
     return [...rows]
@@ -182,6 +194,7 @@ export function useTokenDetail(
 
   return {
     token: data?.token ?? null,
+    pools,
     priceSeries,
     volumeSeries,
     loading,

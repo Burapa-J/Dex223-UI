@@ -1,21 +1,27 @@
 "use client";
 
-import { formatUsdOrEth } from "@/app/[locale]/statistics/formatLiquidity";
+import { useTranslations } from "next-intl";
+
+import { formatUsd, poolTvlUsd } from "@/app/[locale]/statistics/formatLiquidity";
 import { useTokenMeta } from "@/app/[locale]/statistics/tokenMeta";
 import TokenLogo from "@/components/atoms/TokenLogo";
 import { FEE_AMOUNT_DETAIL } from "@/config/constants/liquidityFee";
+import { TokenPriceIndex } from "@/functions/poolTvl";
 import { Link } from "@/i18n/routing";
 import { FeeAmount } from "@/sdk_bi/constants";
 
 export default function PoolRows({
   pools,
   chainId,
+  priceIndex,
   tvlLabel,
 }: {
   pools: any[];
   chainId: number;
+  priceIndex: TokenPriceIndex;
   tvlLabel: string;
 }) {
+  const t = useTranslations("Statistics");
   const tokenMeta = useTokenMeta();
 
   return (
@@ -26,6 +32,7 @@ export default function PoolRows({
         const feeLabel =
           FEE_AMOUNT_DETAIL[pool.feeTier as FeeAmount]?.label ??
           String(Number(pool.feeTier) / 10000);
+        const tvl = poolTvlUsd(priceIndex, pool);
 
         return (
           <Link
@@ -50,7 +57,7 @@ export default function PoolRows({
             </div>
             <div className="text-right shrink-0">
               <div className="text-14 md:text-16 font-medium">
-                {formatUsdOrEth(pool.totalValueLockedUSD, pool.totalValueLockedETH)}
+                {tvl ? formatUsd(tvl) : t("usd_unavailable")}
               </div>
               <div className="text-12 text-secondary-text">{tvlLabel}</div>
             </div>
