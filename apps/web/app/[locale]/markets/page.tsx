@@ -1,22 +1,31 @@
 "use client";
 
 import clsx from "clsx";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 
 import Container from "@/components/atoms/Container";
+import { SearchInput } from "@/components/atoms/Input";
+import Svg from "@/components/atoms/Svg";
 import TokenLogo from "@/components/atoms/TokenLogo";
-import { Coin, MarketSort, useMarkets } from "@/components/markets/api";
+import { Coin, useMarkets } from "@/components/markets/api";
+import { formatUsd, formatUsdCompact } from "@/components/markets/format";
 import Sparkline from "@/components/markets/Sparkline";
-import { compact, formatPercent, formatPrice } from "@/components/trading-chart/format";
-import { Link } from "@/i18n/routing";
+import {
+  marketColumnDirection,
+  MarketColumnSort,
+  marketListQuery,
+  marketsListSearch,
+  marketTablePhase,
+  nextMarketSort,
+  showStaleRefreshError,
+} from "@/components/markets/tableState";
+import { compact, formatPercent } from "@/components/trading-chart/format";
+import { useDebounce } from "@/hooks/useDebounce";
+import { Link, usePathname, useRouter } from "@/i18n/routing";
 
 const PER_PAGE = 100;
-
-const usd = (v: number | null | undefined) =>
-  v === null || v === undefined ? "–" : `$${formatPrice(v)}`;
-const usdCompact = (v: number | null | undefined) =>
-  v === null || v === undefined ? "–" : `$${compact(v)}`;
 
 function Change({ value, className }: { value: number | null; className?: string }) {
   if (value === null || !Number.isFinite(value)) return <span className={className}>–</span>;
@@ -29,44 +38,78 @@ function Change({ value, className }: { value: number | null; className?: string
 
 export default function MarketsPage() {
   const t = useTranslations("Markets");
-  const [page, setPage] = useState(1);
-  const [sort, setSort] = useState<MarketSort>("rank");
-  const [search, setSearch] = useState("");
-  const [query, setQuery] = useState("");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const list = marketListQuery({
+    page: searchParams.get("page"),
+    sort: searchParams.get("sort"),
+    q: searchParams.get("q"),
+  });
+  const { page, sort } = list;
+  const [search, setSearch] = useState(list.q);
+  const query = useDebounce(search, 300).trim();
+  const urlQuery = useRef(list.q);
+
+  function openList(next: { page?: number; sort?: MarketColumnSort; q?: string }) {
+    const qs = marketsListSearch(searchParams.toString(), next);
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setQuery(search.trim());
-      setPage(1);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [search]);
+    const urlChanged = urlQuery.current !== list.q;
+    urlQuery.current = list.q;
+    if (urlChanged) {
+      setSearch(list.q);
+      return;
+    }
+    if (query === list.q || search.trim() !== query) return;
+    const qs = marketsListSearch(searchParams.toString(), { q: query, page: 1 });
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [query, list.q, search, searchParams, pathname, router]);
 
-  const { data, isLoading, isError } = useMarkets({ page, perPage: PER_PAGE, sort, query });
+  const markets = useMarkets({ page, perPage: PER_PAGE, sort, query });
   const gainers = useMarkets({ page: 1, perPage: 3, sort: "change_24h", query: "" });
   const losers = useMarkets({ page: 1, perPage: 3, sort: "change_24h_asc", query: "" });
   const traded = useMarkets({ page: 1, perPage: 3, sort: "volume", query: "" });
 
-  const pages = data ? Math.max(1, Math.ceil(data.total / PER_PAGE)) : 1;
+  const phase = marketTablePhase({
+    isError: markets.isError,
+    isPlaceholderData: markets.isPlaceholderData,
+    hasData: Boolean(markets.data),
+    count: markets.data?.coins.length ?? 0,
+    hasQuery: Boolean(query),
+  });
+  const rows = phase === "ready" ? markets.data : undefined;
+  const pages = rows ? Math.max(1, Math.ceil(rows.total / PER_PAGE)) : 1;
+  const staleRefresh =
+    phase === "ready" &&
+    showStaleRefreshError(markets.isError, markets.isPlaceholderData, Boolean(markets.data));
 
-  const sortHeader = (key: MarketSort, label: string, className?: string) => (
-    <button
-      type="button"
-      onClick={() => {
-        setSort(sort === key && key !== "rank" ? "rank" : key);
-        setPage(1);
-      }}
-      aria-pressed={sort === key}
-      className={clsx(
-        "inline-flex items-center gap-1 duration-200 hocus:text-primary-text",
-        sort === key && "text-primary-text",
-        className,
-      )}
-    >
-      {label}
-      {sort === key && key !== "rank" && <span aria-hidden>↓</span>}
-    </button>
-  );
+  const sortHeader = (key: MarketColumnSort, label: string) => {
+    const direction = marketColumnDirection(sort, key);
+    const active = direction !== "none";
+    return (
+      <button
+        type="button"
+        onClick={() => openList({ sort: nextMarketSort(sort, key), page: 1 })}
+        aria-pressed={active}
+        className={clsx(
+          "inline-flex items-center gap-1 duration-200 hocus:text-primary-text",
+          active && "text-primary-text",
+        )}
+      >
+        {label}
+        {active && key !== "rank" && (
+          <Svg
+            iconName={direction === "ascending" ? "sort-up" : "sort-down"}
+            size={20}
+            className="text-green"
+          />
+        )}
+      </button>
+    );
+  };
 
   return (
     <Container>
@@ -76,16 +119,16 @@ export default function MarketsPage() {
             <h1 className="text-24 lg:text-40 mb-1">{t("title")}</h1>
             <p className="text-secondary-text text-14 md:text-16">{t("description")}</p>
           </div>
-          <label className="relative w-full sm:w-[320px]">
-            <span className="sr-only">{t("search")}</span>
-            <input
-              type="search"
+          <div className="w-full sm:w-[320px]">
+            <SearchInput
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("search")}
-              className="w-full h-11 rounded-3 bg-primary-bg border border-secondary-border px-4 text-14 text-primary-text placeholder:text-tertiary-text focus:outline-none focus:border-green duration-200"
+              aria-label={t("search")}
+              maxLength={80}
+              className="h-11 rounded-3 bg-primary-bg border border-secondary-border text-14"
             />
-          </label>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
@@ -113,18 +156,43 @@ export default function MarketsPage() {
         </div>
 
         <div className="bg-primary-bg rounded-5 overflow-hidden">
+          {staleRefresh && (
+            <p className="px-5 py-3 text-14 text-secondary-text border-b border-secondary-border">
+              {t("unavailable")}
+            </p>
+          )}
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-14 tabular-nums">
+            <table
+              className="w-full md:min-w-[720px] text-14 tabular-nums"
+              aria-busy={phase === "loading"}
+            >
               <thead className="text-12 text-tertiary-text border-b border-secondary-border">
-                <tr className="[&>th]:px-3 [&>th]:py-3 [&>th]:font-normal">
-                  <th className="text-left w-12 pl-5">{sortHeader("rank", "#")}</th>
+                <tr className="[&>th]:px-2 [&>th]:py-3 [&>th]:font-normal md:[&>th]:px-3">
+                  <th
+                    className="text-left w-8 pl-3 md:w-12 md:pl-5"
+                    aria-sort={marketColumnDirection(sort, "rank")}
+                  >
+                    {sortHeader("rank", "#")}
+                  </th>
                   <th className="text-left">{t("col_coin")}</th>
-                  <th className="text-right">{sortHeader("price", t("col_price"))}</th>
+                  <th className="text-right" aria-sort={marketColumnDirection(sort, "price")}>
+                    {sortHeader("price", t("col_price"))}
+                  </th>
                   <th className="text-right hidden lg:table-cell">{t("col_1h")}</th>
-                  <th className="text-right">{sortHeader("change_24h", t("col_24h"))}</th>
+                  <th className="text-right" aria-sort={marketColumnDirection(sort, "change_24h")}>
+                    {sortHeader("change_24h", t("col_24h"))}
+                  </th>
                   <th className="text-right hidden md:table-cell">{t("col_7d")}</th>
-                  <th className="text-right">{sortHeader("market_cap", t("col_market_cap"))}</th>
-                  <th className="text-right hidden md:table-cell">
+                  <th
+                    className="text-right hidden sm:table-cell"
+                    aria-sort={marketColumnDirection(sort, "market_cap")}
+                  >
+                    {sortHeader("market_cap", t("col_market_cap"))}
+                  </th>
+                  <th
+                    className="text-right hidden md:table-cell"
+                    aria-sort={marketColumnDirection(sort, "volume")}
+                  >
                     {sortHeader("volume", t("col_volume"))}
                   </th>
                   <th className="text-right hidden xl:table-cell">{t("col_supply")}</th>
@@ -132,9 +200,9 @@ export default function MarketsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-secondary-border">
-                {isError && !data ? (
+                {phase === "error" ? (
                   <EmptyRow>{t("unavailable")}</EmptyRow>
-                ) : isLoading && !data ? (
+                ) : phase === "loading" ? (
                   Array.from({ length: 10 }).map((_, i) => (
                     <tr key={i}>
                       <td colSpan={10} className="px-5 py-4">
@@ -142,15 +210,15 @@ export default function MarketsPage() {
                       </td>
                     </tr>
                   ))
-                ) : !data?.coins.length ? (
-                  <EmptyRow>{query ? t("no_results") : t("unavailable")}</EmptyRow>
+                ) : phase === "no-results" ? (
+                  <EmptyRow>{t("no_results")}</EmptyRow>
                 ) : (
-                  data.coins.map((coin) => (
+                  rows?.coins.map((coin) => (
                     <tr
                       key={coin.id}
-                      className="relative hover:bg-tertiary-bg duration-200 [&>td]:px-3 [&>td]:py-3"
+                      className="relative hover:bg-tertiary-bg duration-200 [&>td]:px-2 [&>td]:py-3 md:[&>td]:px-3"
                     >
-                      <td className="pl-5 text-tertiary-text">{coin.rank}</td>
+                      <td className="pl-3 md:pl-5 text-tertiary-text">{coin.rank}</td>
                       <td>
                         <Link
                           href={`/markets/${coin.id}`}
@@ -163,14 +231,14 @@ export default function MarketsPage() {
                             className="rounded-full w-7 h-7 shrink-0"
                           />
                           <span className="min-w-0">
-                            <span className="block font-medium text-primary-text truncate max-w-[180px]">
+                            <span className="block font-medium text-primary-text truncate max-w-[88px] sm:max-w-[180px]">
                               {coin.name}
                             </span>
                             <span className="block text-12 text-tertiary-text">{coin.symbol}</span>
                           </span>
                         </Link>
                       </td>
-                      <td className="text-right text-primary-text">{usd(coin.price)}</td>
+                      <td className="text-right text-primary-text">{formatUsd(coin.price)}</td>
                       <td className="text-right hidden lg:table-cell">
                         <Change value={coin.change_1h} />
                       </td>
@@ -180,11 +248,11 @@ export default function MarketsPage() {
                       <td className="text-right hidden md:table-cell">
                         <Change value={coin.change_7d} />
                       </td>
-                      <td className="text-right text-secondary-text">
-                        {usdCompact(coin.market_cap)}
+                      <td className="text-right text-secondary-text hidden sm:table-cell">
+                        {formatUsdCompact(coin.market_cap)}
                       </td>
                       <td className="text-right text-secondary-text hidden md:table-cell">
-                        {usdCompact(coin.volume_24h)}
+                        {formatUsdCompact(coin.volume_24h)}
                       </td>
                       <td className="text-right text-secondary-text hidden xl:table-cell">
                         {coin.circulating_supply
@@ -205,13 +273,13 @@ export default function MarketsPage() {
 
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-t border-secondary-border text-12 text-tertiary-text">
             <span>{t("attribution")}</span>
-            {pages > 1 && (
+            {pages > 1 && rows && (
               <div className="flex items-center gap-2">
-                <PageButton disabled={page <= 1} onClick={() => setPage(page - 1)}>
+                <PageButton disabled={page <= 1} onClick={() => openList({ page: page - 1 })}>
                   {t("previous")}
                 </PageButton>
                 <span>{t("page", { page, pages })}</span>
-                <PageButton disabled={page >= pages} onClick={() => setPage(page + 1)}>
+                <PageButton disabled={page >= pages} onClick={() => openList({ page: page + 1 })}>
                   {t("next")}
                 </PageButton>
               </div>
@@ -264,12 +332,12 @@ function MoversCard({
                   className="rounded-full w-5 h-5"
                 />
                 <span className="text-primary-text">{coin.symbol}</span>
-                <span className="ml-auto text-secondary-text">{usd(coin.price)}</span>
+                <span className="ml-auto text-secondary-text">{formatUsd(coin.price)}</span>
                 {kind === "change" ? (
                   <Change value={coin.change_24h} className="w-16 text-right" />
                 ) : (
                   <span className="w-16 text-right text-secondary-text">
-                    {usdCompact(coin.volume_24h)}
+                    {formatUsdCompact(coin.volume_24h)}
                   </span>
                 )}
               </Link>
@@ -283,7 +351,7 @@ function MoversCard({
   );
 }
 
-function EmptyRow({ children }: { children: React.ReactNode }) {
+function EmptyRow({ children }: { children: ReactNode }) {
   return (
     <tr>
       <td colSpan={10} className="px-5 py-10 text-center text-secondary-text">
@@ -300,7 +368,7 @@ function PageButton({
 }: {
   disabled: boolean;
   onClick: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <button
