@@ -29,6 +29,7 @@ import { filterTokens } from "@/functions/searchTokens";
 import truncateMiddle from "@/functions/truncateMiddle";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
 import { useNativeCurrency } from "@/hooks/useNativeCurrency";
+import { listedLogo, useTokenListLogos } from "@/hooks/useTokenListLogos";
 import { useTokenLists } from "@/hooks/useTokenLists";
 import { Link } from "@/i18n/routing";
 import { CONVERTER_ADDRESS } from "@/sdk_bi/addresses";
@@ -237,6 +238,7 @@ export default function AutoListingContractDetails({
 
   const listingContract = useAutoListingContract(use(params).address);
 
+  const logos = useTokenListLogos();
   const tokens = useMemo(() => {
     if (!listingContract) {
       return [];
@@ -260,11 +262,11 @@ export default function AutoListingContractDetails({
         +token.decimals,
         token.symbol,
         token.name,
-        "/images/tokens/placeholder.svg",
+        listedLogo(logos, token.address0, token.address1),
         lists,
       );
     });
-  }, [listingContract, tokenLists]);
+  }, [listingContract, tokenLists, logos]);
 
   const filteredTokens = useMemo(() => {
     return filterTokens(searchValue, tokens);
@@ -424,7 +426,7 @@ export default function AutoListingContractDetails({
                             <Image
                               width={32}
                               height={32}
-                              src="/images/tokens/placeholder.svg"
+                              src={token.logoURI || "/images/tokens/placeholder.svg"}
                               alt=""
                             />
                             <div className="flex flex-col">
@@ -558,7 +560,7 @@ export default function AutoListingContractDetails({
                             <Image
                               width={24}
                               height={24}
-                              src="/images/tokens/placeholder.svg"
+                              src={token.logoURI || "/images/tokens/placeholder.svg"}
                               alt=""
                             />
                             <span className="font-medium">{token.name}</span>

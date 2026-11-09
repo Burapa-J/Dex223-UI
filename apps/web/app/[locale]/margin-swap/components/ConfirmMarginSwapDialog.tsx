@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import React, { useEffect, useMemo } from "react";
@@ -12,6 +13,10 @@ import {
 } from "@/app/[locale]/margin-swap/stores/useMarginSwapStatusStore";
 import { useMarginSwapTokensStore } from "@/app/[locale]/margin-swap/stores/useMarginSwapTokensStore";
 import { useConfirmMarginSwapDialogStore } from "@/app/[locale]/margin-trading/stores/dialogStates";
+import PriceImpactWarning, {
+  PriceImpactAcknowledgement,
+  usePriceImpactAcknowledgement,
+} from "@/app/[locale]/swap/components/PriceImpactWarning";
 import SwapDetailsRow from "@/app/[locale]/swap/components/SwapDetailsRow";
 import { useSwapStatus } from "@/app/[locale]/swap/hooks/useSwap";
 import {
@@ -75,7 +80,13 @@ function composeMarginSwapSteps(t: ReturnType<typeof useTranslations>): Operatio
   ];
 }
 
-function MarginSwapActionButton() {
+function MarginSwapActionButton({
+  isVeryHighPriceImpact = false,
+  isPriceImpactAcknowledged = false,
+}: {
+  isVeryHighPriceImpact?: boolean;
+  isPriceImpactAcknowledged?: boolean;
+}) {
   const t = useTranslations("Swap");
   const { handleMarginSwap } = useMarginSwap();
   const closePositionSteps = composeMarginSwapSteps(t);
@@ -108,8 +119,13 @@ function MarginSwapActionButton() {
   }
 
   return (
-    <Button colorScheme={ButtonColor.PURPLE} onClick={() => handleMarginSwap()} fullWidth>
-      {t("confirm_margin_swap")}
+    <Button
+      colorScheme={isVeryHighPriceImpact ? ButtonColor.RED : ButtonColor.PURPLE}
+      disabled={isVeryHighPriceImpact && !isPriceImpactAcknowledged}
+      onClick={() => handleMarginSwap()}
+      fullWidth
+    >
+      {isVeryHighPriceImpact ? t("swap_anyway") : t("confirm_margin_swap")}
     </Button>
   );
 }
@@ -167,6 +183,7 @@ export default function ConfirmMarginSwapDialog({ trade }: { trade: Trade<any, a
   const chainId = useCurrentChainId();
 
   const { isOpen, setIsOpen } = useConfirmMarginSwapDialogStore();
+  const priceImpactAck = usePriceImpactAcknowledgement(trade);
 
   const dependentAmount: CurrencyAmount<Currency> | undefined = useMemo(() => {
     return trade?.outputAmount;
@@ -367,7 +384,15 @@ export default function ConfirmMarginSwapDialog({ trade }: { trade: Trade<any, a
               />
               <SwapDetailsRow
                 title={t("price_impact")}
-                value={trade ? `${formatFloat(trade.priceImpact.toSignificant())}%` : t("loading")}
+                value={
+                  trade ? (
+                    <span className={clsx(priceImpactAck.required && "text-red-light")}>
+                      {`${formatFloat(trade.priceImpact.toSignificant())}%`}
+                    </span>
+                  ) : (
+                    t("loading")
+                  )
+                }
                 tooltipText={t("price_impact_tooltip")}
               />
               <SwapDetailsRow
@@ -398,10 +423,22 @@ export default function ConfirmMarginSwapDialog({ trade }: { trade: Trade<any, a
                 }
                 tooltipText={t("gas_limit_tooltip")}
               />
+
+              <PriceImpactWarning trade={trade} slippage={slippage} className="mt-2" />
+              <PriceImpactAcknowledgement
+                id="margin-swap-price-impact-acknowledgement"
+                trade={trade}
+                checked={priceImpactAck.acknowledged}
+                onChange={priceImpactAck.setAcknowledged}
+                className="mt-3"
+              />
             </div>
           )}
           {isLoadingStatus && <div className="h-px w-full bg-secondary-border mb-4 mt-5" />}
-          <MarginSwapActionButton />
+          <MarginSwapActionButton
+            isVeryHighPriceImpact={priceImpactAck.required}
+            isPriceImpactAcknowledged={priceImpactAck.acknowledged}
+          />
         </div>
       </div>
     </DrawerDialog>

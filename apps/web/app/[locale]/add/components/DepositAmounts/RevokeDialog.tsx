@@ -12,8 +12,10 @@ import Svg from "@/components/atoms/Svg";
 import TextField from "@/components/atoms/TextField";
 import Badge, { BadgeVariant } from "@/components/badges/Badge";
 import Button, { ButtonColor, ButtonSize, ButtonVariant } from "@/components/buttons/Button";
+import Erc223ReceiveWarning from "@/components/common/Erc223ReceiveWarning";
 import { useTransactionSpeedUpDialogStore } from "@/components/dialogs/stores/useTransactionSpeedUpDialogStore";
 import { AllowanceStatus } from "@/hooks/useAllowance";
+import useCanReceiveERC223 from "@/hooks/useCanReceiveERC223";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
 import useRevoke, { useRevokeEstimatedGas } from "@/hooks/useRevoke";
 import useWithdraw, { useWithdrawEstimatedGas } from "@/hooks/useWithdraw";
@@ -45,6 +47,11 @@ export const RevokeDialog = () => {
   } = useRevokeDialogStatusStore();
 
   const [localValue, setLocalValue] = useState(undefined as undefined | string);
+  const tSwap = useTranslations("Swap");
+  const { address } = useAccount();
+  const canReceiveERC223 = useCanReceiveERC223(address);
+  // Withdrawing an ERC-223 deposit delivers ERC-223 back; a smart account (EIP-7702) can't take it.
+  const cannotReceive = standard === Standard.ERC223 && !canReceiveERC223;
   const localValueBigInt = useMemo(() => {
     if (!token || !localValue) return undefined;
     return parseUnits(localValue, token?.decimals);
@@ -289,8 +296,15 @@ export const RevokeDialog = () => {
               />
             </div>
 
+            {cannotReceive && status === AllowanceStatus.INITIAL && (
+              <Erc223ReceiveWarning className="mt-4" />
+            )}
             <div className="mt-4">
-              {!!error ? (
+              {cannotReceive && status === AllowanceStatus.INITIAL ? (
+                <Button fullWidth disabled>
+                  {tSwap("wallet_cannot_receive_erc223")}
+                </Button>
+              ) : !!error ? (
                 <Button fullWidth disabled>
                   <span className="flex items-center gap-2">{t("enter_correct_values")}</span>
                 </Button>

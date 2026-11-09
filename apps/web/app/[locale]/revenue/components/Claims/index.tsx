@@ -51,8 +51,8 @@ export const Claims = ({
   readOnly = false,
 }: {
   tableData: any;
-  selectedTokens: Set<number>;
-  setSelectedTokens: (tokenId: number) => void;
+  selectedTokens: Set<string>;
+  setSelectedTokens: (tokenId: string) => void;
   isLoading?: boolean;
   readOnly?: boolean;
 }) => {
@@ -90,7 +90,7 @@ export const Claims = ({
   }, [baseFee, chainId, gasPrice, gasPriceOption, gasPriceSettings]);
 
   // Check if a specific token is being claimed
-  const isTokenBeingClaimed = (tokenId: number) => {
+  const isTokenBeingClaimed = (tokenId: string) => {
     if (!claimData) return false;
     if (claimState !== "confirming-claim" && claimState !== "executing-claim") return false;
     if (isClaimDialogOpen) return false;
@@ -110,13 +110,13 @@ export const Claims = ({
     }
   }, [claimState, isClaimDialogOpen, resetClaim]);
 
-  const handleTokenSelect = (tokenId: number) => {
+  const handleTokenSelect = (tokenId: string) => {
     if (readOnly) return;
     setSelectedTokens(tokenId);
   };
 
   const handleUnselectAll = () => {
-    setSelectedTokens(0);
+    setSelectedTokens("");
   };
 
   const handleClaimSingle = (token: any) => {
@@ -184,7 +184,7 @@ export const Claims = ({
         isMultiple: false,
       });
     } else {
-      const tokenStandards: Record<number, "ERC-20" | "ERC-223"> = {};
+      const tokenStandards: Record<string, "ERC-20" | "ERC-223"> = {};
       selectedTokensData.forEach((token: any) => {
         tokenStandards[token.id] = "ERC-223";
       });
@@ -282,7 +282,7 @@ export const Claims = ({
             </SkeletonTheme>
           ) : (
             tableData.map((o: any, index: number) => {
-              const key = o?.token?.address0 ? o.token.address0 : `item-${index}`;
+              const key = o.id || (o?.token?.address0 ? o.token.address0 : `item-${index}`);
               const isSelected = selectedTokens.has(o.id);
 
               return (
@@ -306,6 +306,8 @@ export const Claims = ({
                         handleChange={() => handleTokenSelect(o.id)}
                         id={`claim-token-${o.id}`}
                         disabled={readOnly || hasClaimInProgress || isTokenBeingClaimed(o.id)}
+                        label={t("select_claim_token", { symbol: o.symbol })}
+                        labelClassName="sr-only"
                       />
                       <Image
                         src={o.logoURI || "/images/tokens/placeholder.svg"}
@@ -598,7 +600,7 @@ export const Claims = ({
               </div>
             )}
             {tableData.map((o: any, index: number) => {
-              const key = o?.token?.address0 ? o.token.address0 : `item-${index}`;
+              const key = o.id || (o?.token?.address0 ? o.token.address0 : `item-${index}`);
               const isSelected = selectedTokens.has(o.id);
 
               return (
@@ -616,6 +618,8 @@ export const Claims = ({
                       handleChange={() => handleTokenSelect(o.id)}
                       id={`claim-token-mobile-${o.id}`}
                       disabled={readOnly || hasClaimInProgress || isTokenBeingClaimed(o.id)}
+                      label={t("select_claim_token", { symbol: o.symbol })}
+                      labelClassName="sr-only"
                     />
                     <Image
                       src={o.logoURI || "/images/tokens/placeholder.svg"}

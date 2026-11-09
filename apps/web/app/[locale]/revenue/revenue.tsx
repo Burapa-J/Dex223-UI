@@ -10,7 +10,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import { Address, formatUnits, isAddress } from "viem";
-import { useAccount, useSwitchChain } from "wagmi";
+import { useAccount } from "wagmi";
 
 import { useRevenueStore } from "@/app/[locale]/revenue/stores/useRevenueStore";
 import Container from "@/components/atoms/Container";
@@ -77,7 +77,7 @@ export function Revenue() {
   const [claimRewardsSearchValue, setClaimRewardsSearchValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const { address } = useAccount();
-  const [selectedTokens, setSelectedTokens] = useState<Set<number>>(new Set());
+  const [selectedTokens, setSelectedTokens] = useState<Set<string>>(new Set());
   const chainId = useCurrentChainId();
   const [selectedTokenLists, setSelectedTokenLists] = useState<Set<TokenListId>>(
     new Set([`default-${chainId}` as TokenListId]),
@@ -89,7 +89,6 @@ export function Revenue() {
     isOpen: isStakeDialogOpen,
     dialogType,
   } = useStakeDialogStore();
-  const { switchChain } = useSwitchChain();
   const { setIsOpened: setWalletConnectOpened } = useConnectWalletDialogStateStore();
 
   const allAvailableTokens = useTokens();
@@ -106,6 +105,9 @@ export function Revenue() {
 
   const searchAddress =
     searchValue && isAddress(searchValue) ? (searchValue as Address) : undefined;
+  const viewingAnotherWallet = Boolean(
+    searchAddress && (!address || searchAddress.toLowerCase() !== address.toLowerCase()),
+  );
   const {
     userStaked,
     userStakingTimestamp,
@@ -135,16 +137,16 @@ export function Revenue() {
     }
   }, [tokensFromSelectedLists, setRewardTokens]);
 
-  // Rows are the tokens the Revenue contract on this chain actually holds, with the
-  // amounts claim() would pay right now.
+  // Rows are tokens the connected/searched wallet can claim() right now (earned > 0).
   const mappedClaimsData = useMemo(() => {
     return claimableRewards
-      .filter((reward) => reward.heldERC20 > 0n || reward.heldERC223 > 0n)
-      .map((reward, index) => {
+      .filter((reward) => reward.amount > 0n && reward.claimAddresses.length > 0)
+      .map((reward) => {
         const price = usdPrices[reward.token.address0.toLowerCase()];
         const amount = Number(reward.amountFormatted);
+        const id = reward.token.address0.toLowerCase();
         return {
-          id: index + 1,
+          id,
           name: reward.token.name || "Unknown",
           symbol: reward.token.symbol || "???",
           logoURI: reward.token.logoURI || "/images/tokens/placeholder.svg",
@@ -180,20 +182,20 @@ export function Revenue() {
     [mappedClaimsData],
   );
 
-  const handleSelectedTokens = (tokenId: number) => {
-    if (tokenId === 0) {
+  const handleSelectedTokens = (tokenId: string) => {
+    if (!tokenId) {
       setSelectedTokens(new Set());
-    } else {
-      setSelectedTokens((prev) => {
-        const newSet = new Set(prev);
-        if (newSet.has(tokenId)) {
-          newSet.delete(tokenId);
-        } else {
-          newSet.add(tokenId);
-        }
-        return newSet;
-      });
+      return;
     }
+    setSelectedTokens((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(tokenId)) {
+        newSet.delete(tokenId);
+      } else {
+        newSet.add(tokenId);
+      }
+      return newSet;
+    });
   };
 
   const isStakeActionLocked = useMemo(() => {
@@ -229,10 +231,10 @@ export function Revenue() {
   }, [searchValue, claimRewardsSearchValue]);
 
   useEffect(() => {
-    if (searchAddress) {
+    if (viewingAnotherWallet) {
       setSelectedTokens(new Set());
     }
-  }, [searchAddress]);
+  }, [viewingAnotherWallet]);
 
   const formatStakedAmount = (amount: unknown) => {
     if (!amount || typeof amount !== "bigint") return "0";
@@ -399,13 +401,13 @@ export function Revenue() {
                     <button
                       type="button"
                       onClick={handleStakeClick}
-                      disabled={isStakeActionLocked || !!searchAddress}
+                      disabled={isStakeActionLocked || viewingAnotherWallet}
                       className={clsx(
                         "border px-3 md:px-4 h-[40px] md:h-[48px] flex-1 md:flex-none md:min-w-[100px] rounded-3 text-12 md:text-14 font-medium transition-colors active:scale-95",
                         hasStaked
                           ? "border-yellow-light bg-[#4C483C] text-white cursor-pointer"
                           : "border-secondary-border bg-green text-black cursor-pointer hover:bg-green",
-                        (isStakeActionLocked || searchAddress) &&
+                        (isStakeActionLocked || viewingAnotherWallet) &&
                           "opacity-50 cursor-not-allowed hover:bg-tertiary-bg",
                       )}
                     >
@@ -422,13 +424,13 @@ export function Revenue() {
                       <button
                         type="button"
                         onClick={handleUnstakeClick}
-                        disabled={!canUnstake || !hasStaked || !!searchAddress}
+                        disabled={!canUnstake || !hasStaked || viewingAnotherWallet}
                         className={clsx(
                           "border px-3 md:px-4 h-[40px] md:h-[48px] flex-1 md:flex-none md:min-w-[100px] rounded-3 text-12 md:text-14 font-medium transition-colors active:scale-95",
                           hasStaked
                             ? "border-yellow-light bg-[#4C483C] text-white"
                             : "border border-green bg-transparent-bg text-secondary-text",
-                          !canUnstake || !hasStaked || searchAddress
+                          !canUnstake || !hasStaked || viewingAnotherWallet
                             ? "opacity-50 cursor-not-allowed"
                             : "cursor-pointer",
                         )}
@@ -485,24 +487,26 @@ export function Revenue() {
             </>
           )}
         </div>
-        {!searchAddress && typeof erc223Deposit === "bigint" && erc223Deposit > BigInt(0) && (
-          <div className="mt-4 md:mt-5 w-full rounded-3 bg-primary-bg border border-quaternary-bg px-4 md:px-5 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <span className="text-secondary-text text-12 md:text-14">
-              {t("deposit_reached", {
-                amount: formatUnits(erc223Deposit, 18),
-                symbol: stakingTokenSymbol,
-              })}
-            </span>
-            <Button
-              size={ButtonSize.EXTRA_SMALL}
-              colorScheme={ButtonColor.LIGHT_GREEN}
-              onClick={handleRecoverDeposit}
-              disabled={isTransactionPending}
-            >
-              {t("recover_deposit")}
-            </Button>
-          </div>
-        )}
+        {!viewingAnotherWallet &&
+          typeof erc223Deposit === "bigint" &&
+          erc223Deposit > BigInt(0) && (
+            <div className="mt-4 md:mt-5 w-full rounded-3 bg-primary-bg border border-quaternary-bg px-4 md:px-5 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <span className="text-secondary-text text-12 md:text-14">
+                {t("deposit_reached", {
+                  amount: formatUnits(erc223Deposit, 18),
+                  symbol: stakingTokenSymbol,
+                })}
+              </span>
+              <Button
+                size={ButtonSize.EXTRA_SMALL}
+                colorScheme={ButtonColor.LIGHT_GREEN}
+                onClick={handleRecoverDeposit}
+                disabled={isTransactionPending}
+              >
+                {t("recover_deposit")}
+              </Button>
+            </div>
+          )}
         {feeCollectorAddress && pendingPools.length > 0 && (
           <div className="mt-4 md:mt-5 w-full rounded-3 bg-primary-bg border border-quaternary-bg px-4 md:px-5 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
             <span className="text-secondary-text text-12 md:text-14">
@@ -599,7 +603,7 @@ export function Revenue() {
               selectedTokens={selectedTokens}
               setSelectedTokens={handleSelectedTokens}
               isLoading={isLoadingUserData}
-              readOnly={Boolean(searchAddress)}
+              readOnly={viewingAnotherWallet}
             />
           )}
         </div>

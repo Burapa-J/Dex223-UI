@@ -7,8 +7,8 @@ import { pageMetadata } from "@/config/seo";
 import { IconName } from "@/config/types/IconName";
 import { clsxMerge } from "@/functions/clsxMerge";
 import { formatNumberKilos } from "@/functions/formatFloat";
-import { CHAIN_SUBGRAPH_URL } from "@/graphql/thegraph/apollo";
 import { Link, type Locale } from "@/i18n/routing";
+import { GATEWAY_SUBGRAPHS } from "@/lib/subgraphTargets";
 import { DexChainId } from "@/sdk_bi/chains";
 
 type Props = { params: Promise<{ locale: Locale }> };
@@ -30,11 +30,13 @@ type ProtocolStats = { tvlUSD: number; volumeUSD: number; poolCount: number; txC
  */
 async function getProtocolStats(): Promise<ProtocolStats | null> {
   try {
-    const res = await fetch(CHAIN_SUBGRAPH_URL[DexChainId.MAINNET], {
+    // Server-side, so it calls the gateway directly with the server-only key.
+    if (!process.env.GRAPH_API_KEY) return null;
+    const res = await fetch(GATEWAY_SUBGRAPHS["exchange-mainnet"], {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        authorization: `Bearer ${process.env.NEXT_PUBLIC_AUTH_TOKEN_GQL}`,
+        authorization: `Bearer ${process.env.GRAPH_API_KEY}`,
       },
       body: JSON.stringify({
         query: "{ factories(first: 1) { poolCount txCount totalVolumeUSD totalValueLockedUSD } }",

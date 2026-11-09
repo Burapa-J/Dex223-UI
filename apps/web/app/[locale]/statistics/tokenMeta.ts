@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import { getAddress } from "viem";
 
 import useCurrentChainId from "@/hooks/useCurrentChainId";
-import { useTokens } from "@/hooks/useTokenLists";
+import { useTokenListLogos } from "@/hooks/useTokenListLogos";
 import { DexChainId } from "@/sdk_bi/chains";
 
 const PLACEHOLDER = "/images/tokens/placeholder.svg";
@@ -51,17 +51,8 @@ export function tokenMeta(
 // so testnet tokens get their listed logo instead of a missing mainnet one.
 export function useTokenMeta() {
   const chainId = useCurrentChainId();
-  const tokens = useTokens();
 
-  const listLogos = useMemo(() => {
-    const map = new Map<string, string>();
-    tokens.forEach((token) => {
-      if (!("address0" in token) || !token.logoURI || token.logoURI === PLACEHOLDER) return;
-      map.set(token.address0.toLowerCase(), token.logoURI);
-      map.set(token.address1.toLowerCase(), token.logoURI);
-    });
-    return map;
-  }, [tokens]);
+  const listLogos = useTokenListLogos();
 
   return useCallback(
     (token: SubgraphToken) => tokenMeta(token, chainId, listLogos),
