@@ -83,6 +83,11 @@ export function getPositionAllowedOutputStandard(
   const allowed = new Set(
     (position.order.allowedTradingAddresses ?? []).map((a) => a.toLowerCase()),
   );
+  if (position.collateralAsset && token.equals(position.collateralAsset)) {
+    for (const colAddr of position.order.collateralAddresses ?? []) {
+      allowed.add(colAddr.toLowerCase());
+    }
+  }
   const has20 = allowed.has(addr0);
   const has223 = allowed.has(addr1);
 

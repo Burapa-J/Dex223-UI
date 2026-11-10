@@ -168,10 +168,18 @@ test("rpc: eth_getLogs needs a numeric, bounded range", async () => {
   const logs = (filter) => post({ jsonrpc: "2.0", id: 1, method: "eth_getLogs", params: [filter] });
   const opts = { env, fetchImpl, limiter: roomy() };
   assert.equal((await proxyRpc("sepolia", logs({ fromBlock: "earliest", toBlock: "latest" }), opts)).status, 400);
+  assert.equal((await proxyRpc("sepolia", logs({ fromBlock: "0x0", toBlock: "latest" }), opts)).status, 400);
+  assert.equal((await proxyRpc("sepolia", logs({ fromBlock: "0x0" }), opts)).status, 400);
   const tooWide = { fromBlock: "0x0", toBlock: "0x" + (RPC_MAX_LOG_RANGE + 1n).toString(16) };
   assert.equal((await proxyRpc("sepolia", logs(tooWide), opts)).status, 400);
   assert.equal((await proxyRpc("sepolia", logs({ fromBlock: "0x100", toBlock: "0x200" }), opts)).status, 200);
   assert.equal((await proxyRpc("sepolia", logs({ blockHash: "0x" + "1".repeat(64) }), opts)).status, 200);
+  assert.equal((await proxyRpc("sepolia", logs({ blockHash: "invalid" }), opts)).status, 400);
+  assert.equal(
+    (await proxyRpc("sepolia", logs({ blockHash: "0x" + "1".repeat(64), fromBlock: "0x0", toBlock: "latest" }), opts))
+      .status,
+    400,
+  );
 });
 
 test("rpc: forwards to Alchemy, falls back to Infura, never returns a key", async () => {

@@ -68,11 +68,18 @@ export function rejectReason(call: RpcCall): string | null {
       ? (call.params[0] as Record<string, unknown>)
       : undefined;
     if (!filter || typeof filter !== "object") return "invalid log filter";
-    if (filter.blockHash !== undefined) return null;
+    if (filter.blockHash !== undefined) {
+      if (typeof filter.blockHash !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(filter.blockHash))
+        return "invalid blockHash";
+      if (filter.fromBlock !== undefined || filter.toBlock !== undefined)
+        return "blockHash cannot be combined with fromBlock or toBlock";
+      return null;
+    }
     const from = blockNumber(filter.fromBlock);
     if (from === undefined) return "eth_getLogs needs a numeric fromBlock";
     const to = blockNumber(filter.toBlock);
-    if (to !== undefined && (to < from || to - from > RPC_MAX_LOG_RANGE))
+    if (to === undefined) return "eth_getLogs needs a numeric toBlock";
+    if (to < from || to - from > RPC_MAX_LOG_RANGE)
       return "log range too large";
   }
   return null;
