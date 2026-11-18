@@ -72,11 +72,12 @@ const linkButton = {
     variant: ButtonVariant.OUTLINED,
     className: "inline-flex w-fit",
   }),
+  // Figma page 21: the calculator link is 40 px high with 16 px side padding (MEDIUM uses 24 px).
   light: getButtonClassName({
     variant: ButtonVariant.OUTLINED,
     colorScheme: ButtonColor.LIGHT_GREEN,
     size: ButtonSize.MEDIUM,
-    className: "inline-flex w-fit",
+    className: "inline-flex w-fit px-4",
   }),
 };
 
