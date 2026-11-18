@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { type Address, type Hash, parseEventLogs } from "viem";
+import { type Address, type Hash } from "viem";
 import { useAccount, usePublicClient, useWalletClient } from "wagmi";
 
 import {
@@ -9,140 +9,157 @@ import {
 import { MarginPosition } from "@/app/[locale]/margin-trading/types";
 import { MARGIN_MODULE_ABI } from "@/config/abis/marginModule";
 import { isMarginDeployed } from "@/config/modules";
-import { getMinedRevert, isUserRejection, toMarginRevert } from "@/functions/marginRevert";
+import {
+  getMarginRevertCode,
+  getMinedRevert,
+  isUserRejection,
+  type MarginRevert,
+  toMarginRevert,
+} from "@/functions/marginRevert";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
 import { MARGIN_TRADING_ADDRESS } from "@/sdk_bi/addresses";
 import { useMarginRevertStore } from "@/stores/useMarginRevertStore";
 
-// Dex223MarginModule.MAX_FREEZE_DURATION: a freeze older than this has lapsed, and the next
-// liquidate() call places a new one instead of completing the liquidation.
+// Dex223MarginModule.MAX_FREEZE_DURATION: after this a liquidate() call places a new freeze
+// instead of completing the liquidation.
 const MAX_FREEZE_DURATION = BigInt(3600);
 
+// Reverts that mean someone else closed the position first (Dario, position 53: the UI's second
+// call reverted MM22 after the first one had already completed the liquidation).
+const CLOSED_CODES = new Set(["MM22", "MM28"]);
+
+class LiquidationStop extends Error {
+  constructor(
+    readonly status: PositionLiquidateStatus,
+    readonly revert?: MarginRevert,
+  ) {
+    super("liquidation stopped");
+  }
+}
+
 /**
- * liquidate() does one of two things depending on chain state: with no live freeze it freezes the
- * position; with a live freeze from an earlier block it completes the liquidation. The UI used to
- * send two calls blindly, so when someone else had already frozen the position (Dario, position 53)
- * the first call completed the liquidation and the second reverted with MM22. Read the state first,
- * simulate each call (a revert shows its reason before the wallet opens), and stop as soon as the
- * Liquidation event is seen.
+ * liquidate() freezes a position when it has no live freeze, and completes the liquidation when a
+ * freeze from an earlier block is still live. Read the position first so only the calls still
+ * needed are sent, simulate each call so a revert shows its reason before the wallet opens, and
+ * confirm on chain that the position closed (a call that lands after the freeze lapsed only
+ * re-freezes, and its receipt still succeeds).
  */
 export default function useLiquidatePosition(position: MarginPosition) {
   const { data: walletClient } = useWalletClient();
   const { address } = useAccount();
   const publicClient = usePublicClient();
   const chainId = useCurrentChainId();
-
   const { setStatus, setPositionLiquidateHash, setPositionFreezeHash } =
     usePositionLiquidateStatusStore();
   const setRevert = useMarginRevertStore((s) => s.setRevert);
 
   const handleLiquidatePosition = useCallback(async () => {
-    // Never build a transaction against the zero address on chains without a margin deployment.
-    if (!isMarginDeployed(chainId)) {
+    if (!isMarginDeployed(chainId) || !walletClient || !publicClient || !position || !address)
       return;
-    }
-
-    if (!position || !walletClient || !publicClient || !address) {
-      return;
-    }
 
     const moduleAddress = MARGIN_TRADING_ADDRESS[chainId] as Address;
     const positionId = BigInt(position.id);
-    const call = {
-      abi: MARGIN_MODULE_ABI,
-      address: moduleAddress,
-      functionName: "liquidate" as const,
-      args: [positionId, address] as const,
-      account: address,
-    };
 
-    const liquidated = (logs: Parameters<typeof parseEventLogs>[0]["logs"]) =>
-      parseEventLogs({ abi: MARGIN_MODULE_ABI, eventName: "Liquidation", logs }).some(
-        (log) => (log.args as { positionId?: bigint }).positionId === positionId,
-      );
+    const readPosition = () =>
+      publicClient.readContract({
+        abi: MARGIN_MODULE_ABI,
+        address: moduleAddress,
+        functionName: "positions",
+        args: [positionId],
+      });
 
-    // Simulate, then send. Returns the receipt, or undefined after setting the error state.
+    // Simulate, then send and wait. Throws LiquidationStop with the state to show on failure.
     const send = async (
       errorStatus: PositionLiquidateStatus,
-      onHash: (hash: Hash) => void,
       loadingStatus: PositionLiquidateStatus,
+      onHash: (hash: Hash) => void,
     ) => {
-      let hash: Hash | undefined;
+      let hash: Hash;
       try {
-        const { request } = await publicClient.simulateContract(call);
+        const { request } = await publicClient.simulateContract({
+          abi: MARGIN_MODULE_ABI,
+          address: moduleAddress,
+          functionName: "liquidate",
+          args: [positionId, address],
+          account: address,
+        });
         hash = await walletClient.writeContract({ ...request, account: undefined });
       } catch (error) {
-        if (isUserRejection(error)) {
-          setStatus(PositionLiquidateStatus.INITIAL);
-        } else {
-          setRevert("liquidate", toMarginRevert(error));
-          setStatus(errorStatus);
+        if (isUserRejection(error)) throw new LiquidationStop(PositionLiquidateStatus.INITIAL);
+        const code = getMarginRevertCode(error);
+        if (code && CLOSED_CODES.has(code)) {
+          throw new LiquidationStop(PositionLiquidateStatus.ALREADY_CLOSED);
         }
-        return undefined;
+        throw new LiquidationStop(errorStatus, toMarginRevert(error));
       }
       onHash(hash);
       setStatus(loadingStatus);
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
       if (receipt.status !== "success") {
-        setRevert("liquidate", await getMinedRevert(publicClient, hash));
-        setStatus(errorStatus);
-        return undefined;
+        throw new LiquidationStop(errorStatus, await getMinedRevert(publicClient, hash));
       }
       return receipt;
     };
 
     setRevert("liquidate", undefined);
-
-    const [, , frozenTime, isClosed] = (await publicClient.readContract({
-      abi: MARGIN_MODULE_ABI,
-      address: moduleAddress,
-      functionName: "subjectToLiquidationExtended",
-      args: [positionId],
-    })) as readonly [boolean, Address, bigint, boolean, bigint];
-
-    if (isClosed) {
-      setRevert("liquidate", { code: "MM22" });
-      setStatus(PositionLiquidateStatus.ERROR_LIQUIDATE);
-      return;
-    }
-
-    const block = await publicClient.getBlock();
-    const liveFreeze =
-      frozenTime > BigInt(0) && block.timestamp - frozenTime <= MAX_FREEZE_DURATION;
-
-    let frozenAt = frozenTime;
-    if (!liveFreeze) {
-      setStatus(PositionLiquidateStatus.PENDING_FREEZE);
-      const freezeReceipt = await send(
-        PositionLiquidateStatus.ERROR_FREEZE,
-        setPositionFreezeHash,
-        PositionLiquidateStatus.LOADING_FREEZE,
-      );
-      if (!freezeReceipt) return;
-      if (liquidated(freezeReceipt.logs)) {
-        setStatus(PositionLiquidateStatus.SUCCESS);
+    let failureStatus = PositionLiquidateStatus.ERROR_LIQUIDATE;
+    try {
+      const current = await readPosition();
+      // positions()[6] is `open`, [7] is `frozenTime`.
+      if (!current[6]) {
+        setStatus(PositionLiquidateStatus.ALREADY_CLOSED);
         return;
       }
-      frozenAt = (await publicClient.getBlock({ blockNumber: freezeReceipt.blockNumber }))
-        .timestamp;
-    }
 
-    // The completing call must land in a later block than the freeze (MM24).
-    setStatus(PositionLiquidateStatus.LOADING_BLOCK_CONFIRMATION);
-    for (let i = 0; i < 30; i++) {
-      const latest = await publicClient.getBlock();
-      if (latest.timestamp > frozenAt) break;
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-    }
+      const block = await publicClient.getBlock({ blockTag: "latest" });
+      let frozenAt = current[7];
 
-    setStatus(PositionLiquidateStatus.PENDING_LIQUIDATE);
-    const receipt = await send(
-      PositionLiquidateStatus.ERROR_LIQUIDATE,
-      setPositionLiquidateHash,
-      PositionLiquidateStatus.LOADING_LIQUIDATE,
-    );
-    if (receipt) {
-      setStatus(PositionLiquidateStatus.SUCCESS);
+      // Fresh positions and lapsed freezes need a freeze call; a live freeze only needs the
+      // completing call.
+      if (frozenAt === BigInt(0) || block.timestamp - frozenAt > MAX_FREEZE_DURATION) {
+        failureStatus = PositionLiquidateStatus.ERROR_FREEZE;
+        setStatus(PositionLiquidateStatus.PENDING_FREEZE);
+        const receipt = await send(
+          PositionLiquidateStatus.ERROR_FREEZE,
+          PositionLiquidateStatus.LOADING_FREEZE,
+          setPositionFreezeHash,
+        );
+        const after = await readPosition();
+        if (!after[6]) {
+          setStatus(PositionLiquidateStatus.ALREADY_CLOSED);
+          return;
+        }
+        frozenAt = (await publicClient.getBlock({ blockNumber: receipt.blockNumber })).timestamp;
+      }
+
+      // The completing call must land in a later block than the freeze (MM24).
+      failureStatus = PositionLiquidateStatus.ERROR_LIQUIDATE;
+      setStatus(PositionLiquidateStatus.LOADING_BLOCK_CONFIRMATION);
+      for (let i = 0; i < 40; i++) {
+        if ((await publicClient.getBlock({ blockTag: "latest" })).timestamp > frozenAt) break;
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+
+      setStatus(PositionLiquidateStatus.PENDING_LIQUIDATE);
+      await send(
+        PositionLiquidateStatus.ERROR_LIQUIDATE,
+        PositionLiquidateStatus.LOADING_LIQUIDATE,
+        setPositionLiquidateHash,
+      );
+
+      const liquidated = await readPosition();
+      setStatus(
+        liquidated[6] ? PositionLiquidateStatus.FREEZE_RENEWED : PositionLiquidateStatus.SUCCESS,
+      );
+    } catch (error) {
+      if (error instanceof LiquidationStop) {
+        setRevert("liquidate", error.revert);
+        setStatus(error.status);
+        return;
+      }
+      console.error(error);
+      setRevert("liquidate", toMarginRevert(error));
+      setStatus(failureStatus);
     }
   }, [
     address,

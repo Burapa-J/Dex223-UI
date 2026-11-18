@@ -76,7 +76,7 @@ export default function ActivePositionMainInfoBlock({
   }, [actualBalance, expectedBalance]);
 
   const subjectToLiquidation = useMemo(() => {
-    return actualBalance != null && expectedBalance != null && actualBalance <= expectedBalance;
+    return actualBalance != null && expectedBalance != null && actualBalance < expectedBalance;
   }, [actualBalance, expectedBalance]);
 
   const atRisk = isLiquidatableKnown ? isLiquidatable : subjectToLiquidation;
