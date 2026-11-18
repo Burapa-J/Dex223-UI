@@ -8,6 +8,7 @@ interface Props extends AnchorHTMLAttributes<HTMLAnchorElement> {
   arrowSize?: number;
   color?: "green" | "white";
   textClassname?: string;
+  openInNewTab?: boolean;
 }
 
 export default function ExternalTextLink({
@@ -17,17 +18,20 @@ export default function ExternalTextLink({
   className,
   arrowSize = 24,
   textClassname,
+  openInNewTab = true,
   ...props
 }: Props) {
   return (
     <a
       {...props}
-      target="_blank"
-      rel="noopener noreferrer"
+      target={openInNewTab ? "_blank" : undefined}
+      rel={openInNewTab ? "noopener noreferrer" : undefined}
       href={href}
       className={clsxMerge(
         "ui-flex ui-items-center ui-duration-200",
-        color === "green" ? "ui-text-green hocus:ui-text-green-hover" : "ui-text-white hocus:ui-text-green",
+        color === "green"
+          ? "ui-text-green hocus:ui-text-green-hover"
+          : "ui-text-white hocus:ui-text-green",
         className,
       )}
     >

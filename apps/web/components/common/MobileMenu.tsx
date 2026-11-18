@@ -297,11 +297,7 @@ export default function MobileMenu() {
   const pathname = usePathname();
   const borrowLendComingSoon = isBorrowLendComingSoon();
   const { setIsOpen: setOpenFeedbackDialog } = useFeedbackDialogStore();
-  const {
-    setIsOpen: setManageTokensOpen,
-    setActiveTab: setManageTokensActiveTab,
-    setContent: setManageTokensContent,
-  } = useManageTokensDialogStore();
+  const openTokenLists = useManageTokensDialogStore((state) => state.openTokenLists);
 
   const handlers = useSwipeable({
     onSwipedLeft: (eventData) => {
@@ -414,9 +410,7 @@ export default function MobileMenu() {
                     handleClose={() => setMobileMenuOpened(false)}
                     handleClick={(e) => {
                       e.preventDefault();
-                      setManageTokensContent("default");
-                      setManageTokensActiveTab(0);
-                      setManageTokensOpen(true);
+                      openTokenLists();
                     }}
                   />
                   <MobileLink
