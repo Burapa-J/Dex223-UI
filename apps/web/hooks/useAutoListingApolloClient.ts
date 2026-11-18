@@ -1,13 +1,13 @@
 import { ApolloClient, ApolloLink, concat, HttpLink, InMemoryCache } from "@apollo/client";
-import { setContext } from "@apollo/client/link/context";
 import { useMemo } from "react";
 
 import useCurrentChainId from "@/hooks/useCurrentChainId";
+import { subgraphProxyPath } from "@/lib/subgraphTargets";
 import { DexChainId } from "@/sdk_bi/chains";
 
 const autoListingUrlMap: Record<DexChainId, string> = {
-  [DexChainId.MAINNET]:
-    "https://gateway.thegraph.com/api/subgraphs/id/4Zk7s54TCuxMvJVWMzDax5QRsGVRTPoXmw58gKqzZGQi",
+  // Gateway subgraph: queried through our server, which holds the API key.
+  [DexChainId.MAINNET]: subgraphProxyPath("autolisting-mainnet"),
   [DexChainId.SEPOLIA]:
     "https://api.studio.thegraph.com/query/1760635/dex-223-auto-listing-sepolia/version/latest",
   [DexChainId.BSC_TESTNET]:
@@ -28,16 +28,6 @@ const autoListingUrlMap: Record<DexChainId, string> = {
   [DexChainId.MANTLE]: "",
 };
 
-const authLink = setContext((_, { headers }) => {
-  // return the headers to the context so httpLink can read them
-  return {
-    headers: {
-      ...headers,
-      Authorization: `Bearer ${process.env.NEXT_PUBLIC_AUTH_TOKEN_GQL}`,
-    },
-  };
-});
-
 export default function useAutoListingApolloClient() {
   const chainId = useCurrentChainId();
 
@@ -54,13 +44,11 @@ export default function useAutoListingApolloClient() {
   return useMemo(() => {
     return new ApolloClient({
       cache: new InMemoryCache(),
-      link: authLink.concat(
-        concat(
-          authMiddleware,
-          new HttpLink({
-            uri: autoListingUrlMap[chainId],
-          }),
-        ),
+      link: concat(
+        authMiddleware,
+        new HttpLink({
+          uri: autoListingUrlMap[chainId],
+        }),
       ),
     });
   }, [authMiddleware, chainId]);

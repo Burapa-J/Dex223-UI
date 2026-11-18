@@ -7,6 +7,7 @@ import { ERC20_ABI } from "@/config/abis/erc20";
 import { NONFUNGIBLE_POSITION_MANAGER_ABI } from "@/config/abis/nonfungiblePositionManager";
 import { getTransactionWithRetries } from "@/functions/getTransactionWithRetries";
 import { IIFE } from "@/functions/iife";
+import { slippageToPercent } from "@/functions/slippageToPercent";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
 import useDeepEffect from "@/hooks/useDeepEffect";
 import useTransactionDeadline from "@/hooks/useTransactionDeadline";
@@ -34,7 +35,7 @@ import { useRemoveLiquidityStore } from "../stores/useRemoveLiquidityStore";
 
 const useRemoveLiquidityParams = () => {
   const { percentage, tokenId, position } = useRemoveLiquidityStore();
-  const { deadline: _deadline } = useTransactionSettingsStore();
+  const { slippage, deadline: _deadline } = useTransactionSettingsStore();
   const deadline = useTransactionDeadline(_deadline);
   const chainId = useCurrentChainId();
   const { address: accountAddress } = useAccount();
@@ -50,10 +51,8 @@ const useRemoveLiquidityParams = () => {
       tickUpper: position.tickUpper,
     });
 
-    const TEST_ALLOWED_SLIPPAGE = new Percent(2, 100);
-
     // adjust for slippage
-    const minimumAmounts = partialPosition.burnAmountsWithSlippage(TEST_ALLOWED_SLIPPAGE); // options.slippageTolerance
+    const minimumAmounts = partialPosition.burnAmountsWithSlippage(slippageToPercent(slippage));
     const amount0Min = toHex(minimumAmounts.amount0);
     const amount1Min = toHex(minimumAmounts.amount1);
 
@@ -83,7 +82,7 @@ const useRemoveLiquidityParams = () => {
       removeLiquidityParams,
       minimumAmounts,
     };
-  }, [accountAddress, chainId, deadline, percentage, tokenId, position]);
+  }, [accountAddress, chainId, deadline, percentage, tokenId, position, slippage]);
 };
 
 // Shown when estimation fails (no wallet, RPC error). decreaseLiquidity on this position

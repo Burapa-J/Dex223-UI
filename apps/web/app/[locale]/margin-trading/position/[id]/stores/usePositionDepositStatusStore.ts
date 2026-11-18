@@ -21,6 +21,8 @@ export enum PositionDepositStatus {
 export enum SwapError {
   OUT_OF_GAS,
   UNKNOWN,
+  // A non-base deposit is valued through the oracle, which has no pool for this asset (contracts #197).
+  NO_ORACLE_PRICE,
 }
 
 export const useDepositPositionStatusStore = createOperationStatusStore({

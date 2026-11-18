@@ -10,6 +10,7 @@ import { NONFUNGIBLE_POSITION_MANAGER_ABI } from "@/config/abis/nonfungiblePosit
 import { TOKEN_CONVERTER_ABI } from "@/config/abis/tokenConverter";
 import { getTransactionWithRetries } from "@/functions/getTransactionWithRetries";
 import { IIFE } from "@/functions/iife";
+import { slippageToPercent } from "@/functions/slippageToPercent";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
 import useDeepEffect from "@/hooks/useDeepEffect";
 import useTransactionDeadline from "@/hooks/useTransactionDeadline";
@@ -17,7 +18,6 @@ import addToast from "@/other/toast";
 import { CONVERTER_ADDRESS, NONFUNGIBLE_POSITION_MANAGER_ADDRESS } from "@/sdk_bi/addresses";
 import { DexChainId } from "@/sdk_bi/chains";
 import { FeeAmount } from "@/sdk_bi/constants";
-import { Percent } from "@/sdk_bi/entities/fractions/percent";
 import { Position } from "@/sdk_bi/entities/position";
 import { toHex } from "@/sdk_bi/utils/calldata";
 import { useGlobalBlockNumber } from "@/shared/hooks/useGlobalBlockNumber";
@@ -37,8 +37,6 @@ import {
   useAddLiquidityStatusStore,
 } from "../stores/useAddLiquidityStatusStore";
 import { useSortedTokens } from "./useSortedTokens";
-
-const TEST_ALLOWED_SLIPPAGE = new Percent(2, 100);
 
 enum ADD_LIQUIDITY_TYPE {
   CREATE_AND_MINT,
@@ -93,7 +91,7 @@ export function useAddLiquidityParams({
     // get amounts
     const { amount0: amount0Desired, amount1: amount1Desired } = position.mintAmounts;
 
-    const minimumAmounts = position.mintAmountsWithSlippage(TEST_ALLOWED_SLIPPAGE); // options.slippageTolerance
+    const minimumAmounts = position.mintAmountsWithSlippage(slippageToPercent(slippage));
     const amount0Min = toHex(minimumAmounts.amount0);
     const amount1Min = toHex(minimumAmounts.amount1);
 
@@ -240,6 +238,7 @@ export function useAddLiquidityParams({
     addLiquidityType,
     position,
     tokenId,
+    slippage,
   ]);
 
   return { addLiquidityParams, addLiquidityType };
