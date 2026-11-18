@@ -16,6 +16,8 @@ export enum PositionLiquidateStatus {
   ERROR_LIQUIDATE,
 
   SUCCESS,
+  ALREADY_CLOSED,
+  FREEZE_RENEWED,
 }
 
 export enum SwapError {

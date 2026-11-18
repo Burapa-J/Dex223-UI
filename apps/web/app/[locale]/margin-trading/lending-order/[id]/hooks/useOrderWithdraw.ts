@@ -1,7 +1,10 @@
 import { useCallback } from "react";
 import { getAbiItem, parseUnits } from "viem";
-import { useAccount, usePublicClient, useWalletClient } from "wagmi";
+import { useAccount, usePublicClient } from "wagmi";
 
+import { useMarginWriteGas } from "@/app/[locale]/margin-trading/components/MarginGasSettings";
+import useMarginGasEstimate from "@/app/[locale]/margin-trading/hooks/useMarginGasEstimate";
+import useMarginWalletClient from "@/app/[locale]/margin-trading/hooks/useMarginWalletClient";
 import {
   OrderWithdrawStatus,
   useWithdrawOrderStatusStore,
@@ -31,11 +34,22 @@ export default function useOrderWithdraw({
 }) {
   const { setStatus, setWithdrawHash } = useWithdrawOrderStatusStore();
   const chainId = useCurrentChainId();
-  const { data: walletClient } = useWalletClient();
+  const gasOverrides = useMarginWriteGas("withdrawOrder");
+  const { data: walletClient } = useMarginWalletClient("withdrawOrder");
   const { address } = useAccount();
 
   const publicClient = usePublicClient();
   const { addRecentTransaction } = useRecentTransactionsStore();
+
+  useMarginGasEstimate("withdrawOrder", () => {
+    if (!amountToWithdraw || parseUnits(amountToWithdraw, currency.decimals) <= 0n) return;
+    return {
+      abi: MARGIN_MODULE_ABI,
+      address: MARGIN_TRADING_ADDRESS[chainId],
+      functionName: "orderWithdraw",
+      args: [BigInt(order.id), parseUnits(amountToWithdraw, currency.decimals)],
+    };
+  });
 
   const handleOrderWithdraw = useCallback(async () => {
     // Never build a transaction against the zero address on chains without a margin deployment.
@@ -58,6 +72,7 @@ export default function useOrderWithdraw({
 
     try {
       const withdrawHash = await walletClient.writeContract({
+        ...gasOverrides,
         ...params,
         account: undefined,
       });
@@ -111,6 +126,7 @@ export default function useOrderWithdraw({
 
     return;
   }, [
+    gasOverrides,
     addRecentTransaction,
     address,
     amountToWithdraw,

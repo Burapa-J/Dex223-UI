@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import React from "react";
+import React, { useEffect } from "react";
 
 import OrderConfigurationPage from "@/app/[locale]/margin-trading/lending-order/[id]/components/OrderConfigurationPage";
 import ReviewLendingOrderDialog from "@/app/[locale]/margin-trading/lending-order/create/components/ReviewCreateOrderDialog";
@@ -20,6 +20,16 @@ export default function CreateLendingOrderPage() {
   const config = useCreateOrderConfigStore();
 
   const { isOpen, setIsOpen } = useConfirmCreateOrderDialogStore();
+
+  // The wizard's step and values live in global stores, so without a reset "New lending order"
+  // reopened the last order on step 3 until a full page reload (Dario, 13396807020). Reset when the
+  // page unmounts: leaving after creating an order, or abandoning a draft, starts the next one fresh.
+  useEffect(() => {
+    return () => {
+      useCreateOrderConfigStore.getState().reset();
+      useCreateOrderStepStore.getState().reset();
+    };
+  }, []);
 
   const { isOpened: showRecentTransactions, setIsOpened: setShowRecentTransactions } =
     useLendingOrderRecentTransactionsStore();

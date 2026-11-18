@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { useTokens } from "@/hooks/useTokenLists";
+import { logosFromLists, useTokenLists, useTokens } from "@/hooks/useTokenLists";
 
 export const TOKEN_LOGO_PLACEHOLDER = "/images/tokens/placeholder.svg";
 
@@ -14,6 +14,7 @@ export type TokenListLogos = Map<string, string>;
  */
 export function useTokenListLogos(): TokenListLogos {
   const tokens = useTokens();
+  const tokenLists = useTokenLists();
 
   return useMemo(() => {
     const map: TokenListLogos = new Map();
@@ -24,8 +25,13 @@ export function useTokenListLogos(): TokenListLogos {
       map.set(token.address0.toLowerCase(), token.logoURI);
       map.set(token.address1.toLowerCase(), token.logoURI);
     });
+    // Tokens that are in none of the enabled lists (a pool or position token, or a token whose only
+    // image is in a list the user switched off) still get a logo from any of their lists.
+    logosFromLists(tokenLists ?? []).forEach((logo, address) => {
+      if (!map.has(address)) map.set(address, logo);
+    });
     return map;
-  }, [tokens]);
+  }, [tokenLists, tokens]);
 }
 
 /** Listed logo for a token given either of its addresses, or the placeholder. */

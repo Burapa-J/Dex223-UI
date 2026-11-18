@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import React, { useEffect, useMemo } from "react";
 import { formatEther, formatGwei, formatUnits } from "viem";
 
+import MarginGasSettings from "@/app/[locale]/margin-trading/components/MarginGasSettings";
 import calculateTotalOrderBalance from "@/app/[locale]/margin-trading/lending-order/[id]/helpers/calculateTotalOrderBalance";
 import useOrderOpen from "@/app/[locale]/margin-trading/lending-order/[id]/hooks/useOrderOpen";
 import { LendingOrder } from "@/app/[locale]/margin-trading/types";
@@ -13,7 +14,6 @@ import DrawerDialog from "@/components/atoms/DrawerDialog";
 import EmptyStateIcon from "@/components/atoms/EmptyStateIcon";
 import Svg from "@/components/atoms/Svg";
 import Button, { ButtonColor, ButtonSize } from "@/components/buttons/Button";
-import GasSettingsBlock from "@/components/common/GasSettingsBlock";
 import OperationStepRow, {
   OperationRows,
   operationStatusToStepStatus,
@@ -130,7 +130,12 @@ export default function OrderOpenDialog({
             <>
               <div className="flex items-center justify-between gap-2 mb-4">
                 <div className="flex items-center gap-2">
-                  <Image width={32} height={32} src="/images/tokens/placeholder.svg" alt="" />
+                  <Image
+                    width={32}
+                    height={32}
+                    src={order.baseAsset.logoURI || "/images/tokens/placeholder.svg"}
+                    alt=""
+                  />
                   <span className="text-secondary-text text-18 font-bold">
                     {order.baseAsset.name}
                   </span>
@@ -185,14 +190,19 @@ export default function OrderOpenDialog({
                 continue its terms as initially agreed. Please ensure that you review the details
                 before proceeding
               </div>
-              <GasSettingsBlock />
+              <MarginGasSettings operation="openOrder" />
             </>
           )}
           {isLoadingStatus && (
             <>
               <div className="flex items-center justify-between gap-2 mb-4">
                 <div className="flex items-center gap-2">
-                  <Image width={32} height={32} src="/images/tokens/placeholder.svg" alt="" />
+                  <Image
+                    width={32}
+                    height={32}
+                    src={order.baseAsset.logoURI || "/images/tokens/placeholder.svg"}
+                    alt=""
+                  />
                   <span className="text-secondary-text text-18 font-bold">
                     {order.baseAsset.name}
                   </span>
