@@ -9,8 +9,14 @@ import useCurrentChainId from "@/hooks/useCurrentChainId";
 import { FACTORY_ADDRESS, ORACLE_ADDRESS } from "@/sdk_bi/addresses";
 import { Currency } from "@/sdk_bi/entities/currency";
 
-/** Slots the observation ring needs before we stop warning; matches scripts/observation-rings.ts. */
-export const ORACLE_RING_TARGET = 50;
+/**
+ * Slots the observation ring needs before we stop warning. The oracle needs an observation at least
+ * 30 minutes old. A pool writes at most one per block, so with 12 s blocks up to 150 can be written in
+ * 30 minutes; with fewer slots, busy trading pushes the 30-minute price out of the ring and margin
+ * swaps, closes and liquidations fail (Dario, 13495892343). 160 keeps it with a small margin. Was 50.
+ * Keep scripts/observation-rings.ts (Dex223-contracts) at the same value.
+ */
+export const ORACLE_RING_TARGET = 160;
 const FEE_TIERS = [500, 3000, 10000] as const;
 
 export enum OraclePricingState {
