@@ -55,9 +55,23 @@ export function liquidationDropPercent(room: bigint, positionValue: bigint): num
 export function formatGroupedAmount(amount: bigint, decimals: number): string {
   const negative = amount < 0n;
   const absolute = negative ? -amount : amount;
-  const formatted = new Intl.NumberFormat("en-US", {
+  const numeric = Number(formatUnitsSafe(absolute, decimals));
+
+  if (!Number.isFinite(numeric) || numeric === 0) {
+    return "0";
+  }
+
+  const grouped = new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 2,
-  }).format(Number(formatUnitsSafe(absolute, decimals)));
+  }).format(numeric);
+
+  const formatted =
+    grouped === "0"
+      ? new Intl.NumberFormat("en-US", {
+          maximumSignificantDigits: 6,
+          notation: "standard",
+        }).format(numeric)
+      : grouped;
 
   return negative ? `-${formatted}` : formatted;
 }
