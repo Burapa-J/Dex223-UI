@@ -183,9 +183,11 @@ export default function PositionCloseDialog({
     return result;
   }, [position, expectedBalance]);
 
-  // The lender may close a matured position. The contract then sells the position's other holdings
-  // until the debt is covered (Dex223MarginModule.positionClose -> _settle), so the lender's view
-  // asks the contract instead of comparing the base asset balance with the debt.
+  // positionClose sells the position's other holdings until the debt is covered
+  // (Dex223MarginModule.positionClose -> _settle), for the borrower and for the lender after
+  // maturity. So the dialog asks the contract instead of comparing only the base asset balance with
+  // the debt, and shows "not enough to close" only when the close would revert MM31. The borrower
+  // used to be sent to Margin swap even when the sale would have covered the debt.
   const chainId = useCurrentChainId();
   const isOwner = address?.toLowerCase() === position.owner.toLowerCase();
   const closeRevert = useMarginRevertStore((s) => s.reverts.close);
@@ -195,10 +197,14 @@ export default function PositionCloseDialog({
     functionName: "positionClose",
     args: [BigInt(position.id), true],
     account: address,
-    query: { enabled: isOpen && !isOwner && !!address && isMarginDeployed(chainId) },
+    query: { enabled: isOpen && !!address && isMarginDeployed(chainId) },
   });
-  const lenderCanClose =
-    !isOwner && (closeSimulates || getMarginRevertCode(closeSimulationError) !== "MM31");
+  const holdingsFallShort = getMarginRevertCode(closeSimulationError) === "MM31";
+  // While the simulation loads, the borrower's view keeps the old base-asset comparison; the lender's
+  // view shows the close (it simulates again before sending). Any other revert also shows the close
+  // view, which explains the reason when the user tries.
+  const contractCanClose =
+    !holdingsFallShort && (closeSimulates || !isOwner || Boolean(closeSimulationError));
 
   const baseAssetAmount = useMemo(() => {
     if (position.assetAddresses?.length) {
@@ -227,7 +233,7 @@ export default function PositionCloseDialog({
     <DrawerDialog isOpen={isOpen} setIsOpen={setIsOpen}>
       <DialogHeader onClose={() => setIsOpen(false)} title={t("close_margin_position")} />
       <div className={clsx(" card-spacing-x card-spacing-b w-full md:w-[600px]")}>
-        {lenderCanClose ||
+        {contractCanClose ||
         (baseAssetAmount != null &&
           expectedBalance != null &&
           baseAssetAmount >= expectedBalance) ? (
