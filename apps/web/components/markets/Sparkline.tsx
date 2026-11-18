@@ -10,7 +10,7 @@ export default function Sparkline({
   width?: number;
   height?: number;
 }) {
-  const gradientId = useId();
+  const gradientId = useId().replace(/:/g, "");
   const shape = useMemo(() => {
     const values = (points ?? []).filter((p) => Number.isFinite(p));
     if (values.length < 2) return null;
