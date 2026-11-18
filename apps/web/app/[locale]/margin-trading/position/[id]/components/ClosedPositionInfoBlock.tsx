@@ -27,7 +27,12 @@ export default function ClosedPositionInfoBlock({
     <div className="flex flex-col gap-5 px-4 sm:px-10 py-5 bg-primary-bg rounded-5">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <Image width={40} height={40} src="/images/tokens/placeholder.svg" alt="" />
+          <Image
+            width={40}
+            height={40}
+            src={position.loanAsset.logoURI || "/images/tokens/placeholder.svg"}
+            alt=""
+          />
           <span className="text-secondary-text text-18 font-bold">{position.loanAsset.name}</span>
           <div className="flex items-center gap-3 text-tertiary-text">
             {t("executed")}

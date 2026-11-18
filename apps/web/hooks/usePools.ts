@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { POOL_INVALID_RETRY_MS, PoolFetchStatus, poolNeedsFetch } from "@/functions/poolNeedsFetch";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
 import { useFetchPoolData } from "@/hooks/useFetchPoolsData";
 import { FeeAmount } from "@/sdk_bi/constants";
@@ -20,7 +21,20 @@ export enum PoolState {
   IDLE,
 }
 
-const INVALID_RETRY_MS = 10_000;
+const INVALID_RETRY_MS = POOL_INVALID_RETRY_MS;
+
+function fetchStatus(status: PoolState): PoolFetchStatus {
+  switch (status) {
+    case PoolState.IDLE:
+      return "idle";
+    case PoolState.LOADING:
+      return "loading";
+    case PoolState.INVALID:
+      return "invalid";
+    default:
+      return "loaded";
+  }
+}
 
 export type PoolParams = {
   currencyA: Currency | undefined;
@@ -111,14 +125,15 @@ export function useStorePools(poolsParams: PoolsParams): PoolsResult {
       if (!key || !addresses[key] || !addresses[key].address) return;
       const poolRecord = pools[key];
 
-      const shouldFetch =
-        !poolRecord ||
-        poolRecord.status === PoolState.IDLE ||
-        (poolRecord.status === PoolState.INVALID &&
-          poolRecord.lastUpdated < Date.now() - INVALID_RETRY_MS) ||
-        (poolRecord.lastUpdated && poolRecord.lastUpdated < Date.now() - 60000);
+      const shouldFetch = poolNeedsFetch(
+        poolRecord && {
+          status: fetchStatus(poolRecord.status),
+          lastUpdated: poolRecord.lastUpdated,
+        },
+        Date.now(),
+      );
 
-      if (shouldFetch && poolRecord?.status !== PoolState.LOADING && poolTokens[index]) {
+      if (shouldFetch && poolTokens[index]) {
         setStatus(key, PoolState.LOADING);
 
         const { token0, token1, tier } = poolTokens[index];
