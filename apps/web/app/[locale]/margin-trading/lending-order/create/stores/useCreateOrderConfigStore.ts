@@ -33,6 +33,9 @@ export type ThirdStepValues = {
   liquidationFeeToken: Currency | undefined;
   liquidationFeeForLiquidator: string;
   priceSource: any;
+  // Lender protection (orderSetLenderProtection); only sent where the module supports it.
+  maintenanceMarginPercent: string;
+  liquidationKeeper: string;
 };
 
 interface CreateOrderConfig {
@@ -86,6 +89,8 @@ const initialValues = () => ({
     liquidationFeeToken: undefined,
     liquidationFeeForLiquidator: "",
     priceSource: "",
+    maintenanceMarginPercent: "10",
+    liquidationKeeper: "",
   },
 });
 
