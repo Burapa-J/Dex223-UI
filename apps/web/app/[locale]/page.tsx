@@ -77,7 +77,7 @@ const linkButton = {
     variant: ButtonVariant.OUTLINED,
     colorScheme: ButtonColor.LIGHT_GREEN,
     size: ButtonSize.MEDIUM,
-    className: "inline-flex w-fit px-4",
+    className: "inline-flex w-fit px-4 sm:px-4 lg:px-4",
   }),
 };
 
