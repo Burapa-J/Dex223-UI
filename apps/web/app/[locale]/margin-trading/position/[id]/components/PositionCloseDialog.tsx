@@ -3,9 +3,10 @@ import clsx from "clsx";
 import { useTranslations } from "next-intl";
 import React, { useMemo, useState } from "react";
 import { formatEther, formatGwei, formatUnits, isAddress } from "viem";
-import { useAccount } from "wagmi";
+import { useAccount, useSimulateContract } from "wagmi";
 
 import { useOpenMarginSwapForPosition } from "@/app/[locale]/margin-swap/hooks/useOpenMarginSwapForPosition";
+import MarginRevertReason from "@/app/[locale]/margin-trading/components/MarginRevertReason";
 import { SimpleInfoBlock } from "@/app/[locale]/margin-trading/components/widgets/OrderInfoBlock";
 import usePositionClose from "@/app/[locale]/margin-trading/position/[id]/hooks/usePositionClose";
 import usePositionStatus from "@/app/[locale]/margin-trading/position/[id]/hooks/usePositionStatus";
@@ -28,9 +29,15 @@ import OperationStepRow, {
   operationStatusToStepStatus,
   OperationStepStatus,
 } from "@/components/common/OperationStepRow";
+import { MARGIN_MODULE_ABI } from "@/config/abis/marginModule";
+import { isMarginDeployed } from "@/config/modules";
 import { IconName } from "@/config/types/IconName";
 import { formatFloat } from "@/functions/formatFloat";
+import { getMarginRevertCode } from "@/functions/marginRevert";
+import useCurrentChainId from "@/hooks/useCurrentChainId";
+import { MARGIN_TRADING_ADDRESS } from "@/sdk_bi/addresses";
 import { getTokenAddressForStandard } from "@/sdk_bi/standard";
+import { useMarginRevertStore } from "@/stores/useMarginRevertStore";
 
 type StepTextMap = {
   [key in OperationStepStatus]: string;
@@ -149,6 +156,9 @@ export default function PositionCloseDialog({
 
       if (isLenderToken) {
         balance -= expectedBalance;
+        // When the base asset alone doesn't cover the debt, the contract sells other holdings
+        // first; this estimate doesn't model that sale, so never show a negative amount.
+        if (balance < BigInt(0)) balance = BigInt(0);
       }
 
       if (isFeeToken) {
@@ -171,6 +181,23 @@ export default function PositionCloseDialog({
 
     return result;
   }, [position, expectedBalance]);
+
+  // The lender may close a matured position. The contract then sells the position's other holdings
+  // until the debt is covered (Dex223MarginModule.positionClose -> _settle), so the lender's view
+  // asks the contract instead of comparing the base asset balance with the debt.
+  const chainId = useCurrentChainId();
+  const isOwner = address?.toLowerCase() === position.owner.toLowerCase();
+  const closeRevert = useMarginRevertStore((s) => s.reverts.close);
+  const { error: closeSimulationError, isSuccess: closeSimulates } = useSimulateContract({
+    abi: MARGIN_MODULE_ABI,
+    address: MARGIN_TRADING_ADDRESS[chainId],
+    functionName: "positionClose",
+    args: [BigInt(position.id), true],
+    account: address,
+    query: { enabled: isOpen && !isOwner && !!address && isMarginDeployed(chainId) },
+  });
+  const lenderCanClose =
+    !isOwner && (closeSimulates || getMarginRevertCode(closeSimulationError) !== "MM31");
 
   const baseAssetAmount = useMemo(() => {
     if (position.assetAddresses?.length) {
@@ -199,9 +226,10 @@ export default function PositionCloseDialog({
     <DrawerDialog isOpen={isOpen} setIsOpen={setIsOpen}>
       <DialogHeader onClose={() => setIsOpen(false)} title={t("close_margin_position")} />
       <div className={clsx(" card-spacing-x card-spacing-b w-full md:w-[600px]")}>
-        {baseAssetAmount != null &&
-        expectedBalance != null &&
-        baseAssetAmount >= expectedBalance ? (
+        {lenderCanClose ||
+        (baseAssetAmount != null &&
+          expectedBalance != null &&
+          baseAssetAmount >= expectedBalance) ? (
           <>
             <div>
               {isFinalStatus && (
@@ -248,6 +276,9 @@ export default function PositionCloseDialog({
                       </div>
                     )}
                     <div className="my-4 border-b border-secondary-border w-full" />
+                    {status === PositionCloseStatus.ERROR_CLOSE && (
+                      <MarginRevertReason revert={closeRevert} />
+                    )}
                   </div>
                 </>
               )}

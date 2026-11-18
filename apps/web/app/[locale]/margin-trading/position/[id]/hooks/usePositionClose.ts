@@ -10,8 +10,10 @@ import { MarginPosition } from "@/app/[locale]/margin-trading/types";
 import { MARGIN_MODULE_ABI } from "@/config/abis/marginModule";
 import { isMarginDeployed } from "@/config/modules";
 import { getTransactionWithRetries } from "@/functions/getTransactionWithRetries";
+import { getMinedRevert, isUserRejection, toMarginRevert } from "@/functions/marginRevert";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
 import { MARGIN_TRADING_ADDRESS } from "@/sdk_bi/addresses";
+import { useMarginRevertStore } from "@/stores/useMarginRevertStore";
 import {
   GasFeeModel,
   RecentTransactionTitleTemplate,
@@ -26,6 +28,7 @@ export default function usePositionClose({ position }: { position: MarginPositio
   const { address } = useAccount();
   const publicClient = usePublicClient();
   const { addRecentTransaction } = useRecentTransactionsStore();
+  const setRevert = useMarginRevertStore((s) => s.setRevert);
 
   const handlePositionClose = useCallback(async () => {
     // Never build a transaction against the zero address on chains without a margin deployment.
@@ -37,6 +40,7 @@ export default function usePositionClose({ position }: { position: MarginPositio
       return;
     }
 
+    setRevert("close", undefined);
     setStatus(PositionCloseStatus.PENDING_CLOSE);
 
     const params = {
@@ -46,10 +50,21 @@ export default function usePositionClose({ position }: { position: MarginPositio
       args: [BigInt(position.id), true] as const,
     };
 
-    const closePositionHash = await walletClient.writeContract({
-      ...params,
-      account: undefined,
-    });
+    // Simulate first: a revert (MM29 not yet matured, MM30 liquidatable, MM31 holdings short of the
+    // debt) shows its reason instead of the dialog failing silently.
+    let closePositionHash;
+    try {
+      const { request } = await publicClient.simulateContract({ ...params, account: address });
+      closePositionHash = await walletClient.writeContract({ ...request, account: undefined });
+    } catch (error) {
+      if (isUserRejection(error)) {
+        setStatus(PositionCloseStatus.INITIAL);
+      } else {
+        setRevert("close", toMarginRevert(error));
+        setStatus(PositionCloseStatus.ERROR_CLOSE);
+      }
+      return;
+    }
     setStatus(PositionCloseStatus.LOADING_CLOSE);
     setPositionCloseHash(closePositionHash);
 
@@ -90,6 +105,7 @@ export default function usePositionClose({ position }: { position: MarginPositio
     if (receipt.status === "success") {
       setStatus(PositionCloseStatus.SUCCESS);
     } else {
+      setRevert("close", await getMinedRevert(publicClient, closePositionHash));
       setStatus(PositionCloseStatus.ERROR_CLOSE);
     }
 
@@ -103,6 +119,7 @@ export default function usePositionClose({ position }: { position: MarginPositio
     position.loanAsset.symbol,
     publicClient,
     setPositionCloseHash,
+    setRevert,
     setStatus,
     walletClient,
   ]);
