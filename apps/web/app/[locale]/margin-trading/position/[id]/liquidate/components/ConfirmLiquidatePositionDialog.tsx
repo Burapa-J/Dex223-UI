@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import React, { useEffect, useMemo, useState } from "react";
 import { formatUnits, parseUnits } from "viem";
 
+import MarginRevertReason from "@/app/[locale]/margin-trading/components/MarginRevertReason";
 import {
   InfoBlockWithBorder,
   SimpleInfoBlock,
@@ -45,6 +46,7 @@ import { formatFloat } from "@/functions/formatFloat";
 import getExplorerLink, { ExplorerLinkType } from "@/functions/getExplorerLink";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
 import { ORACLE_ADDRESS, ZERO_ADDRESS } from "@/sdk_bi/addresses";
+import { useMarginRevertStore } from "@/stores/useMarginRevertStore";
 
 type StepTextMap = {
   [key in OperationStepStatus]: string;
@@ -157,6 +159,7 @@ export default function ConfirmLiquidatePositionDialog({
   const [isEditApproveActive, setEditApproveActive] = React.useState(false);
 
   const { status, setStatus } = usePositionLiquidateStatusStore();
+  const liquidateRevert = useMarginRevertStore((s) => s.reverts.liquidate);
 
   useEffect(() => {
     if (
@@ -285,6 +288,12 @@ export default function ConfirmLiquidatePositionDialog({
                   {position.loanAsset.symbol}{" "}
                   <span className="text-secondary-text">(ID: {position.id})</span>
                 </p>
+              </div>
+            )}
+            {(status === PositionLiquidateStatus.ERROR_FREEZE ||
+              status === PositionLiquidateStatus.ERROR_LIQUIDATE) && (
+              <div className="mt-4">
+                <MarginRevertReason revert={liquidateRevert} />
               </div>
             )}
           </div>

@@ -52,3 +52,8 @@ jobs:
         if: matrix.app == 'web'
         working-directory: apps/web
         run: node tests/apiProxies.test.cjs
+
+      - name: Margin revert reason regressions
+        if: matrix.app == 'web'
+        working-directory: apps/web
+        run: node tests/marginRevert.test.cjs
