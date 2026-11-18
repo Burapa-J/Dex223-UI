@@ -16,10 +16,7 @@ import {
   SimpleInfoBlock,
 } from "@/app/[locale]/margin-trading/components/widgets/OrderInfoBlock";
 import PositionHealthStatus from "@/app/[locale]/margin-trading/components/widgets/PositionHealthStatus";
-import {
-  accruedCloseInterest,
-  closedPositionProfit,
-} from "@/app/[locale]/margin-trading/helpers/liquidationMath";
+import { closedPositionLenderInterest } from "@/app/[locale]/margin-trading/helpers/liquidationMath";
 import timestampToDateString from "@/app/[locale]/margin-trading/helpers/timestampToDateString";
 import usePositionLiquidationCost from "@/app/[locale]/margin-trading/hooks/usePositionLiquidationCost";
 import usePositionLiquidationState from "@/app/[locale]/margin-trading/hooks/usePositionLiquidationState";
@@ -143,25 +140,16 @@ const marginPositionCardBorderMap: Record<DangerStatus, string> = {
   [DangerStatus.DANGEROUS]: "border border-red-light shadow shadow-red-light/60",
 };
 
-function formatSignedAmount(amount: bigint, decimals: number, symbol: string | undefined): string {
-  const absolute = amount < 0n ? -amount : amount;
-  const text = formatFloat(formatUnits(absolute, decimals));
-  const signed = amount > 0n ? `+${text}` : amount < 0n ? `-${text}` : text;
-  return `${signed} ${symbol ?? ""}`.trim();
-}
-
 export function InactiveMarginPositionCard({ position }: Props) {
   const t = useTranslations("Margin");
   const { address } = useAccount();
   const [isWithdrawDialogOpened, setIsWithdrawDialogOpened] = useState(false);
+  // Lender's interest on a normally closed position; "-" for anyone else (see helper).
   const profitLabel = useMemo(() => {
-    const interest = accruedCloseInterest(
-      position.loanAmount,
-      position.order.interestRate,
-      Math.max(0, position.closedAt - position.createdAt),
-    );
-    const profit = closedPositionProfit(interest, address, position.owner, position.order.owner);
-    return formatSignedAmount(profit, position.loanAsset.decimals, position.loanAsset.symbol);
+    const interest = closedPositionLenderInterest(position, address);
+    return interest === undefined
+      ? "-"
+      : `+${formatFloat(formatUnits(interest, position.loanAsset.decimals))} ${position.loanAsset.symbol ?? ""}`.trim();
   }, [address, position]);
 
   const chainId = useCurrentChainId();

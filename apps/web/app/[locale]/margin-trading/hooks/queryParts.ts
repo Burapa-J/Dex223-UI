@@ -28,6 +28,7 @@ export const GQL_POSITION_FIELDS = `
   createdAt
   closedAt
   liquidatedAt
+  interest
   liquidator
   txClosed
   txFrozen

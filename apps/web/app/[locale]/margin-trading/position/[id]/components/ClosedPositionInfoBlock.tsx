@@ -5,21 +5,11 @@ import { formatUnits } from "viem";
 import { useAccount } from "wagmi";
 
 import { OrderInfoCard } from "@/app/[locale]/margin-trading/components/widgets/OrderInfoBlock";
-import {
-  accruedCloseInterest,
-  closedPositionProfit,
-} from "@/app/[locale]/margin-trading/helpers/liquidationMath";
+import { closedPositionLenderInterest } from "@/app/[locale]/margin-trading/helpers/liquidationMath";
 import { MarginPosition } from "@/app/[locale]/margin-trading/types";
 import Svg from "@/components/atoms/Svg";
 import Button, { ButtonColor } from "@/components/buttons/Button";
 import { formatFloat } from "@/functions/formatFloat";
-
-function formatSignedAmount(amount: bigint, decimals: number, symbol: string | undefined): string {
-  const absolute = amount < 0n ? -amount : amount;
-  const text = formatFloat(formatUnits(absolute, decimals));
-  const signed = amount > 0n ? `+${text}` : amount < 0n ? `-${text}` : text;
-  return `${signed} ${symbol ?? ""}`.trim();
-}
 
 export default function ClosedPositionInfoBlock({
   position,
@@ -30,13 +20,12 @@ export default function ClosedPositionInfoBlock({
 }) {
   const t = useTranslations("Margin");
   const { address } = useAccount();
-  const profit = useMemo(() => {
-    const interest = accruedCloseInterest(
-      position.loanAmount,
-      position.order.interestRate,
-      Math.max(0, position.closedAt - position.createdAt),
-    );
-    return closedPositionProfit(interest, address, position.owner, position.order.owner);
+  // Lender's interest on a normally closed position; "-" for anyone else (see helper).
+  const profitLabel = useMemo(() => {
+    const interest = closedPositionLenderInterest(position, address);
+    return interest === undefined
+      ? "-"
+      : `+${formatFloat(formatUnits(interest, position.loanAsset.decimals))} ${position.loanAsset.symbol ?? ""}`.trim();
   }, [address, position]);
   const isTokensToWithdraw = useMemo(() => {
     return position.assetsWithBalances.some((assetWithBalance) => {
@@ -82,7 +71,7 @@ export default function ClosedPositionInfoBlock({
           bg="borrowed"
         />
         <OrderInfoCard
-          value={formatSignedAmount(profit, position.loanAsset.decimals, position.loanAsset.symbol)}
+          value={profitLabel}
           title={t("profit")}
           tooltipText={t("profit_tooltip")}
           bg="borrowed"

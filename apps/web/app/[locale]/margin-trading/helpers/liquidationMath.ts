@@ -26,26 +26,40 @@ export function accruedCloseInterest(
     return 0n;
   }
 
-  return ((loanAmount * rate) / BPS) * elapsed / SECONDS_IN_MONTH;
+  return (((loanAmount * rate) / BPS) * elapsed) / SECONDS_IN_MONTH;
 }
 
-export function closedPositionProfit(
-  interest: bigint,
+/**
+ * Interest the lender earned on a closed position, for the lender's own view; undefined otherwise.
+ *
+ * Uses the rate snapshotted at open (the contract's position.interest), not the order's current rate,
+ * which the lender may have edited since. Only for positions closed normally: a liquidation can end
+ * with a shortfall, so interest alone would overstate the lender's result. The borrower's profit
+ * depends on their trades, so their view (and anyone else's) shows no figure instead of -interest.
+ */
+export function closedPositionLenderInterest(
+  position: {
+    loanAmount: bigint;
+    interestRateAtOpen?: number;
+    createdAt: number;
+    closedAt: number;
+    isClosed: boolean;
+    isLiquidated?: boolean;
+    owner: string;
+    order: { owner: string };
+  },
   viewer: string | undefined,
-  borrower: string,
-  lender: string,
-): bigint {
+): bigint | undefined {
   const viewerLower = viewer?.toLowerCase();
-  const isLender = viewerLower === lender.toLowerCase();
-  const isBorrower = viewerLower === borrower.toLowerCase();
-
-  if (isLender && isBorrower) {
-    return 0n;
-  }
-  if (isLender) {
-    return interest;
-  }
-  return interest === 0n ? 0n : -interest;
+  if (!viewerLower || viewerLower !== position.order.owner.toLowerCase()) return undefined;
+  if (viewerLower === position.owner.toLowerCase()) return undefined;
+  if (!position.isClosed || position.isLiquidated || !position.closedAt) return undefined;
+  if (position.interestRateAtOpen == null) return undefined;
+  return accruedCloseInterest(
+    position.loanAmount,
+    position.interestRateAtOpen,
+    Math.max(0, position.closedAt - position.createdAt),
+  );
 }
 
 export function liquidationLevel(
