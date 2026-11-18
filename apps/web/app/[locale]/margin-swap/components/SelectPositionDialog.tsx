@@ -5,7 +5,10 @@ import SimpleBar from "simplebar-react";
 import { formatUnits } from "viem";
 import { useAccount } from "wagmi";
 
-import { canPositionReceiveToken } from "@/app/[locale]/margin-swap/hooks/useOpenMarginSwapForPosition";
+import {
+  canPositionReceiveToken,
+  getPositionTradePair,
+} from "@/app/[locale]/margin-swap/hooks/useOpenMarginSwapForPosition";
 import {
   Field,
   useMarginSwapAmountsStore,
@@ -19,6 +22,8 @@ import PositionDetailCard, {
 import useMarginPositionById, {
   usePositionsByOwner,
 } from "@/app/[locale]/margin-trading/hooks/useMarginPosition";
+import usePositionLiquidationState from "@/app/[locale]/margin-trading/hooks/usePositionLiquidationState";
+import usePositionStatus from "@/app/[locale]/margin-trading/position/[id]/hooks/usePositionStatus";
 import { MarginPosition } from "@/app/[locale]/margin-trading/types";
 import DialogHeader from "@/components/atoms/DialogHeader";
 import DrawerDialog from "@/components/atoms/DrawerDialog";
@@ -33,6 +38,7 @@ import IconButton, {
 import { ThemeColors } from "@/config/theme/colors";
 import { formatFloat } from "@/functions/formatFloat";
 import { Link } from "@/i18n/routing";
+import { Currency } from "@/sdk_bi/entities/currency";
 import { useGlobalBlockNumber } from "@/shared/hooks/useGlobalBlockNumber";
 
 enum DangerStatus {
@@ -53,6 +59,68 @@ const dangerIconsMap: Record<Exclude<DangerStatus, DangerStatus.STABLE>, ReactNo
     </div>
   ),
 };
+
+// "Liquidatable" comes from the contract (subjectToLiquidation, which includes the order's
+// maintenance margin). The balance comparison only stands in while that read is loading, and for
+// the "close to liquidation" warning (within 10% of the expected balance).
+function positionDangerStatus(
+  actualBalance: bigint | undefined,
+  expectedBalance: bigint | undefined,
+  liquidatable: boolean | undefined,
+): DangerStatus {
+  if (liquidatable === true) return DangerStatus.DANGEROUS;
+  if (actualBalance == null || expectedBalance == null) {
+    return DangerStatus.STABLE;
+  }
+
+  if (liquidatable === undefined && actualBalance <= expectedBalance) {
+    return DangerStatus.DANGEROUS;
+  }
+
+  if (actualBalance * BigInt(10) < expectedBalance * BigInt(11)) {
+    return DangerStatus.RISKY;
+  }
+
+  return DangerStatus.STABLE;
+}
+
+function sameCurrency(left: Currency | undefined, right: Currency | undefined): boolean {
+  if (!left || !right) {
+    return left === right;
+  }
+
+  return left.equals(right);
+}
+
+function PositionRiskIcon({ position }: { position: MarginPosition }) {
+  const t = useTranslations("Margin");
+  const { expectedBalance, actualBalance } = usePositionStatus(position);
+  const { isLiquidatable, isLiquidatableKnown } = usePositionLiquidationState(position);
+  const status = positionDangerStatus(
+    actualBalance,
+    expectedBalance,
+    isLiquidatableKnown ? isLiquidatable : undefined,
+  );
+
+  if (status === DangerStatus.STABLE) {
+    return null;
+  }
+
+  return (
+    <Tooltip
+      text={
+        status === DangerStatus.DANGEROUS
+          ? t("position_liquidatable_tooltip")
+          : t("position_near_liquidation_tooltip")
+      }
+      renderTrigger={(ref, refProps) => (
+        <span className="inline-flex" tabIndex={0} ref={ref.setReference} {...refProps}>
+          {dangerIconsMap[status]}
+        </span>
+      )}
+    />
+  );
+}
 
 function PositionSelectItem({
   position,
@@ -87,9 +155,9 @@ function PositionSelectItem({
           value={new Date(position.deadline * 1000).toLocaleString("en-GB").split("/").join(".")}
           tooltipText={t("margin_position_deadline_tooltip")}
         />
-        <span className="text-green flex items-center gap-3 min-w-[92px]">
-          {dangerIconsMap[DangerStatus.RISKY]}
-          {dangerIconsMap[DangerStatus.DANGEROUS]}
+        {/* Fixed width so rows line up whether or not a warning shows. */}
+        <span className="flex items-center gap-3 min-w-[92px]">
+          <PositionRiskIcon position={position} />
         </span>
         <div className="w-[210px]">
           {isSelected ? (
@@ -211,9 +279,10 @@ export default function SelectPositionDialog() {
 
   const { address } = useAccount();
   const { loading, positions } = usePositionsByOwner({ owner: address });
-  const { setTypedValue, typedValue } = useMarginSwapAmountsStore();
+  const { setTypedValue } = useMarginSwapAmountsStore();
 
-  const { tokenA, tokenB, setTokenA, setTokenB } = useMarginSwapTokensStore();
+  const { tokenA, tokenB, setTokenA, setTokenB, setTokenAStandard, setTokenBStandard } =
+    useMarginSwapTokensStore();
 
   const openedPositions = useMemo(() => {
     return positions?.filter((position) => !position.isLiquidated && !position.isClosed);
@@ -247,6 +316,26 @@ export default function SelectPositionDialog() {
     return [matching, other];
   }, [openedPositions, tokenA, tokenB]);
 
+  // A position that can already trade the chosen pair keeps it (and the typed amount). Only a
+  // position that can't, or a pick with no pair chosen yet, switches to the position's own pair.
+  const selectPosition = (position: MarginPosition) => {
+    setMarginSwapPositionId(position.id);
+    const keepsPair =
+      Boolean(tokenA || tokenB) && Boolean(matchingPositions?.some((p) => p.id === position.id));
+    if (!keepsPair) {
+      const next = getPositionTradePair(position);
+      const pairChanged = !sameCurrency(tokenA, next.tokenA) || !sameCurrency(tokenB, next.tokenB);
+      setTokenA(next.tokenA);
+      setTokenAStandard(next.tokenAStandard);
+      setTokenB(next.tokenB);
+      setTokenBStandard(next.tokenBStandard);
+      if (pairChanged) {
+        setTypedValue({ typedValue: "", field: Field.CURRENCY_A });
+      }
+    }
+    setIsOpen(false);
+  };
+
   const positionFromSearch = useMemo(() => {
     return openedPositions?.find((position) => position.id.toString() === searchValue);
   }, [openedPositions, searchValue]);
@@ -277,10 +366,7 @@ export default function SelectPositionDialog() {
             <div className="max-h-[670px] pt-5">
               {positionFromSearch ? (
                 <PositionSelectItem
-                  handleSelectedPosition={(position) => {
-                    setMarginSwapPositionId(position.id);
-                    setIsOpen(false);
-                  }}
+                  handleSelectedPosition={selectPosition}
                   position={positionFromSearch}
                   isSelected={marginSwapPositionId === positionFromSearch.id}
                 />
@@ -326,10 +412,7 @@ export default function SelectPositionDialog() {
                         {matchingPositions.map((position) => (
                           <PositionSelectItem
                             key={position.id}
-                            handleSelectedPosition={(position) => {
-                              setMarginSwapPositionId(position.id);
-                              setIsOpen(false);
-                            }}
+                            handleSelectedPosition={selectPosition}
                             position={position}
                             isSelected={marginSwapPositionId === position.id}
                           />
@@ -350,13 +433,7 @@ export default function SelectPositionDialog() {
                         {otherPositions.map((position) => (
                           <PositionSelectItem
                             key={position.id}
-                            handleSelectedPosition={(position) => {
-                              setMarginSwapPositionId(position.id);
-                              setIsOpen(false);
-                              setTokenA(undefined);
-                              setTokenB(undefined);
-                              setTypedValue({ typedValue: "", field: Field.CURRENCY_A });
-                            }}
+                            handleSelectedPosition={selectPosition}
                             position={position}
                             isSelected={marginSwapPositionId === position.id}
                           />
@@ -375,10 +452,7 @@ export default function SelectPositionDialog() {
                     {openedPositions.map((position) => (
                       <PositionSelectItem
                         key={position.id}
-                        handleSelectedPosition={(position) => {
-                          setMarginSwapPositionId(position.id);
-                          setIsOpen(false);
-                        }}
+                        handleSelectedPosition={selectPosition}
                         position={position}
                         isSelected={marginSwapPositionId === position.id}
                       />

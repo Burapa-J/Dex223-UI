@@ -1718,6 +1718,8 @@
     "assets_limit_tooltip": "Tokens this position holds, out of the maximum set by the lending order's currency limit.",
     "health_label": "Health:",
     "health_tooltip": "Current balance divided by the expected balance. At 1 or below, the position can be liquidated.",
+    "position_liquidatable_tooltip": "This position can be liquidated.",
+    "position_near_liquidation_tooltip": "This position is close to liquidation.",
     "view_lending_order_details": "View lending order details",
     "available_total": "Available / Total",
     "available_total_tooltip": "Funds still available to borrowers, out of the order's total balance including amounts already lent.",
