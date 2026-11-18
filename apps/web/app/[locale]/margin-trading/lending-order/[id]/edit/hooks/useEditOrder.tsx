@@ -17,7 +17,10 @@ import {
   useEditOrderStatusStore,
 } from "@/app/[locale]/margin-trading/lending-order/[id]/edit/stores/useEditOrderStatusStore";
 import { OrderDepositStatus } from "@/app/[locale]/margin-trading/lending-order/[id]/stores/useDepositOrderStatusStore";
-import { TradingTokensInputMode } from "@/app/[locale]/margin-trading/lending-order/create/steps/types";
+import {
+  LendingOrderTradingTokens,
+  TradingTokensInputMode,
+} from "@/app/[locale]/margin-trading/lending-order/create/steps/types";
 import {
   useCreateOrderGasLimitStore,
   useCreateOrderGasPriceStore,
@@ -51,6 +54,53 @@ export function useEditOrderParams() {
 
 export function sortAddresses(addresses: string[]): string[] {
   return addresses.sort((a, b) => (a.toLowerCase() > b.toLowerCase() ? 1 : -1));
+}
+
+/**
+ * The trading whitelist the edit would send: the autolisting contract, or the sorted token
+ * addresses (ERC-223 forms included when ERC-223 trading is on). Shared by the transaction and the
+ * review's "changed" check, so the review only reports a change the transaction would make.
+ */
+export function buildTradingWhitelist(tradingTokens: LendingOrderTradingTokens): {
+  addresses: Address[];
+  isAutolisting: boolean;
+} {
+  if (tradingTokens.inputMode === TradingTokensInputMode.AUTOLISTING) {
+    return {
+      addresses: tradingTokens.tradingTokensAutoListing
+        ? [tradingTokens.tradingTokensAutoListing.id as Address]
+        : [],
+      isAutolisting: true,
+    };
+  }
+  return {
+    addresses: sortAddresses(
+      tradingTokens.allowedTokens.flatMap((token) =>
+        tradingTokens.includeERC223Trading
+          ? [token.wrapped.address0, token.wrapped.address1]
+          : [token.wrapped.address0],
+      ),
+    ) as Address[],
+    isAutolisting: false,
+  };
+}
+
+/** True when the order's current whitelist differs from the one the edit would send. */
+export function tradingWhitelistChanged(
+  order: Pick<LendingOrder, "allowedTradingAddresses" | "whitelistAutoListing">,
+  tradingTokens: LendingOrderTradingTokens,
+): boolean {
+  const next = buildTradingWhitelist(tradingTokens);
+  const orderAutolisting =
+    order.whitelistAutoListing && order.whitelistAutoListing.toLowerCase() !== ZERO_ADDRESS
+      ? order.whitelistAutoListing.toLowerCase()
+      : undefined;
+  if (next.isAutolisting || orderAutolisting) {
+    return !next.isAutolisting || next.addresses[0]?.toLowerCase() !== orderAutolisting;
+  }
+  const current = new Set((order.allowedTradingAddresses ?? []).map((a) => a.toLowerCase()));
+  const wanted = new Set(next.addresses.map((a) => a.toLowerCase()));
+  return current.size !== wanted.size || [...wanted].some((a) => !current.has(a));
 }
 
 export function getWhitelistId(addresses: Address[], isContract: boolean): Hash {
@@ -160,27 +210,15 @@ export default function useEditOrder() {
         return;
       }
 
-      const sortedAddresses =
-        tradingTokens.inputMode === TradingTokensInputMode.AUTOLISTING
-          ? [tradingTokens.tradingTokensAutoListing!.id] // add ! here because we have check upper
-          : (sortAddresses(
-              tradingTokens.allowedTokens.flatMap((token) =>
-                tradingTokens.includeERC223Trading
-                  ? [token.wrapped.address0, token.wrapped.address1]
-                  : [token.wrapped.address0],
-              ),
-            ) as Address[]);
+      const { addresses: sortedAddresses, isAutolisting } = buildTradingWhitelist(tradingTokens);
 
       const encodedAddTokenListParams = encodeFunctionData({
         abi: MARGIN_MODULE_ABI,
         functionName: "addTokenlist",
-        args: [sortedAddresses, tradingTokens.inputMode === TradingTokensInputMode.AUTOLISTING],
+        args: [sortedAddresses, isAutolisting],
       });
 
-      const whitelistId = getWhitelistId(
-        sortedAddresses,
-        tradingTokens.inputMode === TradingTokensInputMode.AUTOLISTING,
-      );
+      const whitelistId = getWhitelistId(sortedAddresses, isAutolisting);
 
       const encodedModifyOrderParams = encodeFunctionData({
         abi: MARGIN_MODULE_ABI,
@@ -295,10 +333,8 @@ export default function useEditOrder() {
       publicClient,
       setModifyOrderHash,
       setStatus,
-      tradingTokens.allowedTokens,
-      tradingTokens.includeERC223Trading,
-      tradingTokens.inputMode,
-      tradingTokens.tradingTokensAutoListing,
+      tradingTokens,
+      collateralTokens,
       walletClient,
     ],
   );

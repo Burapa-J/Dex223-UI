@@ -49,6 +49,15 @@ export default function EditLendingOrderPage({
 
   const { setFirstStepValues, setSecondStepValues, setThirdStepValues } = config;
 
+  // Leaving the edit page drops the draft, so editing the same order again starts from its current
+  // on-chain values on step 1 instead of the last visit's step and values.
+  useEffect(() => {
+    return () => {
+      useEditOrderConfigStore.getState().setIsInitialized(false);
+      useEditOrderStepStore.getState().setStep(OrderActionStep.FIRST);
+    };
+  }, []);
+
   useEffect(() => {
     if (!order) {
       return;
@@ -84,7 +93,13 @@ export default function EditLendingOrderPage({
       tradingTokens: {
         inputMode: TradingTokensInputMode.MANUAL,
         allowedTokens: order.allowedTradingAssets,
-        includeERC223Trading: false,
+        // Start from what the order allows. A hardcoded false made every save rebuild the
+        // whitelist without the ERC-223 addresses, silently turning ERC-223 trading off.
+        includeERC223Trading: order.allowedTradingAssets.some((token) =>
+          (order.allowedTradingAddresses ?? []).some(
+            (address) => address.toLowerCase() === token.wrapped.address1?.toLowerCase(),
+          ),
+        ),
         tradingTokensAutoListing: undefined,
       },
     });
