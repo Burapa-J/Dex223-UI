@@ -43,6 +43,11 @@ jobs:
         working-directory: apps/${{ matrix.app }}
         run: npx eslint -c .eslintrc.json --ext .js,.jsx,.ts,.tsx .
 
+      - name: Gas settings regressions
+        if: matrix.app == 'web'
+        working-directory: apps/web
+        run: node tests/gasSettings.test.cjs
+
       - name: Swap receipt regressions
         if: matrix.app == 'web'
         working-directory: apps/web
@@ -67,3 +72,13 @@ jobs:
         if: matrix.app == 'web'
         working-directory: apps/web
         run: node tests/poolNeedsFetch.test.cjs
+
+      - name: Margin deposit regressions
+        if: matrix.app == 'web'
+        working-directory: apps/web
+        run: node tests/marginDeposit.test.cjs
+
+      - name: Margin swap regressions
+        if: matrix.app == 'web'
+        working-directory: apps/web
+        run: node tests/marginSwap.test.cjs

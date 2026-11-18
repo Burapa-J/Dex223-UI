@@ -1,7 +1,9 @@
 import { useCallback } from "react";
 import { getAbiItem } from "viem";
-import { useAccount, usePublicClient, useWalletClient } from "wagmi";
+import { useAccount, usePublicClient } from "wagmi";
 
+import useMarginGasEstimate from "@/app/[locale]/margin-trading/hooks/useMarginGasEstimate";
+import useMarginWalletClient from "@/app/[locale]/margin-trading/hooks/useMarginWalletClient";
 import {
   PositionCloseStatus,
   usePositionCloseStatusStore,
@@ -24,11 +26,20 @@ import {
 export default function usePositionClose({ position }: { position: MarginPosition }) {
   const { setStatus, setPositionCloseHash } = usePositionCloseStatusStore();
   const chainId = useCurrentChainId();
-  const { data: walletClient } = useWalletClient();
+  const { data: walletClient } = useMarginWalletClient("closePosition");
   const { address } = useAccount();
   const publicClient = usePublicClient();
   const { addRecentTransaction } = useRecentTransactionsStore();
   const setRevert = useMarginRevertStore((s) => s.setRevert);
+
+  useMarginGasEstimate("closePosition", () => {
+    return {
+      abi: MARGIN_MODULE_ABI,
+      address: MARGIN_TRADING_ADDRESS[chainId],
+      functionName: "positionClose",
+      args: [BigInt(position.id), true],
+    };
+  });
 
   const handlePositionClose = useCallback(async () => {
     // Never build a transaction against the zero address on chains without a margin deployment.
@@ -55,6 +66,7 @@ export default function usePositionClose({ position }: { position: MarginPositio
     let closePositionHash;
     try {
       const { request } = await publicClient.simulateContract({ ...params, account: address });
+      // useMarginWalletClient adds the gas settings and limit from the dialog.
       closePositionHash = await walletClient.writeContract({ ...request, account: undefined });
     } catch (error) {
       if (isUserRejection(error)) {

@@ -172,6 +172,7 @@ export default function EditLendingOrderPage({
         <div className="flex justify-center grid-in-[right]">
           <div className="flex flex-col gap-4 md:gap-6 lg:gap-5 w-full sm:max-w-[600px] xl:max-w-full">
             <OrderConfigurationPage
+              order={order}
               {...config}
               openPreviewDialog={() => setIsOpen(true)}
               mode={OrderActionMode.EDIT}

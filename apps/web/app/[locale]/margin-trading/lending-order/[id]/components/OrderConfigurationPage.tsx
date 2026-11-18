@@ -11,11 +11,16 @@ import {
   SecondStepValues,
   ThirdStepValues,
 } from "@/app/[locale]/margin-trading/lending-order/create/stores/useCreateOrderConfigStore";
-import { OrderActionMode, OrderActionStep } from "@/app/[locale]/margin-trading/types";
+import {
+  LendingOrder,
+  OrderActionMode,
+  OrderActionStep,
+} from "@/app/[locale]/margin-trading/types";
 import IconButton, { IconButtonSize } from "@/components/buttons/IconButton";
 import { Link } from "@/i18n/routing";
 
 type Props = {
+  order?: LendingOrder;
   step: OrderActionStep;
   setStep: (step: OrderActionStep) => void;
   firstStepValues: FirstStepValues;
@@ -30,6 +35,7 @@ type Props = {
 
 export default function OrderConfigurationPage({
   mode,
+  order,
 
   step,
   setStep,
@@ -69,6 +75,7 @@ export default function OrderConfigurationPage({
       case OrderActionStep.THIRD:
         return (
           <ThirdStep
+            order={order}
             mode={mode}
             setStep={setStep}
             thirdStepValues={thirdStepValues}
@@ -80,6 +87,7 @@ export default function OrderConfigurationPage({
   }, [
     firstStepValues,
     mode,
+    order,
     openPreviewDialog,
     secondStepValues,
     setFirstStepValues,

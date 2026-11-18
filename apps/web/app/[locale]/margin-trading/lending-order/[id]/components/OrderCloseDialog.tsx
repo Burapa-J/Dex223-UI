@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import React, { useEffect, useMemo } from "react";
 import { formatEther, formatGwei, formatUnits } from "viem";
 
+import MarginGasSettings from "@/app/[locale]/margin-trading/components/MarginGasSettings";
 import timestampToDateString from "@/app/[locale]/margin-trading/helpers/timestampToDateString";
 import calculateTotalOrderBalance from "@/app/[locale]/margin-trading/lending-order/[id]/helpers/calculateTotalOrderBalance";
 import useOrderClose from "@/app/[locale]/margin-trading/lending-order/[id]/hooks/useOrderClose";
@@ -19,7 +20,6 @@ import DrawerDialog from "@/components/atoms/DrawerDialog";
 import EmptyStateIcon from "@/components/atoms/EmptyStateIcon";
 import Svg from "@/components/atoms/Svg";
 import Button, { ButtonColor, ButtonSize } from "@/components/buttons/Button";
-import GasSettingsBlock from "@/components/common/GasSettingsBlock";
 import OperationStepRow, {
   OperationRows,
   operationStatusToStepStatus,
@@ -215,7 +215,7 @@ export default function OrderCloseDialog({
                   value={`${timestampToDateString(order.deadline)}`}
                 />
               </div>
-              <GasSettingsBlock />
+              <MarginGasSettings operation="closeOrder" />
             </>
           )}
           {isLoadingStatus && (

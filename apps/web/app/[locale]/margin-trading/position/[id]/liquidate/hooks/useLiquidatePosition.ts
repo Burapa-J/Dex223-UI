@@ -1,7 +1,9 @@
 import { useCallback } from "react";
 import { type Address, type Hash } from "viem";
-import { useAccount, usePublicClient, useWalletClient } from "wagmi";
+import { useAccount, usePublicClient } from "wagmi";
 
+import useMarginGasEstimate from "@/app/[locale]/margin-trading/hooks/useMarginGasEstimate";
+import useMarginWalletClient from "@/app/[locale]/margin-trading/hooks/useMarginWalletClient";
 import {
   PositionLiquidateStatus,
   usePositionLiquidateStatusStore,
@@ -45,10 +47,21 @@ class LiquidationStop extends Error {
  * re-freezes, and its receipt still succeeds).
  */
 export default function useLiquidatePosition(position: MarginPosition) {
-  const { data: walletClient } = useWalletClient();
+  const { data: walletClient } = useMarginWalletClient("liquidatePosition");
   const { address } = useAccount();
   const publicClient = usePublicClient();
   const chainId = useCurrentChainId();
+
+  // Gas preview for the next liquidate() call (freeze or completion: same calldata).
+  useMarginGasEstimate("liquidatePosition", () => {
+    if (position.isLiquidated || !address) return;
+    return {
+      abi: MARGIN_MODULE_ABI,
+      address: MARGIN_TRADING_ADDRESS[chainId],
+      functionName: "liquidate",
+      args: [BigInt(position.id), address],
+    };
+  });
   const { setStatus, setPositionLiquidateHash, setPositionFreezeHash } =
     usePositionLiquidateStatusStore();
   const setRevert = useMarginRevertStore((s) => s.setRevert);
@@ -83,6 +96,7 @@ export default function useLiquidatePosition(position: MarginPosition) {
           args: [positionId, address],
           account: address,
         });
+        // useMarginWalletClient adds the gas settings and limit from the dialog.
         hash = await walletClient.writeContract({ ...request, account: undefined });
       } catch (error) {
         if (isUserRejection(error)) throw new LiquidationStop(PositionLiquidateStatus.INITIAL);
