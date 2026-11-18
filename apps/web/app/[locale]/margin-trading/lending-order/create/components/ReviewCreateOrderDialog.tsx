@@ -17,6 +17,7 @@ import {
 } from "@/app/[locale]/margin-trading/lending-order/[id]/helpers/getStepTexts";
 import { AssetsPreview } from "@/app/[locale]/margin-trading/lending-order/create/components/AssetsPreview";
 import LendingOrderDetailsRow from "@/app/[locale]/margin-trading/lending-order/create/components/LendingOrderDetailsRow";
+import { positionDurationSeconds } from "@/app/[locale]/margin-trading/lending-order/create/helpers/positionDurationSeconds";
 import useCreateOrder, {
   useCreateOrderParams,
 } from "@/app/[locale]/margin-trading/lending-order/create/hooks/useCreateOrder";
@@ -358,13 +359,10 @@ export default function ReviewCreateOrderDialog({
               <LendingOrderDetailsRow
                 title={t("interest_entire_period")}
                 value={
-                  interestRatePerMonth && period.lendingOrderDeadline
+                  interestRatePerMonth && period.positionDuration
                     ? calculatePeriodInterestRate(
                         +interestRatePerMonth * 100,
-                        Math.max(
-                          0,
-                          (new Date(period.lendingOrderDeadline).getTime() - Date.now()) / 1000,
-                        ),
+                        positionDurationSeconds(period.positionDuration),
                       )
                     : "—"
                 }
@@ -373,18 +371,12 @@ export default function ReviewCreateOrderDialog({
               <LendingOrderDetailsRow
                 title={t("receive_entire_period")}
                 value={
-                  interestRatePerMonth &&
-                  period.lendingOrderDeadline &&
-                  loanAmount &&
-                  loanToken?.symbol
+                  interestRatePerMonth && period.positionDuration && loanAmount && loanToken?.symbol
                     ? (() => {
                         const _loanAmount = parseFloat(loanAmount);
                         const interestRate = calculatePeriodInterestRateNum(
                           +interestRatePerMonth * 100,
-                          Math.max(
-                            0,
-                            (new Date(period.lendingOrderDeadline).getTime() - Date.now()) / 1000,
-                          ),
+                          positionDurationSeconds(period.positionDuration),
                         );
 
                         if (isNaN(_loanAmount) || isNaN(interestRate)) return "—";

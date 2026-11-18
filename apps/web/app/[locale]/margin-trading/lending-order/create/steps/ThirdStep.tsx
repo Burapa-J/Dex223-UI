@@ -2,18 +2,27 @@ import Alert from "@repo/ui/alert";
 import { Formik } from "formik";
 import { useTranslations } from "next-intl";
 import React from "react";
+import { isAddress } from "viem";
 import { formatEther, formatGwei } from "viem";
 import * as Yup from "yup";
 
+import MarginGasSettings from "@/app/[locale]/margin-trading/components/MarginGasSettings";
+import { useOrderLenderProtection } from "@/app/[locale]/margin-trading/hooks/useLenderProtection";
+import { useEditOrderRequest } from "@/app/[locale]/margin-trading/lending-order/[id]/edit/hooks/useEditOrder";
+import LenderProtectionConfig from "@/app/[locale]/margin-trading/lending-order/create/components/LenderProtectionConfig";
 import LiquidationFeeConfig from "@/app/[locale]/margin-trading/lending-order/create/components/LiquidationFeeConfig";
 import LiquidationOracleSelect from "@/app/[locale]/margin-trading/lending-order/create/components/LiquidationOracleSelect";
+import { useCreateOrderRequest } from "@/app/[locale]/margin-trading/lending-order/create/hooks/useCreateOrder";
 import { LiquidationType } from "@/app/[locale]/margin-trading/lending-order/create/steps/types";
 import { ThirdStepValues } from "@/app/[locale]/margin-trading/lending-order/create/stores/useCreateOrderConfigStore";
-import { OrderActionMode, OrderActionStep } from "@/app/[locale]/margin-trading/types";
+import {
+  LendingOrder,
+  OrderActionMode,
+  OrderActionStep,
+} from "@/app/[locale]/margin-trading/types";
 import { InputWithArrows } from "@/components/atoms/Input";
 import TextField from "@/components/atoms/TextField";
 import Button, { ButtonColor, ButtonSize } from "@/components/buttons/Button";
-import GasSettingsBlock from "@/components/common/GasSettingsBlock";
 import { formatFloat } from "@/functions/formatFloat";
 import { useNativeCurrency } from "@/hooks/useNativeCurrency";
 
@@ -45,15 +54,44 @@ export const thirdStepSchema = Yup.object().shape({
   liquidationFeeForLiquidator: Yup.number()
     .typeError("Fee for liquidator must be a number")
     .required("Fee for liquidator is required"),
+
+  // Contract range: 10-50% (Dex223MarginModule MAINTENANCE_MARGIN_BPS..MAX_MAINTENANCE_MARGIN_BPS).
+  maintenanceMarginPercent: Yup.number()
+    .typeError("Enter a value from 10% to 50%")
+    .min(10, "Enter a value from 10% to 50%")
+    .max(50, "Enter a value from 10% to 50%"),
+  liquidationKeeper: Yup.string().test(
+    "address",
+    "Enter a valid address",
+    (value) => !value || isAddress(value),
+  ),
 });
 
+function CreateOrderGasSettings({ values }: { values: ThirdStepValues }) {
+  useCreateOrderRequest(values);
+  return <MarginGasSettings operation="createOrder" />;
+}
+
+function EditOrderGasSettings({
+  order,
+  values,
+}: {
+  order?: LendingOrder;
+  values: ThirdStepValues;
+}) {
+  useEditOrderRequest(order, values);
+  return <MarginGasSettings operation="editOrder" />;
+}
+
 export default function ThirdStep({
+  order,
   mode,
   openPreviewDialog,
   setStep,
   thirdStepValues,
   setThirdStepValues,
 }: {
+  order?: LendingOrder;
   mode: OrderActionMode;
   openPreviewDialog: () => void;
   thirdStepValues: ThirdStepValues;
@@ -62,6 +100,7 @@ export default function ThirdStep({
 }) {
   const t = useTranslations("Margin");
   const nativeCurrency = useNativeCurrency();
+  const lenderProtection = useOrderLenderProtection();
   return (
     <Formik
       initialValues={{
@@ -99,9 +138,21 @@ export default function ThirdStep({
             values={values}
             setFieldValue={setFieldValue}
           />
+          {lenderProtection.supported && (
+            <LenderProtectionConfig
+              errors={errors}
+              touched={touched}
+              values={values}
+              setFieldValue={setFieldValue}
+            />
+          )}
           <LiquidationOracleSelect />
 
-          <GasSettingsBlock />
+          {mode === OrderActionMode.CREATE ? (
+            <CreateOrderGasSettings values={values} />
+          ) : (
+            <EditOrderGasSettings order={order} values={values} />
+          )}
 
           {/*<pre>{JSON.stringify(errors, null, 2)}</pre>*/}
 

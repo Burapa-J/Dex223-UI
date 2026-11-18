@@ -202,6 +202,22 @@ function hasRealLogo(logoURI: string | undefined | null): boolean {
   return !!logoURI && logoURI !== LOGO_PLACEHOLDER;
 }
 
+/** Real logos from the given lists, keyed by lowercased ERC-20 and ERC-223 address. */
+export function logosFromLists(lists: TokenList[]): Map<string, string> {
+  const logos = new Map<string, string>();
+  lists.forEach((list) =>
+    list.list.tokens.forEach((token) => {
+      const logo = formatIPFS(token.logoURI);
+      if (!hasRealLogo(logo)) return;
+      for (const address of [token.address0, token.address1]) {
+        const key = address?.toLowerCase();
+        if (key && !logos.has(key)) logos.set(key, logo!);
+      }
+    }),
+  );
+  return logos;
+}
+
 export function useTokens(onlyCustom: boolean = false): Currency[] {
   const tokenLists = useTokenLists(onlyCustom);
   const chainId = useCurrentChainId();
@@ -260,7 +276,27 @@ export function useTokens(onlyCustom: boolean = false): Currency[] {
       };
 
       const tokensArrays = tokenLists.filter((list) => list.enabled);
-      const _t = inspect(...tokensArrays);
+      const fallbackLogos = logosFromLists(tokenLists.filter((list) => !list.enabled));
+      // A token whose enabled lists carry no image (the autolisting lists never do) takes the logo
+      // from any other list the user has, e.g. the custom list holding the image set at Create
+      // token. Logos are cosmetic, so a disabled list may still supply one.
+      const _t = inspect(...tokensArrays).map((token) => {
+        if (hasRealLogo(token.logoURI)) return token;
+        const logo = fallbackLogos.get(token.address0.toLowerCase());
+        return logo
+          ? new Token(
+              token.chainId,
+              token.address0,
+              token.address1,
+              token.decimals,
+              token.symbol || "Unknown",
+              token.name || "Unknown",
+              logo,
+              token.lists,
+              token.rate,
+            )
+          : token;
+      });
 
       return onlyCustom ? _t : [native, ..._t];
     }

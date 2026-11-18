@@ -569,8 +569,10 @@ export function LendingPositionCard({ position }: Props) {
           {renderLiquidationInfoBlocks()}
           <div className="grid grid-cols-2 items-center gap-3">
             <div>
+              {/* The lender may close once the position itself has matured (seconds, not the
+                  order's deadline). */}
               {position.order.owner === address?.toLowerCase() &&
-                +position.deadline < Date.now() / 100 &&
+                isCompleted &&
                 (isFrozen && isLiquidatableKnown && isLiquidatable ? (
                   <Tooltip
                     text={t("frozen_close_tooltip")}
@@ -592,6 +594,7 @@ export function LendingPositionCard({ position }: Props) {
                     disabled={isFrozen && !isLiquidatableKnown}
                     fullWidth
                     size={ButtonSize.LARGE}
+                    onClick={() => setPositionToClose(position)}
                   >
                     {t("close")}
                   </Button>
