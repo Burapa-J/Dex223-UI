@@ -45,6 +45,8 @@ export type GqlPosition = {
   txFrozen: Hash;
   txLiquidated: Hash;
   collateralToken: GqlToken;
+  /** Exact collateral address the position opened with (the contract's positionInitialCollateral). */
+  collateral?: Address | null;
   collateralAmount: bigint;
   leverage: number;
   frozenTime?: string | number | null;
@@ -251,6 +253,7 @@ export function serializeGqlPosition(
     closedAt,
     collateralAmount,
     collateralToken,
+    collateral,
     leverage,
     frozenTime,
     interest,
@@ -284,6 +287,7 @@ export function serializeGqlPosition(
       };
     }),
     collateralAsset: gqlTokenToCurrency(collateralToken, chainId, logos),
+    collateralAddress: collateral ?? undefined,
     collateralAmount: BigInt(collateralAmount),
     initialLeverage: +leverage,
     frozenTime: frozenTime ? Number(frozenTime) : 0,

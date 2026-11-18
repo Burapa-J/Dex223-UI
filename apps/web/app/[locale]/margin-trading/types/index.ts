@@ -46,6 +46,8 @@ export type MarginPosition = {
   txLiquidated: Hash;
   collateralAmount: bigint;
   collateralAsset: Currency;
+  /** Exact address (ERC-20 or ERC-223 form) the position opened with; positionInitialCollateral. */
+  collateralAddress?: Address;
   initialLeverage: number;
   frozenTime: number;
 };

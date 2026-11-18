@@ -235,12 +235,20 @@ export default function useMarginSwap() {
           hash,
           nonce,
           chainId,
-          gas: {
-            model: GasFeeModel.EIP1559,
-            gas: "0",
-            maxFeePerGas: undefined,
-            maxPriorityFeePerGas: undefined,
-          },
+          // What the wallet actually sent, so speed-up and cancel start from real values.
+          gas:
+            transaction.gasPrice !== undefined && transaction.maxFeePerGas === undefined
+              ? {
+                  model: GasFeeModel.LEGACY,
+                  gas: transaction.gas.toString(),
+                  gasPrice: transaction.gasPrice.toString(),
+                }
+              : {
+                  model: GasFeeModel.EIP1559,
+                  gas: transaction.gas.toString(),
+                  maxFeePerGas: transaction.maxFeePerGas?.toString(),
+                  maxPriorityFeePerGas: transaction.maxPriorityFeePerGas?.toString(),
+                },
           params: {
             ...stringifyObject(params),
             abi: [getAbiItem({ name: params.functionName, abi: MARGIN_MODULE_ABI })],

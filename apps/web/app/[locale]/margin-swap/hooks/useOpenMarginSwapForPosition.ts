@@ -83,10 +83,16 @@ export function getPositionAllowedOutputStandard(
   const allowed = new Set(
     (position.order.allowedTradingAddresses ?? []).map((a) => a.toLowerCase()),
   );
-  if (position.collateralAsset && token.equals(position.collateralAsset)) {
-    for (const colAddr of position.order.collateralAddresses ?? []) {
-      allowed.add(colAddr.toLowerCase());
-    }
+  // The contract accepts the collateral token as an output only at the exact address the position
+  // opened with (_validateAsset: positionInitialCollateral), not at every collateral address the
+  // order lists: an order that takes both standards would otherwise default to ERC-20 for a position
+  // opened with ERC-223, and the swap would revert.
+  if (
+    position.collateralAddress &&
+    position.collateralAsset &&
+    token.equals(position.collateralAsset)
+  ) {
+    allowed.add(position.collateralAddress.toLowerCase());
   }
   const has20 = allowed.has(addr0);
   const has223 = allowed.has(addr1);
