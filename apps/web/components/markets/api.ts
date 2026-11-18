@@ -58,7 +58,9 @@ async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
     const response = await fetch(`${MARKET_API_URL}${path}`, { signal: controller.signal });
     if (response.status === 404) throw new NotFoundError(path);
     if (!response.ok) throw new Error(`Market API ${path} responded ${response.status}`);
-    return response.json() as Promise<T>;
+    // Await the body inside try: returning the promise let finally clear the timeout and the abort
+    // listener before the body was read, so a body that stalls after the headers was never cut off.
+    return (await response.json()) as T;
   } finally {
     clearTimeout(timeout);
     signal?.removeEventListener("abort", onAbort);
