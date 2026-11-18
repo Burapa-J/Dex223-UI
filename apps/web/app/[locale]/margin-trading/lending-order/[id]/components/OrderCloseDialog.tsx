@@ -143,7 +143,12 @@ export default function OrderCloseDialog({
             <>
               <div className="flex items-center justify-between gap-2 mb-4">
                 <div className="flex items-center gap-2">
-                  <Image width={32} height={32} src="/images/tokens/placeholder.svg" alt="" />
+                  <Image
+                    width={32}
+                    height={32}
+                    src={order.baseAsset.logoURI || "/images/tokens/placeholder.svg"}
+                    alt=""
+                  />
                   <span className="text-secondary-text text-18 font-bold">
                     {order.baseAsset.name}
                   </span>
@@ -217,7 +222,12 @@ export default function OrderCloseDialog({
             <>
               <div className="flex items-center justify-between gap-2 mb-4">
                 <div className="flex items-center gap-2">
-                  <Image width={32} height={32} src="/images/tokens/placeholder.svg" alt="" />
+                  <Image
+                    width={32}
+                    height={32}
+                    src={order.baseAsset.logoURI || "/images/tokens/placeholder.svg"}
+                    alt=""
+                  />
                   <span className="text-secondary-text text-18 font-bold">
                     {order.baseAsset.name}
                   </span>

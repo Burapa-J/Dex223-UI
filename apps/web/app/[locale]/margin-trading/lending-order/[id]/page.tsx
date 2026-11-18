@@ -123,7 +123,12 @@ export default function LendingOrder({
         <div className="py-5 px-10 bg-primary-bg rounded-5 mb-5">
           <div className="flex justify-between items-center mb-3">
             <div className="flex items-center gap-2">
-              <Image width={32} height={32} src="/images/tokens/placeholder.svg" alt="" />
+              <Image
+                width={32}
+                height={32}
+                src={order.baseAsset.logoURI || "/images/tokens/placeholder.svg"}
+                alt=""
+              />
               <span className="text-secondary-text text-18 font-bold">{order.baseAsset.name}</span>
               {order.alive ? (
                 <div className="flex items-center gap-3 text-green">
