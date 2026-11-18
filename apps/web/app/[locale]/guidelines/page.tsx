@@ -7,7 +7,7 @@ import React from "react";
 import { GUIDES } from "@/app/[locale]/guidelines/guides";
 import Container from "@/components/atoms/Container";
 import Svg from "@/components/atoms/Svg";
-import { getButtonClassName } from "@/components/buttons/Button";
+import { ButtonSize, getButtonClassName } from "@/components/buttons/Button";
 import { Link } from "@/i18n/routing";
 import { useManageTokensDialogStore } from "@/stores/useManageTokensDialogStore";
 
@@ -41,7 +41,7 @@ function GuidelineCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="surface py-4 px-5 rounded-5">
+    <div className="bg-primary-bg py-4 px-5 rounded-5">
       <h2 className="text-24 font-medium mb-1">{title}</h2>
       <p className="text-secondary-text mb-3">{subtitle}</p>
       <div className="flex flex-col gap-4">{children}</div>
@@ -61,7 +61,7 @@ export default function GuidelinesPage() {
         <h1 className="mb-2 text-24 lg:text-40">{t("title")}</h1>
         <p className="text-secondary-text text-14 md:text-16 mb-5">{t("description")}</p>
 
-        <div className="surface rounded-5 p-5 mb-5 border-l-4 border-green flex flex-col md:flex-row md:items-center gap-4 md:gap-5">
+        <div className="bg-primary-bg rounded-5 p-5 mb-5 border border-green/40 flex flex-col md:flex-row md:items-center gap-4 md:gap-5">
           <span className="self-start md:self-auto rounded-full bg-green-bg p-3 text-green">
             <Svg iconName="guidelines" />
           </span>
@@ -71,7 +71,10 @@ export default function GuidelinesPage() {
           </div>
           <Link
             href="/demo"
-            className={getButtonClassName({ className: "whitespace-nowrap" })}
+            className={getButtonClassName({
+              size: ButtonSize.MEDIUM,
+              className: "whitespace-nowrap",
+            })}
           >
             {t("demo_cta")}
           </Link>

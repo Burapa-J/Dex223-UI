@@ -29,7 +29,9 @@ export default function ExternalTextLink({
       href={href}
       className={clsxMerge(
         "ui-flex ui-items-center ui-duration-200",
-        color === "green" ? "ui-text-green hocus:ui-text-green-hover" : "ui-text-white hocus:ui-text-green",
+        color === "green"
+          ? "ui-text-green hocus:ui-text-green-hover"
+          : "ui-text-white hocus:ui-text-green",
         className,
       )}
     >
