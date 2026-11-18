@@ -57,3 +57,8 @@ jobs:
         if: matrix.app == 'web'
         working-directory: apps/web
         run: node tests/marginRevert.test.cjs
+
+      - name: ETH to wei regressions
+        if: matrix.app == 'web'
+        working-directory: apps/web
+        run: node tests/ethToWei.test.cjs

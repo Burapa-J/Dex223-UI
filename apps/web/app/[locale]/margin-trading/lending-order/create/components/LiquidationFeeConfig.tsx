@@ -3,13 +3,14 @@ import { FormikErrors, FormikTouched } from "formik";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
-import { formatEther, formatGwei, parseUnits } from "viem";
+import { formatEther, formatGwei } from "viem";
 
 import { ThirdStepValues } from "@/app/[locale]/margin-trading/lending-order/create/stores/useCreateOrderConfigStore";
 import { InputSize } from "@/components/atoms/Input";
 import SelectButton from "@/components/atoms/SelectButton";
 import TextField, { InputLabel } from "@/components/atoms/TextField";
 import PickTokenDialog from "@/components/dialogs/PickTokenDialog";
+import { ethToWei } from "@/functions/ethToWei";
 import { formatFloat } from "@/functions/formatFloat";
 import useCurrentChainId from "@/hooks/useCurrentChainId";
 import { useUSDPrice } from "@/hooks/useUSDPrice";
@@ -58,9 +59,9 @@ function LiquidationGasHint({ token, amount }: { token?: Currency; amount?: stri
   const rewardWei = useMemo(() => {
     const value = Number(amount);
     if (!token || !amount || !Number.isFinite(value) || value <= 0) return undefined;
-    if (isEthLike) return parseUnits(String(amount), 18);
+    if (isEthLike) return ethToWei(value);
     if (!tokenUsd || !ethUsd || +tokenUsd <= 0 || +ethUsd <= 0) return undefined;
-    return parseUnits(((value * +tokenUsd) / +ethUsd).toFixed(18), 18);
+    return ethToWei((value * +tokenUsd) / +ethUsd);
   }, [amount, ethUsd, isEthLike, token, tokenUsd]);
 
   if (!costs || !price) return null;
