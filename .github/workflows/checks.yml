@@ -62,3 +62,8 @@ jobs:
         if: matrix.app == 'web'
         working-directory: apps/web
         run: node tests/ethToWei.test.cjs
+
+      - name: Pool refetch regressions
+        if: matrix.app == 'web'
+        working-directory: apps/web
+        run: node tests/poolNeedsFetch.test.cjs
