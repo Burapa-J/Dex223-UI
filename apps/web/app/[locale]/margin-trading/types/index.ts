@@ -18,6 +18,8 @@ export type MarginPosition = {
   id: number;
   owner: Address;
   loanAmount: bigint;
+  /** Interest rate (bps per 30 days) fixed when the position opened; the contract charges this one. */
+  interestRateAtOpen?: number;
   loanAsset: Currency;
   deadline: number;
   assetAddresses: {

@@ -16,6 +16,7 @@ import {
   SimpleInfoBlock,
 } from "@/app/[locale]/margin-trading/components/widgets/OrderInfoBlock";
 import PositionHealthStatus from "@/app/[locale]/margin-trading/components/widgets/PositionHealthStatus";
+import { closedPositionLenderInterest } from "@/app/[locale]/margin-trading/helpers/liquidationMath";
 import timestampToDateString from "@/app/[locale]/margin-trading/helpers/timestampToDateString";
 import usePositionLiquidationCost from "@/app/[locale]/margin-trading/hooks/usePositionLiquidationCost";
 import usePositionLiquidationState from "@/app/[locale]/margin-trading/hooks/usePositionLiquidationState";
@@ -141,7 +142,15 @@ const marginPositionCardBorderMap: Record<DangerStatus, string> = {
 
 export function InactiveMarginPositionCard({ position }: Props) {
   const t = useTranslations("Margin");
+  const { address } = useAccount();
   const [isWithdrawDialogOpened, setIsWithdrawDialogOpened] = useState(false);
+  // Lender's interest on a normally closed position; "-" for anyone else (see helper).
+  const profitLabel = useMemo(() => {
+    const interest = closedPositionLenderInterest(position, address);
+    return interest === undefined
+      ? "-"
+      : `+${formatFloat(formatUnits(interest, position.loanAsset.decimals))} ${position.loanAsset.symbol ?? ""}`.trim();
+  }, [address, position]);
 
   const chainId = useCurrentChainId();
 
@@ -192,7 +201,7 @@ export function InactiveMarginPositionCard({ position }: Props) {
             <SimpleInfoBlock
               title={t("borrowed_profit")}
               tooltipText={t("borrowed_profit_tooltip")}
-              value={`${formatFloat(formatUnits(position.loanAmount, position.loanAsset.decimals))} ${position.loanAsset.symbol} / -`}
+              value={`${formatFloat(formatUnits(position.loanAmount, position.loanAsset.decimals))} ${position.loanAsset.symbol} / ${profitLabel}`}
             />
             <SimpleInfoBlock
               title={t("initial_collateral_earning")}
@@ -569,8 +578,10 @@ export function LendingPositionCard({ position }: Props) {
           {renderLiquidationInfoBlocks()}
           <div className="grid grid-cols-2 items-center gap-3">
             <div>
+              {/* The lender may close once the position itself has matured (seconds, not the
+                  order's deadline). */}
               {position.order.owner === address?.toLowerCase() &&
-                +position.deadline < Date.now() / 100 &&
+                isCompleted &&
                 (isFrozen && isLiquidatableKnown && isLiquidatable ? (
                   <Tooltip
                     text={t("frozen_close_tooltip")}
@@ -592,6 +603,7 @@ export function LendingPositionCard({ position }: Props) {
                     disabled={isFrozen && !isLiquidatableKnown}
                     fullWidth
                     size={ButtonSize.LARGE}
+                    onClick={() => setPositionToClose(position)}
                   >
                     {t("close")}
                   </Button>

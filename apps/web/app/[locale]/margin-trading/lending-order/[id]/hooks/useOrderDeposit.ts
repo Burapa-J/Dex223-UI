@@ -1,7 +1,10 @@
 import { useCallback, useMemo } from "react";
 import { Address, getAbiItem, parseUnits } from "viem";
-import { useAccount, usePublicClient, useWalletClient } from "wagmi";
+import { useAccount, usePublicClient } from "wagmi";
 
+import { useMarginWriteGas } from "@/app/[locale]/margin-trading/components/MarginGasSettings";
+import useMarginGasEstimate from "@/app/[locale]/margin-trading/hooks/useMarginGasEstimate";
+import useMarginWalletClient from "@/app/[locale]/margin-trading/hooks/useMarginWalletClient";
 import {
   OrderDepositStatus,
   useDepositOrderStatusStore,
@@ -82,7 +85,8 @@ export default function useOrderDeposit({
   const { setStatus, setDepositHash, setApproveHash, setTransferHash } =
     useDepositOrderStatusStore();
   const chainId = useCurrentChainId();
-  const { data: walletClient } = useWalletClient();
+  const gasOverrides = useMarginWriteGas("depositOrder");
+  const { data: walletClient } = useMarginWalletClient("depositOrder");
 
   const { address } = useAccount();
   const publicClient = usePublicClient();
@@ -97,6 +101,18 @@ export default function useOrderDeposit({
     token: standard === Standard.ERC20 && !currency.isNative ? currency : undefined,
     contractAddress: MARGIN_TRADING_ADDRESS[chainId],
     amountToCheck: parsedAmount,
+  });
+
+  useMarginGasEstimate("depositOrder", () => {
+    const resolved = resolveOrderDepositCall({ orderId, currency, standard, amount });
+    if (!resolved) return;
+    return {
+      abi: MARGIN_MODULE_ABI,
+      address: MARGIN_TRADING_ADDRESS[chainId],
+      functionName: resolved.functionName,
+      args: resolved.args,
+      value: resolved.isNative ? resolved.value : undefined,
+    };
   });
 
   const handleOrderDeposit = useCallback(
@@ -136,6 +152,7 @@ export default function useOrderDeposit({
         try {
           const depositOrderHash = await walletClient.writeContract({
             ...nativeParams,
+            ...gasOverrides,
             account: undefined,
           });
 
@@ -200,6 +217,7 @@ export default function useOrderDeposit({
               setStatus(OrderDepositStatus.PENDING_APPROVE);
               const approveResult = await approveA({
                 customAmount: approvalAmount,
+                customGasSettings: gasOverrides,
               });
 
               if (!approveResult?.success) {
@@ -240,6 +258,7 @@ export default function useOrderDeposit({
           try {
             const _firstDepositHash = await walletClient.writeContract({
               ..._params,
+              ...gasOverrides,
               account: undefined,
             });
             setStatus(OrderDepositStatus.LOADING_TRANSFER);
@@ -304,6 +323,7 @@ export default function useOrderDeposit({
         try {
           const depositOrderHash = await walletClient.writeContract({
             ...params,
+            ...gasOverrides,
             account: undefined,
           });
           setStatus(OrderDepositStatus.LOADING_DEPOSIT);
@@ -360,6 +380,7 @@ export default function useOrderDeposit({
       amount,
       approveA,
       chainId,
+      gasOverrides,
       currency,
       isAllowedA,
       orderId,

@@ -7,14 +7,26 @@ import React from "react";
 import { GUIDES } from "@/app/[locale]/guidelines/guides";
 import Container from "@/components/atoms/Container";
 import Svg from "@/components/atoms/Svg";
+import { ButtonSize, getButtonClassName } from "@/components/buttons/Button";
 import { Link } from "@/i18n/routing";
 import { useManageTokensDialogStore } from "@/stores/useManageTokensDialogStore";
 
-function InternalTextLink({ href, text }: { href: string; text: string }) {
+const textLinkClassName =
+  "flex items-center text-green hocus:text-green-hover duration-200 text-left";
+
+function TextLinkLabel({ text }: { text: string }) {
   return (
-    <Link href={href} className="flex items-center text-green hocus:text-green-hover duration-200">
+    <>
       <span>{text}</span>
       <Svg iconName="forward" size={24} className="flex-shrink-0" />
+    </>
+  );
+}
+
+function InternalTextLink({ href, text }: { href: string; text: string }) {
+  return (
+    <Link href={href} className={textLinkClassName}>
+      <TextLinkLabel text={text} />
     </Link>
   );
 }
@@ -41,11 +53,7 @@ export default function GuidelinesPage() {
   const t = useTranslations("Guidelines");
   const locale = useLocale();
   const tNav = useTranslations("Navigation");
-  const {
-    setIsOpen: setManageTokensOpen,
-    setActiveTab: setManageTokensActiveTab,
-    setContent: setManageTokensContent,
-  } = useManageTokensDialogStore();
+  const openTokenLists = useManageTokensDialogStore((state) => state.openTokenLists);
 
   return (
     <Container>
@@ -63,7 +71,10 @@ export default function GuidelinesPage() {
           </div>
           <Link
             href="/demo"
-            className="flex items-center justify-center min-h-10 px-6 rounded-2 bg-green text-black hocus:bg-green-hover duration-200 font-medium whitespace-nowrap"
+            className={getButtonClassName({
+              size: ButtonSize.MEDIUM,
+              className: "whitespace-nowrap",
+            })}
           >
             {t("demo_cta")}
           </Link>
@@ -86,29 +97,18 @@ export default function GuidelinesPage() {
               text={t("guides.token-listing.title")}
             />
             <InternalTextLink href="/guidelines/token-lists" text={t("guides.token-lists.title")} />
-            <button
-              type="button"
-              onClick={() => {
-                setManageTokensContent("default");
-                setManageTokensActiveTab(0);
-                setManageTokensOpen(true);
-              }}
-              className="flex items-center text-green hocus:text-green-hover duration-200 text-left"
-            >
-              <span>{tNav("token_lists")}</span>
-              <Svg iconName="forward" size={24} className="flex-shrink-0" />
+            <button type="button" onClick={openTokenLists} className={textLinkClassName}>
+              <TextLinkLabel text={tNav("token_lists")} />
             </button>
             <InternalTextLink href="/create-token" text={tNav("create_token")} />
           </GuidelineCard>
 
           <GuidelineCard title={t("learn_more_title")} subtitle={t("learn_more_subtitle")}>
-            <a
+            <ExternalTextLink
+              text={tNav("blog")}
               href={`https://blog.dex223.io/${locale}`}
-              className="flex items-center text-green hocus:text-green-hover duration-200"
-            >
-              <span>{tNav("blog")}</span>
-              <Svg iconName="forward" size={24} className="flex-shrink-0" />
-            </a>
+              openInNewTab={false}
+            />
             <ExternalTextLink
               text={tNav("useful_front_page")}
               href="https://dexaran.github.io/erc223/"

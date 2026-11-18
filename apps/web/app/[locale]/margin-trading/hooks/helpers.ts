@@ -21,6 +21,8 @@ export type GqlToken = {
 export type GqlPosition = {
   id: number;
   owner: Address;
+  /** Interest rate snapshotted when the position opened (bps per 30 days); the order's may change. */
+  interest?: string | null;
   loanAmount: bigint;
   baseAssetToken: GqlToken;
   deadline: number;
@@ -251,6 +253,7 @@ export function serializeGqlPosition(
     collateralToken,
     leverage,
     frozenTime,
+    interest,
     ...rest
   } = gqlPosition;
 
@@ -258,6 +261,7 @@ export function serializeGqlPosition(
     ...rest,
     closedAt: +closedAt,
     liquidatedAt: +liquidatedAt,
+    interestRateAtOpen: interest != null ? Number(interest) : undefined,
     createdAt: +createdAt,
     loanAmount: BigInt(loanAmount),
     loanAsset: gqlTokenToCurrency(baseAssetToken, chainId, logos),

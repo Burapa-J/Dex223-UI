@@ -10,6 +10,7 @@ import {
 import LendingOrderDetailsRow from "@/app/[locale]/margin-trading/lending-order/create/components/LendingOrderDetailsRow";
 import LendingOrderPeriodConfig from "@/app/[locale]/margin-trading/lending-order/create/components/LendingOrderPeriodConfig";
 import LendingOrderTokenSelect from "@/app/[locale]/margin-trading/lending-order/create/components/LendingOrderTokenSelect";
+import { positionDurationSeconds } from "@/app/[locale]/margin-trading/lending-order/create/helpers/positionDurationSeconds";
 import {
   LendingOrderPeriod,
   LendingOrderPeriodType,
@@ -263,15 +264,10 @@ export default function FirstStep({
             <LendingOrderDetailsRow
               title={t("interest_entire_period")}
               value={
-                props.values.interestRatePerMonth && props.values.period.lendingOrderDeadline
+                props.values.interestRatePerMonth && props.values.period.positionDuration
                   ? calculatePeriodInterestRate(
                       +props.values.interestRatePerMonth * 100,
-                      Math.max(
-                        0,
-                        (new Date(props.values.period.lendingOrderDeadline).getTime() -
-                          Date.now()) /
-                          1000,
-                      ),
+                      positionDurationSeconds(props.values.period.positionDuration),
                     )
                   : "—"
               }
@@ -280,19 +276,14 @@ export default function FirstStep({
               title={t("receive_entire_period")}
               value={
                 props.values.interestRatePerMonth &&
-                props.values.period.lendingOrderDeadline &&
+                props.values.period.positionDuration &&
                 props.values.loanAmount &&
                 props.values.loanToken?.symbol
                   ? (() => {
                       const loanAmount = parseFloat(props.values.loanAmount);
                       const interestRate = calculatePeriodInterestRateNum(
                         +props.values.interestRatePerMonth * 100,
-                        Math.max(
-                          0,
-                          (new Date(props.values.period.lendingOrderDeadline).getTime() -
-                            Date.now()) /
-                            1000,
-                        ),
+                        positionDurationSeconds(props.values.period.positionDuration),
                       );
 
                       if (isNaN(loanAmount) || isNaN(interestRate)) return "—";

@@ -1,17 +1,19 @@
 import Alert from "@repo/ui/alert";
 import Checkbox from "@repo/ui/checkbox";
 import Tooltip from "@repo/ui/tooltip";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import React, { useState } from "react";
-import { formatEther, formatGwei, formatUnits } from "viem";
+import { formatUnits } from "viem";
 import { useAccount } from "wagmi";
 
+import MarginGasSettings from "@/app/[locale]/margin-trading/components/MarginGasSettings";
+import usePositionLiquidationCost from "@/app/[locale]/margin-trading/hooks/usePositionLiquidationCost";
 import usePositionStatus from "@/app/[locale]/margin-trading/position/[id]/hooks/usePositionStatus";
 import ConfirmLiquidatePositionDialog from "@/app/[locale]/margin-trading/position/[id]/liquidate/components/ConfirmLiquidatePositionDialog";
 import useLiquidatePosition from "@/app/[locale]/margin-trading/position/[id]/liquidate/hooks/useLiquidatePosition";
 import { MarginPosition } from "@/app/[locale]/margin-trading/types";
 import { useSwapRecentTransactionsStore } from "@/app/[locale]/swap/stores/useSwapRecentTransactions";
-import Button, { ButtonColor, ButtonSize } from "@/components/buttons/Button";
+import Button, { ButtonColor } from "@/components/buttons/Button";
 import IconButton, {
   IconButtonSize,
   IconButtonVariant,
@@ -19,6 +21,7 @@ import IconButton, {
 } from "@/components/buttons/IconButton";
 import RadioButton from "@/components/buttons/RadioButton";
 import { formatFloat } from "@/functions/formatFloat";
+import { useNativeCurrency } from "@/hooks/useNativeCurrency";
 import { Currency } from "@/sdk_bi/entities/currency";
 
 function PositionInfoCard({
@@ -29,6 +32,7 @@ function PositionInfoCard({
   tooltip1,
   tooltip2,
   currency,
+  currency2,
 }: {
   label1: string;
   label2: string;
@@ -37,6 +41,7 @@ function PositionInfoCard({
   tooltip1: string;
   tooltip2: string;
   currency: Currency;
+  currency2?: Currency;
 }) {
   return (
     <div className="bg-quaternary-bg rounded-3 px-5 py-2.5">
@@ -45,7 +50,8 @@ function PositionInfoCard({
         <Tooltip iconSize={20} text={tooltip2} />
       </div>
       <div className="">
-        {value1} / {value2} <span className="text-secondary-text">{currency.symbol}</span>
+        {value1} <span className="text-secondary-text">{currency.symbol}</span> / {value2}{" "}
+        <span className="text-secondary-text">{(currency2 ?? currency).symbol}</span>
       </div>
     </div>
   );
@@ -63,6 +69,9 @@ enum ActionWithAssets {
 
 export default function LiquidateForm({ position }: { position: MarginPosition }) {
   const t = useTranslations("Margin");
+  const locale = useLocale();
+  const nativeCurrency = useNativeCurrency();
+  const { formatted: liquidationCost } = usePositionLiquidationCost(position);
   const [isLiquidateDialogOpened, setIsLiquidateDialogOpened] = useState(false);
 
   const { handleLiquidatePosition } = useLiquidatePosition(position);
@@ -128,8 +137,9 @@ export default function LiquidateForm({ position }: { position: MarginPosition }
           />
           <PositionInfoCard
             value1={position.order.liquidationRewardAmount.formatted}
-            value2={"0"}
-            currency={position.loanAsset}
+            value2={liquidationCost}
+            currency={position.order.liquidationRewardAsset}
+            currency2={nativeCurrency}
             label1={t("liquidation_fee")}
             label2={t("liquidation_cost")}
             tooltip1={t("liquidation_fee_position_tooltip")}
@@ -194,7 +204,7 @@ export default function LiquidateForm({ position }: { position: MarginPosition }
                     }}
                     target="_blank"
                     rel="noopener noreferrer"
-                    href="https://www.google.com"
+                    href={`/${locale}/guidelines`}
                   >
                     {t("terms_of_liquidation")}
                   </a>
@@ -203,37 +213,7 @@ export default function LiquidateForm({ position }: { position: MarginPosition }
             />
           </div>
 
-          <div className="bg-tertiary-bg px-5 py-2 flex justify-between items-center rounded-3 flex-col xs:flex-row">
-            <div className="text-12 xs:text-14 flex items-center gap-8 justify-between xs:justify-start max-xs:w-full">
-              <p className="flex flex-col text-tertiary-text">
-                <span>{t("gas_price")}</span>
-                <span> {formatFloat(formatGwei(BigInt(0)))} GWEI</span>
-              </p>
-
-              <p className="flex flex-col text-tertiary-text">
-                <span>{t("gas_limit")}</span>
-                <span>{329000}</span>
-              </p>
-              <p className="flex flex-col">
-                <span className="text-tertiary-text">{t("network_fee")}</span>
-                <span>{formatFloat(formatEther(BigInt(0) * BigInt(0), "wei"))} ETH</span>
-              </p>
-            </div>
-            <div className="grid grid-cols-[auto_1fr] xs:flex xs:items-center gap-2 w-full xs:w-auto mt-2 xs:mt-0">
-              <span className="flex items-center justify-center px-2 text-14 rounded-20 font-500 text-secondary-text border border-secondary-border max-xs:h-8">
-                {t("cheap")}
-              </span>
-              <Button
-                colorScheme={ButtonColor.LIGHT_GREEN}
-                size={ButtonSize.EXTRA_SMALL}
-                onClick={() => null}
-                fullWidth={false}
-                className="rounded-5"
-              >
-                {t("edit")}
-              </Button>
-            </div>
-          </div>
+          <MarginGasSettings operation="liquidatePosition" />
         </div>
 
         {!position.isLiquidated ? (

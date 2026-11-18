@@ -6,6 +6,7 @@ import React, { use, useEffect } from "react";
 import { formatUnits } from "viem";
 import { useAccount } from "wagmi";
 
+import { useOrderLenderProtection } from "@/app/[locale]/margin-trading/hooks/useLenderProtection";
 import { useOrder } from "@/app/[locale]/margin-trading/hooks/useOrder";
 import OrderConfigurationPage from "@/app/[locale]/margin-trading/lending-order/[id]/components/OrderConfigurationPage";
 import ReviewEditOrderDialog from "@/app/[locale]/margin-trading/lending-order/[id]/edit/components/ReviewEditOrderDialog";
@@ -37,6 +38,7 @@ export default function EditLendingOrderPage({
   const t = useTranslations("Margin");
   const { id: orderId } = use(params);
   const { order, loading } = useOrder({ id: +orderId });
+  const lenderProtection = useOrderLenderProtection(+orderId);
 
   const { address } = useAccount();
 
@@ -49,8 +51,18 @@ export default function EditLendingOrderPage({
 
   const { setFirstStepValues, setSecondStepValues, setThirdStepValues } = config;
 
+  // Leaving the edit page drops the draft, so editing the same order again starts from its current
+  // on-chain values on step 1 instead of the last visit's step and values.
   useEffect(() => {
-    if (!order) {
+    return () => {
+      useEditOrderConfigStore.getState().setIsInitialized(false);
+      useEditOrderStepStore.getState().setStep(OrderActionStep.FIRST);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Wait for the on-chain lender protection settings so the form starts from them.
+    if (!order || lenderProtection.loading) {
       return;
     }
     if (isInitialized && initializedOrderId === order.id) {
@@ -84,7 +96,13 @@ export default function EditLendingOrderPage({
       tradingTokens: {
         inputMode: TradingTokensInputMode.MANUAL,
         allowedTokens: order.allowedTradingAssets,
-        includeERC223Trading: false,
+        // Start from what the order allows. A hardcoded false made every save rebuild the
+        // whitelist without the ERC-223 addresses, silently turning ERC-223 trading off.
+        includeERC223Trading: order.allowedTradingAssets.some((token) =>
+          (order.allowedTradingAddresses ?? []).some(
+            (address) => address.toLowerCase() === token.wrapped.address1?.toLowerCase(),
+          ),
+        ),
         tradingTokensAutoListing: undefined,
       },
     });
@@ -95,12 +113,17 @@ export default function EditLendingOrderPage({
       liquidationMode: { type: LiquidationType.ANYONE, whitelistedLiquidators: [] },
       liquidationFeeForLiquidator: order.liquidationRewardAmount.formatted,
       priceSource: ORACLE_ADDRESS[DexChainId.SEPOLIA],
+      maintenanceMarginPercent: String(lenderProtection.marginPercent),
+      liquidationKeeper: lenderProtection.keeper,
     });
 
     setInitializedFor(order.id);
   }, [
     initializedOrderId,
     isInitialized,
+    lenderProtection.keeper,
+    lenderProtection.loading,
+    lenderProtection.marginPercent,
     order,
     setFirstStepValues,
     setInitializedFor,
@@ -149,6 +172,7 @@ export default function EditLendingOrderPage({
         <div className="flex justify-center grid-in-[right]">
           <div className="flex flex-col gap-4 md:gap-6 lg:gap-5 w-full sm:max-w-[600px] xl:max-w-full">
             <OrderConfigurationPage
+              order={order}
               {...config}
               openPreviewDialog={() => setIsOpen(true)}
               mode={OrderActionMode.EDIT}

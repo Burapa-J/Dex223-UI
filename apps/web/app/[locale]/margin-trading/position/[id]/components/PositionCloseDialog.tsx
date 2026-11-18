@@ -3,9 +3,11 @@ import clsx from "clsx";
 import { useTranslations } from "next-intl";
 import React, { useMemo, useState } from "react";
 import { formatEther, formatGwei, formatUnits, isAddress } from "viem";
-import { useAccount } from "wagmi";
+import { useAccount, useSimulateContract } from "wagmi";
 
 import { useOpenMarginSwapForPosition } from "@/app/[locale]/margin-swap/hooks/useOpenMarginSwapForPosition";
+import MarginGasSettings from "@/app/[locale]/margin-trading/components/MarginGasSettings";
+import MarginRevertReason from "@/app/[locale]/margin-trading/components/MarginRevertReason";
 import { SimpleInfoBlock } from "@/app/[locale]/margin-trading/components/widgets/OrderInfoBlock";
 import usePositionClose from "@/app/[locale]/margin-trading/position/[id]/hooks/usePositionClose";
 import usePositionStatus from "@/app/[locale]/margin-trading/position/[id]/hooks/usePositionStatus";
@@ -28,9 +30,15 @@ import OperationStepRow, {
   operationStatusToStepStatus,
   OperationStepStatus,
 } from "@/components/common/OperationStepRow";
+import { MARGIN_MODULE_ABI } from "@/config/abis/marginModule";
+import { isMarginDeployed } from "@/config/modules";
 import { IconName } from "@/config/types/IconName";
 import { formatFloat } from "@/functions/formatFloat";
+import { getMarginRevertCode } from "@/functions/marginRevert";
+import useCurrentChainId from "@/hooks/useCurrentChainId";
+import { MARGIN_TRADING_ADDRESS } from "@/sdk_bi/addresses";
 import { getTokenAddressForStandard } from "@/sdk_bi/standard";
+import { useMarginRevertStore } from "@/stores/useMarginRevertStore";
 
 type StepTextMap = {
   [key in OperationStepStatus]: string;
@@ -149,6 +157,9 @@ export default function PositionCloseDialog({
 
       if (isLenderToken) {
         balance -= expectedBalance;
+        // When the base asset alone doesn't cover the debt, the contract sells other holdings
+        // first; this estimate doesn't model that sale, so never show a negative amount.
+        if (balance < BigInt(0)) balance = BigInt(0);
       }
 
       if (isFeeToken) {
@@ -171,6 +182,29 @@ export default function PositionCloseDialog({
 
     return result;
   }, [position, expectedBalance]);
+
+  // positionClose sells the position's other holdings until the debt is covered
+  // (Dex223MarginModule.positionClose -> _settle), for the borrower and for the lender after
+  // maturity. So the dialog asks the contract instead of comparing only the base asset balance with
+  // the debt, and shows "not enough to close" only when the close would revert MM31. The borrower
+  // used to be sent to Margin swap even when the sale would have covered the debt.
+  const chainId = useCurrentChainId();
+  const isOwner = address?.toLowerCase() === position.owner.toLowerCase();
+  const closeRevert = useMarginRevertStore((s) => s.reverts.close);
+  const { error: closeSimulationError, isSuccess: closeSimulates } = useSimulateContract({
+    abi: MARGIN_MODULE_ABI,
+    address: MARGIN_TRADING_ADDRESS[chainId],
+    functionName: "positionClose",
+    args: [BigInt(position.id), true],
+    account: address,
+    query: { enabled: isOpen && !!address && isMarginDeployed(chainId) },
+  });
+  const holdingsFallShort = getMarginRevertCode(closeSimulationError) === "MM31";
+  // While the simulation loads, the borrower's view keeps the old base-asset comparison; the lender's
+  // view shows the close (it simulates again before sending). Any other revert also shows the close
+  // view, which explains the reason when the user tries.
+  const contractCanClose =
+    !holdingsFallShort && (closeSimulates || !isOwner || Boolean(closeSimulationError));
 
   const baseAssetAmount = useMemo(() => {
     if (position.assetAddresses?.length) {
@@ -199,9 +233,10 @@ export default function PositionCloseDialog({
     <DrawerDialog isOpen={isOpen} setIsOpen={setIsOpen}>
       <DialogHeader onClose={() => setIsOpen(false)} title={t("close_margin_position")} />
       <div className={clsx(" card-spacing-x card-spacing-b w-full md:w-[600px]")}>
-        {baseAssetAmount != null &&
-        expectedBalance != null &&
-        baseAssetAmount >= expectedBalance ? (
+        {contractCanClose ||
+        (baseAssetAmount != null &&
+          expectedBalance != null &&
+          baseAssetAmount >= expectedBalance) ? (
           <>
             <div>
               {isFinalStatus && (
@@ -248,6 +283,9 @@ export default function PositionCloseDialog({
                       </div>
                     )}
                     <div className="my-4 border-b border-secondary-border w-full" />
+                    {status === PositionCloseStatus.ERROR_CLOSE && (
+                      <MarginRevertReason revert={closeRevert} />
+                    )}
                   </div>
                 </>
               )}
@@ -330,39 +368,7 @@ export default function PositionCloseDialog({
                       value={`${formatFloat(formatUnits(expectedBalance || BigInt(0), position.order.baseAsset.decimals))} ${position.loanAsset.symbol}`}
                     />
                   </div>
-                  {isInitialStatus && (
-                    <div className="mt-5 bg-tertiary-bg px-5 py-2 mb-5 flex justify-between items-center rounded-3 flex-col xs:flex-row">
-                      <div className="text-12 xs:text-14 flex items-center gap-8 justify-between xs:justify-start max-xs:w-full">
-                        <p className="flex flex-col text-tertiary-text">
-                          <span>{t("gas_price")}</span>
-                          <span> {formatFloat(formatGwei(BigInt(0)))} GWEI</span>
-                        </p>
-
-                        <p className="flex flex-col text-tertiary-text">
-                          <span>{t("gas_limit")}</span>
-                          <span>{329000}</span>
-                        </p>
-                        <p className="flex flex-col">
-                          <span className="text-tertiary-text">{t("network_fee")}</span>
-                          <span>{formatFloat(formatEther(BigInt(0) * BigInt(0), "wei"))} ETH</span>
-                        </p>
-                      </div>
-                      <div className="grid grid-cols-[auto_1fr] xs:flex xs:items-center gap-2 w-full xs:w-auto mt-2 xs:mt-0">
-                        <span className="flex items-center justify-center px-2 text-14 rounded-20 font-500 text-secondary-text border border-secondary-border max-xs:h-8">
-                          {t("cheap")}
-                        </span>
-                        <Button
-                          colorScheme={ButtonColor.LIGHT_GREEN}
-                          size={ButtonSize.EXTRA_SMALL}
-                          onClick={() => null}
-                          fullWidth={false}
-                          className="rounded-5"
-                        >
-                          {t("edit")}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+                  {isInitialStatus && <MarginGasSettings operation="closePosition" />}
                 </>
               )}
 

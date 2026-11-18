@@ -1,7 +1,10 @@
 import { useCallback } from "react";
 import { getAbiItem } from "viem";
-import { useAccount, usePublicClient, useWalletClient } from "wagmi";
+import { useAccount, usePublicClient } from "wagmi";
 
+import { useMarginWriteGas } from "@/app/[locale]/margin-trading/components/MarginGasSettings";
+import useMarginGasEstimate from "@/app/[locale]/margin-trading/hooks/useMarginGasEstimate";
+import useMarginWalletClient from "@/app/[locale]/margin-trading/hooks/useMarginWalletClient";
 import {
   OrderCloseStatus,
   useCloseOrderStatusStore,
@@ -23,11 +26,21 @@ import {
 
 export default function useOrderClose({ order }: { order: LendingOrder }) {
   const { setCloseOrderHash, setStatus, setErrorType } = useCloseOrderStatusStore();
-  const { data: walletClient } = useWalletClient();
+  const { data: walletClient } = useMarginWalletClient("closeOrder");
   const publicClient = usePublicClient();
   const { addRecentTransaction } = useRecentTransactionsStore();
   const chainId = useCurrentChainId();
+  const gasOverrides = useMarginWriteGas("closeOrder");
   const { address } = useAccount();
+
+  useMarginGasEstimate("closeOrder", () => {
+    return {
+      abi: MARGIN_MODULE_ABI,
+      address: MARGIN_TRADING_ADDRESS[chainId],
+      functionName: "setOrderStatus",
+      args: [BigInt(order.id), false],
+    };
+  });
 
   const handleOrderClose = useCallback(
     async (orderId: number) => {
@@ -51,6 +64,7 @@ export default function useOrderClose({ order }: { order: LendingOrder }) {
         };
 
         const hash = await walletClient.writeContract({
+          ...gasOverrides,
           ...params,
         });
 
@@ -107,6 +121,7 @@ export default function useOrderClose({ order }: { order: LendingOrder }) {
       addRecentTransaction,
       address,
       chainId,
+      gasOverrides,
       order.baseAsset?.logoURI,
       order.baseAsset.symbol,
       publicClient,
