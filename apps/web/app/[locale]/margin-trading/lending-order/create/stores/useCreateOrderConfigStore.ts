@@ -46,9 +46,12 @@ interface CreateOrderConfig {
   setFirstStepValues: (firstStep: FirstStepValues) => void;
   setSecondStepValues: (secondStep: SecondStepValues) => void;
   setThirdStepValues: (thirdStep: ThirdStepValues) => void;
+  /** Back to empty fields; the create page calls this when it unmounts. */
+  reset: () => void;
 }
 
-export const useCreateOrderConfigStore = create<CreateOrderConfig>((set, get) => ({
+// A function, so each reset gets fresh objects and arrays.
+const initialValues = () => ({
   firstStepValues: {
     interestRatePerMonth: "",
     period: {
@@ -89,6 +92,10 @@ export const useCreateOrderConfigStore = create<CreateOrderConfig>((set, get) =>
     maintenanceMarginPercent: "10",
     liquidationKeeper: "",
   },
+});
+
+export const useCreateOrderConfigStore = create<CreateOrderConfig>((set, get) => ({
+  ...initialValues(),
 
   setFirstStepValues: (firstStepValues: FirstStepValues) =>
     set({
@@ -103,4 +110,5 @@ export const useCreateOrderConfigStore = create<CreateOrderConfig>((set, get) =>
     }),
   setSecondStepValues: (secondStepValues: SecondStepValues) => set({ secondStepValues }),
   setThirdStepValues: (thirdStepValues: ThirdStepValues) => set({ thirdStepValues }),
+  reset: () => set(initialValues()),
 }));

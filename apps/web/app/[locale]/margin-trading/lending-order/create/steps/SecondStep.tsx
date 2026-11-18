@@ -17,6 +17,7 @@ import OraclePricingAlerts, {
 import PickAllowedTokenListsDialog from "@/app/[locale]/margin-trading/lending-order/create/components/PickAllowedTokenListsDialog";
 import PickAllowedTokensDialog from "@/app/[locale]/margin-trading/lending-order/create/components/PickAllowedTokensDialog";
 import PickCollateralTokensDialog from "@/app/[locale]/margin-trading/lending-order/create/components/PickCollateralTokensDialog";
+import { positionDurationSeconds } from "@/app/[locale]/margin-trading/lending-order/create/helpers/positionDurationSeconds";
 import {
   LendingOrderTradingTokens,
   TradingTokensInputMode,
@@ -142,19 +143,14 @@ export default function SecondStep({
               title={t("receive_entire_period")}
               value={
                 firstStepValues.interestRatePerMonth &&
-                firstStepValues.period.lendingOrderDeadline &&
+                firstStepValues.period.positionDuration &&
                 firstStepValues.loanAmount &&
                 firstStepValues.loanToken?.symbol
                   ? (() => {
                       const loanAmount = parseFloat(firstStepValues.loanAmount);
                       const interestRate = calculatePeriodInterestRateNum(
                         +firstStepValues.interestRatePerMonth * 100,
-                        Math.max(
-                          0,
-                          (new Date(firstStepValues.period.lendingOrderDeadline).getTime() -
-                            Date.now()) /
-                            1000,
-                        ),
+                        positionDurationSeconds(firstStepValues.period.positionDuration),
                       );
 
                       if (isNaN(loanAmount) || isNaN(interestRate)) return "—";
