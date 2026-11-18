@@ -343,7 +343,7 @@ export default function BorrowMarketTable({
                               <Svg iconName="warning" className="text-red-light shrink-0" />
                             ) : (
                               <Image
-                                src="/images/tokens/placeholder.svg"
+                                src={o.baseAsset.logoURI || "/images/tokens/placeholder.svg"}
                                 width={24}
                                 height={24}
                                 alt=""

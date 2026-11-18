@@ -1439,12 +1439,12 @@
     "min_borrowing_tooltip": "借款人可从此订单借入的最小金额。",
     "min_borrowing_low_warning": "将最低借款金额设得过低，可能导致较小仓位从你的订单借款。请确保清算抵押足以支付 gas 费用。",
     "min_borrowing_exceeds": "最低借款金额超过指定的可用余额（{amount} {symbol}）。借款人将无法从此订单借款。",
-    "oracle_pricing_thin": "保证金交易目前还无法可靠地以 {loan} 为基准为 {symbols} 定价。该资金池只保存很短的价格历史，因此池中每发生一笔交易后，30 分钟内兑换为 {symbols} 和清算都会失败。启用定价即可为所有人修复（每个代币一笔网络交易）。",
-    "oracle_pricing_enable": "为 {symbol} 启用定价",
-    "oracle_pricing_enable_hint": "任何人都可以发送。每个资金池只需支付一次 Gas。",
-    "oracle_pricing_enabled": "已为 {symbols} 启用定价。约 30 分钟后，资金池积累 30 分钟价格历史时，即可用于保证金兑换和清算。",
+    "oracle_pricing_thin": "保证金交易需要 {symbols} 更长的价格历史。普通兑换可正常进行，但保证金交易以 30 分钟平均价格对 {symbols} 相对 {loan} 进行估值，而该池存储的历史价格不足以始终提供这一价格。在此期间，兑换为 {symbols} 的保证金交易、平仓和清算可能会失败。增加该池的价格历史即可为所有人解决此问题。",
+    "oracle_pricing_enable": "增加 {symbol} 的价格历史",
+    "oracle_pricing_enable_hint": "任何人都可以发送。每个池只需支付一次，此后该池会保留更长的历史。",
+    "oracle_pricing_enabled": "{symbols} 的价格历史已增加。待池中累积 30 分钟的价格后，保证金交易即可使用。",
     "oracle_pricing_no_pool": "没有价格预言机可用的 {symbols}/{loan} 资金池，因此 {symbols} 不能用于保证金交易。请移除 {symbols}，或先创建与 {loan} 的资金池并添加流动性。",
-    "oracle_pricing_enable_failed": "启用定价失败，请重试。",
+    "oracle_pricing_enable_failed": "增加价格历史失败。请重试。",
     "currency_limit_order_tooltip": "一个仓位一次可持有的最大币种数量。",
     "currency_limit_warning": "如果指定超过 4 种币，清算费用（借款人）会更高",
     "create_lending_order": "创建借贷订单",
@@ -1673,6 +1673,9 @@
     "liquidate_success": "清算成功",
     "liquidate_failed": "清算失败",
     "freeze_failed": "冻结失败",
+    "position_already_closed": "该仓位已关闭",
+    "freeze_renewed_title": "冻结已更新",
+    "freeze_renewed": "冻结已过期并已重新冻结。请在下一个区块后再次清算。",
     "total_expected_balance": "总余额 / 预期余额",
     "total_expected_balance_tooltip": "当前余额与维持该仓位健康所需余额的对比。",
     "transactions_history": "交易历史",
@@ -1740,7 +1743,15 @@
     "liquidation_gas_hint": "当前一次清算约需 {now} ETH 的 Gas（{gwei} gwei），在 {spikeGwei} gwei 时约需 {spike} ETH。",
     "liquidation_gas_no_price": "无法比较：{symbol} 没有价格。",
     "liquidation_reward_below_spike": "您的奖励（{reward}）低于 Gas 飙升时的清算成本（{spikeGwei} gwei 时约 {spike} ETH）。飙升期间清算人可能不会行动，而这恰恰是价格变化最快的时候。建议至少 {spike} ETH。",
-    "liquidation_reward_below_now": "您的奖励（{reward}）低于当前的清算成本（约 {now} ETH）。清算人会亏钱，因此不太可能清算该订单的仓位。请提高奖励，或计划自行清算仓位。"
+    "liquidation_reward_below_now": "您的奖励（{reward}）低于当前的清算成本（约 {now} ETH）。清算人会亏钱，因此不太可能清算该订单的仓位。请提高奖励，或计划自行清算仓位。",
+    "maintenance_margin": "维持保证金",
+    "maintenance_margin_tooltip": "仓位价值必须比债务高出多少。低于此值即可被清算。",
+    "maintenance_margin_help": "仓位价值低于债务加 {percent}% 时将被清算。越高保护越多，但杠杆越低（{percent}% 时：最高 {leverage} 倍）。",
+    "liquidation_keeper": "清算执行人（可选）",
+    "liquidation_keeper_tooltip": "在仓位价值低于债务时可代您完成清算的可信地址。",
+    "liquidation_keeper_placeholder": "可代您清算的 0x… 地址",
+    "liquidation_keeper_help": "在仓位低于债务期间（前 24 小时）可代您完成清算。如自行处理请留空。",
+    "lender_window_info": "如果仓位跌破债务，前 24 小时内只有您或您的执行人可以清算，由您决定接受损失还是等待。24 小时后任何人都可以清算。"
   },
   "TradingChart": {
     "select_pair": "选择两个代币以查看图表",
@@ -1867,7 +1878,9 @@
     "ath": "历史最高",
     "atl": "历史最低",
     "from_ath": "较最高价 {percent}",
-    "chart_source": "图表：{source}"
+    "chart_source": "图表：{source}",
+    "coin_title": "{name}（{symbol}）价格",
+    "coin_description": "{name} 的实时价格、24 小时区间、市值和图表。"
   },
   "Seo": {
     "default": {
@@ -1944,7 +1957,7 @@
     },
     "markets": {
       "title": "加密市场：价格与图表",
-      "description": "主流加密货币的实时价格、市值和图表，并可一键前往 DEX223 交易。"
+      "description": "主流加密货币的实时价格、市值和图表。"
     },
     "governance": {
       "title": "DEX223 治理",

@@ -1439,12 +1439,12 @@
     "min_borrowing_tooltip": "Plus petit prêt qu’un emprunteur peut prendre sur cet ordre.",
     "min_borrowing_low_warning": "Un montant d’emprunt minimum trop bas peut permettre à de petites positions d’emprunter sur votre ordre. Vérifiez que les garanties de liquidation couvrent les frais de gas.",
     "min_borrowing_exceeds": "Le montant d’emprunt minimum dépasse le solde disponible indiqué ({amount} {symbol}). Les emprunteurs ne pourront pas prendre de prêts sur cet ordre.",
-    "oracle_pricing_thin": "Le trading sur marge ne peut pas encore évaluer de façon fiable {symbols} par rapport à {loan}. Son pool ne garde qu'un court historique de prix : après chaque échange dans ce pool, les échanges vers {symbols} et les liquidations échouent pendant 30 minutes. Activez l'évaluation pour corriger cela pour tous (une transaction réseau par jeton).",
-    "oracle_pricing_enable": "Activer l'évaluation de {symbol}",
-    "oracle_pricing_enable_hint": "N'importe qui peut l'envoyer. Le gaz est payé une seule fois par pool.",
-    "oracle_pricing_enabled": "Évaluation activée pour {symbols}. Utilisable pour les échanges sur marge et les liquidations dans environ 30 minutes, quand le pool aura 30 minutes d'historique de prix.",
+    "oracle_pricing_thin": "Le trading sur marge a besoin d'un historique de prix plus long pour {symbols}. Les swaps normaux fonctionnent, mais le trading sur marge évalue {symbols} par rapport à {loan} avec un prix moyen sur 30 minutes, et leur pool ne conserve pas assez de prix passés pour toujours en disposer. Tant que ce n'est pas le cas, les swaps sur marge vers {symbols}, les clôtures de positions et les liquidations peuvent échouer. Augmenter l'historique de prix du pool corrige cela pour tout le monde.",
+    "oracle_pricing_enable": "Augmenter l'historique de prix de {symbol}",
+    "oracle_pricing_enable_hint": "N'importe qui peut l'envoyer. C'est payé une seule fois par pool, et le pool conserve ensuite l'historique plus long.",
+    "oracle_pricing_enabled": "Historique de prix augmenté pour {symbols}. Le trading sur marge pourra l'utiliser dès que le pool aura 30 minutes de prix.",
     "oracle_pricing_no_pool": "Aucun pool {symbols}/{loan} n'est utilisable par l'oracle de prix, donc {symbols} ne peut pas être proposé au trading sur marge. Retirez {symbols}, ou créez d'abord un pool avec {loan} et ajoutez de la liquidité.",
-    "oracle_pricing_enable_failed": "L'activation de l'évaluation a échoué. Veuillez réessayer.",
+    "oracle_pricing_enable_failed": "L'augmentation de l'historique de prix a échoué. Veuillez réessayer.",
     "currency_limit_order_tooltip": "Nombre maximum de devises qu’une position peut détenir à la fois.",
     "currency_limit_warning": "Si plus de 4 devises sont spécifiées, les frais de liquidation (Emprunteur) seront plus élevés",
     "create_lending_order": "Créer un ordre de prêt",
@@ -1673,6 +1673,9 @@
     "liquidate_success": "Liquidation réussie",
     "liquidate_failed": "Échec de la liquidation",
     "freeze_failed": "Échec du gel",
+    "position_already_closed": "Cette position est déjà clôturée",
+    "freeze_renewed_title": "Gel renouvelé",
+    "freeze_renewed": "Le gel a expiré et a été renouvelé. Liquidez à nouveau après le bloc suivant.",
     "total_expected_balance": "Solde total / Solde attendu",
     "total_expected_balance_tooltip": "Solde actuel par rapport au solde nécessaire pour maintenir cette position en bon état.",
     "transactions_history": "Historique des transactions",
@@ -1740,7 +1743,15 @@
     "liquidation_gas_hint": "Une liquidation coûte environ {now} ETH de gaz maintenant ({gwei} gwei) et environ {spike} ETH à {spikeGwei} gwei.",
     "liquidation_gas_no_price": "Comparaison impossible : aucun prix pour {symbol}.",
     "liquidation_reward_below_spike": "Votre récompense ({reward}) est inférieure au coût d'une liquidation lors d'un pic de gaz (environ {spike} ETH à {spikeGwei} gwei). Pendant un pic, les liquidateurs risquent de ne pas agir, alors que les prix bougent le plus vite. Prévoyez au moins {spike} ETH.",
-    "liquidation_reward_below_now": "Votre récompense ({reward}) est inférieure au coût actuel d'une liquidation (environ {now} ETH). Les liquidateurs perdraient de l'argent et liquideront donc peu probablement les positions de cet ordre. Augmentez la récompense ou prévoyez de liquider vous-même."
+    "liquidation_reward_below_now": "Votre récompense ({reward}) est inférieure au coût actuel d'une liquidation (environ {now} ETH). Les liquidateurs perdraient de l'argent et liquideront donc peu probablement les positions de cet ordre. Augmentez la récompense ou prévoyez de liquider vous-même.",
+    "maintenance_margin": "Marge de maintien",
+    "maintenance_margin_tooltip": "De combien une position doit valoir plus que la dette. En dessous, elle peut être liquidée.",
+    "maintenance_margin_help": "Les positions sont liquidées dès qu'elles valent moins que la dette plus {percent} %. Plus haut vous protège davantage mais réduit l'effet de levier (à {percent} % : jusqu'à {leverage}x).",
+    "liquidation_keeper": "Keeper de liquidation (facultatif)",
+    "liquidation_keeper_tooltip": "Une adresse de confiance qui peut finaliser des liquidations pour vous tant qu'une position vaut moins que sa dette.",
+    "liquidation_keeper_placeholder": "Adresse 0x… pouvant liquider pour vous",
+    "liquidation_keeper_help": "Peut finaliser des liquidations pour vous tant qu'une position est sous sa dette (24 premières heures). Laissez vide si vous le faites vous-même.",
+    "lender_window_info": "Si une position passe sous sa dette, seuls vous ou votre keeper pouvez la liquider pendant 24 heures : vous décidez d'accepter la perte ou d'attendre. Après 24 heures, n'importe qui le peut."
   },
   "TradingChart": {
     "select_pair": "Sélectionnez deux jetons pour voir leur graphique",
@@ -1867,7 +1878,9 @@
     "ath": "Plus haut historique",
     "atl": "Plus bas historique",
     "from_ath": "{percent} depuis le plus haut",
-    "chart_source": "Graphique : {source}"
+    "chart_source": "Graphique : {source}",
+    "coin_title": "Prix de {name} ({symbol})",
+    "coin_description": "Prix en direct de {name}, variation sur 24 h, capitalisation et graphique."
   },
   "Seo": {
     "default": {
@@ -1944,7 +1957,7 @@
     },
     "markets": {
       "title": "Marchés crypto : prix et graphiques",
-      "description": "Prix, capitalisations et graphiques en direct des principales cryptomonnaies, avec un accès direct pour les échanger sur DEX223."
+      "description": "Prix, capitalisations et graphiques en direct des principales cryptomonnaies."
     },
     "governance": {
       "title": "Gouvernance DEX223",

@@ -1,8 +1,11 @@
 import { useCallback, useMemo } from "react";
 import { getAbiItem, parseEventLogs, parseUnits } from "viem";
-import { useAccount, usePublicClient, useWalletClient } from "wagmi";
+import { useAccount, usePublicClient } from "wagmi";
 
+import { useMarginWriteGas } from "@/app/[locale]/margin-trading/components/MarginGasSettings";
 import { getBorrowFunding } from "@/app/[locale]/margin-trading/helpers/assetFunding";
+import useMarginGasEstimate from "@/app/[locale]/margin-trading/hooks/useMarginGasEstimate";
+import useMarginWalletClient from "@/app/[locale]/margin-trading/hooks/useMarginWalletClient";
 import { useCreateMarginPositionConfigStore } from "@/app/[locale]/margin-trading/lending-order/[id]/borrow/stores/useCreateMarginPositionConfigStore";
 import {
   CreateMarginPositionStatus,
@@ -121,6 +124,38 @@ export function useCreatePositionApproveSteps(order: LendingOrder): {
   return { approveSteps, allSteps: [...approveSteps, borrowStep] };
 }
 
+export function useBorrowGasEstimate(
+  order: LendingOrder | undefined,
+  values: {
+    collateralToken: Currency | undefined;
+    collateralTokenStandard: Standard;
+    collateralAmount: string;
+    borrowAmount: string;
+  },
+) {
+  const chainId = useCurrentChainId();
+  useMarginGasEstimate("borrow", () => {
+    if (!order) return;
+    try {
+      const funding = getBorrowFunding(order, values);
+      return {
+        abi: MARGIN_MODULE_ABI,
+        address: MARGIN_TRADING_ADDRESS[chainId],
+        functionName: "takeLoan" as const,
+        args: [
+          BigInt(order.id),
+          funding.borrowAmount,
+          BigInt(funding.collateralIndex),
+          funding.collateralAmount,
+        ] as const,
+        value: funding.nativeValue,
+      };
+    } catch {
+      return undefined;
+    }
+  });
+}
+
 export default function useCreateMarginPosition(order: LendingOrder) {
   const {
     setStatus,
@@ -132,7 +167,8 @@ export default function useCreateMarginPosition(order: LendingOrder) {
   const { values } = useCreateMarginPositionConfigStore();
   const funding = useBorrowFunding(order);
   const { addRecentTransaction } = useRecentTransactionsStore();
-  const { data: walletClient } = useWalletClient();
+  const gasOverrides = useMarginWriteGas("borrow");
+  const { data: walletClient } = useMarginWalletClient("borrow");
   const publicClient = usePublicClient();
   const chainId = useCurrentChainId();
   const { address } = useAccount();
@@ -143,6 +179,8 @@ export default function useCreateMarginPosition(order: LendingOrder) {
     contractAddress: MARGIN_TRADING_ADDRESS[chainId],
     amountToCheck: funding?.collateralApprovalAmount ?? null,
   });
+  useBorrowGasEstimate(order, values);
+
   const { isAllowed: feeAllowed, writeTokenApprove: approveFee } = useStoreAllowance({
     token:
       funding?.feeIsNative || funding?.combinedApproval ? undefined : order.liquidationRewardAsset,
@@ -190,6 +228,7 @@ export default function useCreateMarginPosition(order: LendingOrder) {
               address: funding.collateralAddress,
               functionName: "transfer",
               args: [MARGIN_TRADING_ADDRESS[chainId], funding.collateralAmount],
+              ...gasOverrides,
               account: undefined,
             });
             setTransferHash(hash);
@@ -201,6 +240,7 @@ export default function useCreateMarginPosition(order: LendingOrder) {
             setStatus(CreateMarginPositionStatus.PENDING_APPROVE_BORROW);
             const result = await approveCollateral({
               customAmount: collateralApproval,
+              customGasSettings: gasOverrides,
             });
             if (!result?.success) throw new Error("Collateral approval failed");
             setApproveBorrowHash(result.hash);
@@ -229,11 +269,13 @@ export default function useCreateMarginPosition(order: LendingOrder) {
                 address: funding.feeAddress,
                 functionName: "transfer",
                 args: [MARGIN_TRADING_ADDRESS[chainId], order.liquidationRewardAmount.value],
+                ...gasOverrides,
                 account: undefined,
               });
             } else {
               const result = await approveFee({
                 customAmount: feeApproval,
+                customGasSettings: gasOverrides,
               });
               if (!result?.success) throw new Error("Fee approval failed");
               hash = result.hash;
@@ -261,6 +303,7 @@ export default function useCreateMarginPosition(order: LendingOrder) {
         };
         const hash = await walletClient.writeContract({
           ...params,
+          ...gasOverrides,
           account: undefined,
         });
         setBorrowHash(hash);
@@ -315,6 +358,7 @@ export default function useCreateMarginPosition(order: LendingOrder) {
       collateralAllowed,
       feeAllowed,
       funding,
+      gasOverrides,
       order,
       publicClient,
       setApproveBorrowHash,
