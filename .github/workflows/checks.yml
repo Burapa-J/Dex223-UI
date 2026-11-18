@@ -57,3 +57,28 @@ jobs:
         if: matrix.app == 'web'
         working-directory: apps/web
         run: node tests/apiProxies.test.cjs
+
+      - name: Margin revert reason regressions
+        if: matrix.app == 'web'
+        working-directory: apps/web
+        run: node tests/marginRevert.test.cjs
+
+      - name: ETH to wei regressions
+        if: matrix.app == 'web'
+        working-directory: apps/web
+        run: node tests/ethToWei.test.cjs
+
+      - name: Pool refetch regressions
+        if: matrix.app == 'web'
+        working-directory: apps/web
+        run: node tests/poolNeedsFetch.test.cjs
+
+      - name: Margin deposit regressions
+        if: matrix.app == 'web'
+        working-directory: apps/web
+        run: node tests/marginDeposit.test.cjs
+
+      - name: Margin swap regressions
+        if: matrix.app == 'web'
+        working-directory: apps/web
+        run: node tests/marginSwap.test.cjs

@@ -6,6 +6,7 @@ import { formatUnits, parseUnits } from "viem";
 import dateToDateString from "@/app/[locale]/margin-trading/helpers/dateToDateString";
 import timestampToDateString from "@/app/[locale]/margin-trading/helpers/timestampToDateString";
 import useEditOrder, {
+  tradingWhitelistChanged,
   useEditOrderParams,
 } from "@/app/[locale]/margin-trading/lending-order/[id]/edit/hooks/useEditOrder";
 import {
@@ -63,12 +64,14 @@ function EditOrderActionButton({
   amountToApprove,
   order,
   disabled,
+  recreateTokenList,
 }: {
   amountToApprove: string;
   order: LendingOrder;
   disabled?: boolean;
+  recreateTokenList: boolean;
 }) {
-  const { handleEditOrder } = useEditOrder(order);
+  const { handleEditOrder } = useEditOrder();
 
   const { status, modifyOrderHash } = useEditOrderStatusStore();
   const { loanToken } = useEditOrderParams();
@@ -99,7 +102,7 @@ function EditOrderActionButton({
   }
 
   return (
-    <Button disabled={disabled} onClick={() => handleEditOrder()} fullWidth>
+    <Button disabled={disabled} onClick={() => handleEditOrder(order, recreateTokenList)} fullWidth>
       {disabled ? "No changes were made" : "Save changes"}
     </Button>
   );
@@ -244,9 +247,10 @@ export default function ReviewEditOrderDialog({
       {
         id: "allowed-for-trading",
         label: "Tokens allowed for trading",
-        compare: () =>
-          tradingTokens.allowedTokens.length !== order.allowedTradingAssets.length ||
-          tradingTokens.includeERC223Trading !== order.isErc223TradingAllowed,
+        // Compare the exact addresses the edit would send with the order's on-chain whitelist.
+        // Counting tokens and comparing against isErc223TradingAllowed (which also reflects
+        // collateral and the base asset) reported unchanged lists as changed.
+        compare: () => tradingWhitelistChanged(order, tradingTokens),
         getOldValue: () => <AssetsPreview assets={order.allowedTradingAssets} />,
         getNewValue: () => <AssetsPreview assets={tradingTokens.allowedTokens} />,
       },
@@ -270,25 +274,11 @@ export default function ReviewEditOrderDialog({
     liquidationFeeForLiquidator,
     liquidationFeeToken,
     minimumBorrowingAmount,
-    order.allowedCollateralAssets,
-    order.allowedTradingAssets,
-    order.baseAsset.decimals,
-    order.baseAsset.symbol,
-    order.currencyLimit,
-    order.deadline,
-    order.interestRate,
-    order.isErc223TradingAllowed,
-    order.leverage,
-    order.liquidationRewardAmount.formatted,
-    order.liquidationRewardAmount.value,
-    order.liquidationRewardAsset,
-    order.minLoan,
-    order.positionDuration,
+    order,
     orderCurrencyLimit,
     period.lendingOrderDeadline,
     period.positionDuration,
-    tradingTokens.allowedTokens,
-    tradingTokens.includeERC223Trading,
+    tradingTokens,
   ]);
 
   const modifiedOrderProperties = useMemo(() => {
@@ -387,6 +377,9 @@ export default function ReviewEditOrderDialog({
           disabled={!modifiedOrderProperties.length}
           order={order}
           amountToApprove={amountToApprove}
+          recreateTokenList={Boolean(
+            modifiedOrderProperties.find((value) => value.id === "allowed-for-trading"),
+          )}
         />
       </div>
     </DrawerDialog>

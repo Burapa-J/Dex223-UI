@@ -10,9 +10,13 @@ import {
   parseEventLogs,
   parseUnits,
 } from "viem";
-import { useAccount, usePublicClient } from "wagmi";
+import { useAccount, usePublicClient, useReadContract } from "wagmi";
 
 import { useMarginWriteGas } from "@/app/[locale]/margin-trading/components/MarginGasSettings";
+import {
+  encodeLenderProtection,
+  useOrderLenderProtection,
+} from "@/app/[locale]/margin-trading/hooks/useLenderProtection";
 import useMarginGasEstimate from "@/app/[locale]/margin-trading/hooks/useMarginGasEstimate";
 import useMarginWalletClient from "@/app/[locale]/margin-trading/hooks/useMarginWalletClient";
 import { TradingTokensInputMode } from "@/app/[locale]/margin-trading/lending-order/create/steps/types";
@@ -98,7 +102,18 @@ export function useCreateOrderRequest(liveValues?: ThirdStepValues) {
     period,
     interestRatePerMonth,
     leverage,
+    maintenanceMarginPercent,
+    liquidationKeeper,
   } = { ...useCreateOrderParams(), ...liveValues };
+  // The send appends orderSetLenderProtection for the next order id; the preview must encode the
+  // same calldata, or a gas limit edited in the dialog is not applied to the real transaction.
+  const { supported: lenderProtectionSupported } = useOrderLenderProtection();
+  const { data: nextOrderId } = useReadContract({
+    abi: MARGIN_MODULE_ABI,
+    address: MARGIN_TRADING_ADDRESS[chainId],
+    functionName: "orderIndex",
+    query: { enabled: lenderProtectionSupported && isMarginDeployed(chainId) },
+  });
 
   return useMarginGasEstimate("createOrder", () => {
     if (
@@ -172,11 +187,20 @@ export function useCreateOrderRequest(liveValues?: ThirdStepValues) {
       ],
     });
 
+    const encodedLenderProtection =
+      lenderProtectionSupported && nextOrderId !== undefined
+        ? encodeLenderProtection(nextOrderId as bigint, maintenanceMarginPercent, liquidationKeeper)
+        : undefined;
+
     return {
       abi: MARGIN_MODULE_ABI,
       address: MARGIN_TRADING_ADDRESS[chainId],
       functionName: "multicall" as const,
-      args: [[encodedAddTokenListParams, encodedCreateOrderParams]],
+      args: [
+        [encodedAddTokenListParams, encodedCreateOrderParams, encodedLenderProtection].filter(
+          (call): call is `0x${string}` => Boolean(call),
+        ),
+      ],
     };
   });
 }
@@ -208,6 +232,7 @@ export default function useCreateOrder() {
     amountToCheck: parseUnits(params.loanAmount, params.loanToken?.decimals ?? 18),
   });
   const { setOrderId } = useNewlyCreatedOrderId();
+  const { supported: lenderProtectionSupported } = useOrderLenderProtection();
 
   const { address } = useAccount();
   const gasSettings = useMarginWriteGas("createOrder");
@@ -224,6 +249,8 @@ export default function useCreateOrder() {
     orderCurrencyLimit,
     period,
     interestRatePerMonth,
+    maintenanceMarginPercent,
+    liquidationKeeper,
     leverage,
     priceSource,
   } = useCreateOrderParams();
@@ -322,11 +349,32 @@ export default function useCreateOrder() {
         ],
       });
 
+      // Lender protection goes in the same transaction. The new order's id is the current
+      // orderIndex; if another order lands first, the call reverts (not the owner) and so does the
+      // whole multicall, so nothing is created with the wrong settings.
+      let encodedLenderProtection: `0x${string}` | undefined;
+      if (lenderProtectionSupported) {
+        const nextOrderId = (await publicClient.readContract({
+          abi: MARGIN_MODULE_ABI,
+          address: MARGIN_TRADING_ADDRESS[chainId],
+          functionName: "orderIndex",
+        })) as bigint;
+        encodedLenderProtection = encodeLenderProtection(
+          nextOrderId,
+          maintenanceMarginPercent,
+          liquidationKeeper,
+        );
+      }
+
       const multicallParams = {
         abi: MARGIN_MODULE_ABI,
         address: MARGIN_TRADING_ADDRESS[chainId],
         functionName: "multicall",
-        args: [[encodedAddTokenListParams, encodedCreateOrderParams]],
+        args: [
+          encodedLenderProtection
+            ? [encodedAddTokenListParams, encodedCreateOrderParams, encodedLenderProtection]
+            : [encodedAddTokenListParams, encodedCreateOrderParams],
+        ],
       } as const;
 
       const addTokenListAndCreateOrderHash = await walletClient.writeContract({
@@ -600,6 +648,9 @@ export default function useCreateOrder() {
     },
     [
       address,
+      lenderProtectionSupported,
+      liquidationKeeper,
+      maintenanceMarginPercent,
       approveA,
       chainId,
       gasSettings,

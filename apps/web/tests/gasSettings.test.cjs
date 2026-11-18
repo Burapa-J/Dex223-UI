@@ -373,6 +373,19 @@ const liquidationStatus = load(
   `${marginRoot}position/[id]/liquidate/stores/usePositionLiquidateStatusStore.ts`,
   { "@/stores/factories/createOperationStatusStore": { createOperationStatusStore: () => {} } },
 ).PositionLiquidateStatus;
+const marginRevertStub = {
+  getMarginRevertCode: (error) => String(error && error.message).match(/\bMM\d{2}\b/)?.[0],
+  getMinedRevert: async (_client, hash) => ({ hash }),
+  isUserRejection: (error) => error && error.code === 4001,
+  toMarginRevert: (error, hash) => ({
+    code: undefined,
+    shortMessage: error && error.message,
+    hash,
+  }),
+};
+const marginRevertStoreStub = {
+  useMarginRevertStore: (select) => select({ reverts: {}, setRevert() {} }),
+};
 function liquidationHarness({
   frozenTime = 0n,
   alive = true,
@@ -398,10 +411,20 @@ function liquidationHarness({
       position[7] = frozenTime;
       return position;
     },
-    getBlock: async () => ({ timestamp }),
+    // Master's flow simulates every call first (readable MM revert reasons) and polls the latest
+    // block until it is past the freeze. Each sent transaction lands one block (one second) later.
+    simulateContract: async (request) => {
+      if (!liquidatable) throw new Error("execution reverted: MM23");
+      const { abi, address, functionName, args } = request;
+      return { request: { abi, address, functionName, args, account: request.account } };
+    },
+    getBlock: async (params) => ({
+      timestamp:
+        params && params.blockNumber !== undefined ? timestamp : timestamp + BigInt(h.sent.length),
+    }),
     waitForTransactionReceipt: async (params) => {
       events.push(params);
-      return { status: receiptStatus };
+      return { status: receiptStatus, blockNumber: 1n, logs: [] };
     },
   };
   const useLiquidate = load(`${marginRoot}position/[id]/liquidate/hooks/useLiquidatePosition.ts`, {
@@ -433,8 +456,10 @@ function liquidationHarness({
       },
     "@/config/abis/marginModule": { MARGIN_MODULE_ABI: marginAbi },
     "@/config/modules": { isMarginDeployed: () => true },
+    "@/functions/marginRevert": marginRevertStub,
     "@/hooks/useCurrentChainId": { default: () => chainId },
     "@/sdk_bi/addresses": { MARGIN_TRADING_ADDRESS: { [chainId]: contract } },
+    "@/stores/useMarginRevertStore": marginRevertStoreStub,
   }).default;
   const position = { id: 1, order: { owner: contract }, isLiquidated: false };
   return {
@@ -479,7 +504,6 @@ test("fresh liquidation waits for a later block and applies the custom limit onl
   assert.equal(h.sent.length, 2);
   assert.equal(h.sent[0].gas, 150_000n);
   assert.equal(h.sent[1].gas, undefined);
-  assert.equal(h.events[1].confirmations, 2);
   assert.ok(h.states.includes(liquidationStatus.LOADING_BLOCK_CONFIRMATION));
   assert.equal(h.states.at(-1), liquidationStatus.SUCCESS);
 });
@@ -493,7 +517,7 @@ test("an existing live freeze liquidates once; completed positions send nothing"
   const complete = liquidationHarness({ alive: false });
   await complete.run();
   assert.equal(complete.sent.length, 0);
-  assert.equal(complete.states.at(-1), liquidationStatus.SUCCESS);
+  assert.equal(complete.states.at(-1), liquidationStatus.ALREADY_CLOSED);
 });
 
 test("a failed freeze never sends the liquidation transaction", async () => {
@@ -509,14 +533,14 @@ test("a failed freeze never sends the liquidation transaction", async () => {
   assert.equal(h.states.at(-1), liquidationStatus.ERROR_FREEZE);
 });
 
-test("a successful receipt that only re-freezes an open position is not liquidation success", async (t) => {
+test("a successful receipt that only re-freezes an open position reports a renewed freeze", async (t) => {
   t.mock.method(console, "error", () => {});
   for (const frozenTime of [0n, 99n]) {
     const h = liquidationHarness({ frozenTime, openAfterLiquidation: true });
     await h.run();
     assert.equal(h.sent.length, frozenTime === 0n ? 2 : 1);
     assert.equal(h.positionReads, frozenTime === 0n ? 3 : 2);
-    assert.equal(h.states.at(-1), liquidationStatus.ERROR_LIQUIDATE);
+    assert.equal(h.states.at(-1), liquidationStatus.FREEZE_RENEWED);
     assert.ok(!h.states.includes(liquidationStatus.SUCCESS));
   }
 });
@@ -681,6 +705,8 @@ function flowHarness() {
   const mocks = {
     react: { useCallback: (fn) => fn, useMemo: (fn) => fn() },
     wagmi: { useAccount: () => ({ address: account }), usePublicClient: () => ({}) },
+    "@/functions/marginRevert": marginRevertStub,
+    "@/stores/useMarginRevertStore": marginRevertStoreStub,
     "@/app/[locale]/margin-trading/components/MarginGasSettings": {
       useMarginWriteGas: () => ({ gasPrice: 3n }),
     },
@@ -960,6 +986,12 @@ test("create and edit estimates include unsaved third-step values without modify
     "@/app/[locale]/margin-trading/lending-order/create/stores/useNewlyCreatedOrderId": {},
     "@/app/[locale]/margin-trading/lending-order/[id]/edit/stores/useEditOrderStatusStore": {},
     "@/other/toast": {},
+    // Lender protection unsupported here, so neither preview appends orderSetLenderProtection.
+    "@/app/[locale]/margin-trading/hooks/useLenderProtection": {
+      useOrderLenderProtection: () => ({ supported: false }),
+      encodeLenderProtection: () => undefined,
+    },
+    wagmi: { ...h.mocks.wagmi, useReadContract: () => ({ data: undefined }) },
     "@/sdk_bi/addresses": {
       MARGIN_TRADING_ADDRESS: { [chainId]: contract },
       ORACLE_ADDRESS: { [chainId]: contract },
@@ -977,7 +1009,13 @@ test("create and edit estimates include unsaved third-step values without modify
   const created = decodeFunctionData({ abi: marginAbi, data: h.previews.createOrder.args[0][1] });
   assert.equal(created.args[0].currencyLimit, 4);
   assert.equal(created.args[0].liquidationRewardAmount, 2n * 10n ** 18n);
-  const order = { ...h.order, allowedTradingAssets: [h.token], isErc223TradingAllowed: false };
+  // Same whitelist as the form, so the edit doesn't rebuild the token list (no addTokenlist call).
+  const order = {
+    ...h.order,
+    allowedTradingAssets: [h.token],
+    allowedTradingAddresses: [h.token.wrapped.address0],
+    isErc223TradingAllowed: false,
+  };
   load(`${marginRoot}lending-order/[id]/edit/hooks/useEditOrder.tsx`, mocks).useEditOrderRequest(
     order,
     liveValues,

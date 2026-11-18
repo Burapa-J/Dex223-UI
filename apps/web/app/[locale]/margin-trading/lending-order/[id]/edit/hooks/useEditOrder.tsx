@@ -11,6 +11,10 @@ import {
 } from "viem";
 import { useAccount, usePublicClient } from "wagmi";
 
+import {
+  encodeLenderProtection,
+  useOrderLenderProtection,
+} from "@/app/[locale]/margin-trading/hooks/useLenderProtection";
 import useMarginGasEstimate from "@/app/[locale]/margin-trading/hooks/useMarginGasEstimate";
 import useMarginWalletClient from "@/app/[locale]/margin-trading/hooks/useMarginWalletClient";
 import { useEditOrderConfigStore } from "@/app/[locale]/margin-trading/lending-order/[id]/edit/stores/useEditOrderConfigStore";
@@ -19,8 +23,15 @@ import {
   useEditOrderStatusStore,
 } from "@/app/[locale]/margin-trading/lending-order/[id]/edit/stores/useEditOrderStatusStore";
 import { OrderDepositStatus } from "@/app/[locale]/margin-trading/lending-order/[id]/stores/useDepositOrderStatusStore";
-import { TradingTokensInputMode } from "@/app/[locale]/margin-trading/lending-order/create/steps/types";
+import {
+  LendingOrderTradingTokens,
+  TradingTokensInputMode,
+} from "@/app/[locale]/margin-trading/lending-order/create/steps/types";
 import { ThirdStepValues } from "@/app/[locale]/margin-trading/lending-order/create/stores/useCreateOrderConfigStore";
+import {
+  useCreateOrderGasLimitStore,
+  useCreateOrderGasPriceStore,
+} from "@/app/[locale]/margin-trading/lending-order/create/stores/useSwapGasSettingsStore";
 import { LendingOrder } from "@/app/[locale]/margin-trading/types";
 import { MARGIN_MODULE_ABI } from "@/config/abis/marginModule";
 import { isMarginDeployed } from "@/config/modules";
@@ -48,6 +59,53 @@ export function useEditOrderParams() {
 
 export function sortAddresses(addresses: string[]): string[] {
   return addresses.sort((a, b) => (a.toLowerCase() > b.toLowerCase() ? 1 : -1));
+}
+
+/**
+ * The trading whitelist the edit would send: the autolisting contract, or the sorted token
+ * addresses (ERC-223 forms included when ERC-223 trading is on). Shared by the transaction and the
+ * review's "changed" check, so the review only reports a change the transaction would make.
+ */
+export function buildTradingWhitelist(tradingTokens: LendingOrderTradingTokens): {
+  addresses: Address[];
+  isAutolisting: boolean;
+} {
+  if (tradingTokens.inputMode === TradingTokensInputMode.AUTOLISTING) {
+    return {
+      addresses: tradingTokens.tradingTokensAutoListing
+        ? [tradingTokens.tradingTokensAutoListing.id as Address]
+        : [],
+      isAutolisting: true,
+    };
+  }
+  return {
+    addresses: sortAddresses(
+      tradingTokens.allowedTokens.flatMap((token) =>
+        tradingTokens.includeERC223Trading
+          ? [token.wrapped.address0, token.wrapped.address1]
+          : [token.wrapped.address0],
+      ),
+    ) as Address[],
+    isAutolisting: false,
+  };
+}
+
+/** True when the order's current whitelist differs from the one the edit would send. */
+export function tradingWhitelistChanged(
+  order: Pick<LendingOrder, "allowedTradingAddresses" | "whitelistAutoListing">,
+  tradingTokens: LendingOrderTradingTokens,
+): boolean {
+  const next = buildTradingWhitelist(tradingTokens);
+  const orderAutolisting =
+    order.whitelistAutoListing && order.whitelistAutoListing.toLowerCase() !== ZERO_ADDRESS
+      ? order.whitelistAutoListing.toLowerCase()
+      : undefined;
+  if (next.isAutolisting || orderAutolisting) {
+    return !next.isAutolisting || next.addresses[0]?.toLowerCase() !== orderAutolisting;
+  }
+  const current = new Set((order.allowedTradingAddresses ?? []).map((a) => a.toLowerCase()));
+  const wanted = new Set(next.addresses.map((a) => a.toLowerCase()));
+  return current.size !== wanted.size || [...wanted].some((a) => !current.has(a));
 }
 
 export function getWhitelistId(addresses: Address[], isContract: boolean): Hash {
@@ -91,7 +149,10 @@ export function useEditOrderRequest(order: LendingOrder | undefined, liveValues?
     period,
     interestRatePerMonth,
     leverage,
+    maintenanceMarginPercent,
+    liquidationKeeper,
   } = { ...useEditOrderParams(), ...liveValues };
+  const { supported: lenderProtectionSupported } = useOrderLenderProtection();
 
   return useMarginGasEstimate("editOrder", () => {
     if (
@@ -103,25 +164,13 @@ export function useEditOrderRequest(order: LendingOrder | undefined, liveValues?
     ) {
       return;
     }
-    const sortedAddresses =
-      tradingTokens.inputMode === TradingTokensInputMode.AUTOLISTING
-        ? [tradingTokens.tradingTokensAutoListing!.id]
-        : (sortAddresses(
-            tradingTokens.allowedTokens.flatMap((token) =>
-              tradingTokens.includeERC223Trading
-                ? [token.wrapped.address0, token.wrapped.address1]
-                : [token.wrapped.address0],
-            ),
-          ) as Address[]);
+    const { addresses: sortedAddresses, isAutolisting } = buildTradingWhitelist(tradingTokens);
     const encodedAddTokenListParams = encodeFunctionData({
       abi: MARGIN_MODULE_ABI,
       functionName: "addTokenlist",
-      args: [sortedAddresses, tradingTokens.inputMode === TradingTokensInputMode.AUTOLISTING],
+      args: [sortedAddresses, isAutolisting],
     });
-    const whitelistId = getWhitelistId(
-      sortedAddresses,
-      tradingTokens.inputMode === TradingTokensInputMode.AUTOLISTING,
-    );
+    const whitelistId = getWhitelistId(sortedAddresses, isAutolisting);
     const encodedModifyOrderParams = encodeFunctionData({
       abi: MARGIN_MODULE_ABI,
       functionName: "modifyOrder",
@@ -152,12 +201,23 @@ export function useEditOrderRequest(order: LendingOrder | undefined, liveValues?
         }),
       ],
     });
-    const recreateTokenList =
-      tradingTokens.allowedTokens.length !== order.allowedTradingAssets.length ||
-      tradingTokens.includeERC223Trading !== order.isErc223TradingAllowed;
-    const actionsToUpdate = recreateTokenList
+    // Same rule as the review's "Tokens allowed for trading" row, so the preview matches the send.
+    const recreateTokenList = tradingWhitelistChanged(order, tradingTokens);
+    const baseActions = recreateTokenList
       ? [encodedAddTokenListParams, encodedModifyOrderParams, encodedCollateralTokens]
       : [encodedModifyOrderParams, encodedCollateralTokens];
+    // The send appends this too; the preview must use the same calldata for the gas limit to apply.
+    const actionsToUpdate = lenderProtectionSupported
+      ? [
+          ...baseActions,
+          encodeLenderProtection(
+            BigInt(order.id),
+            maintenanceMarginPercent,
+            liquidationKeeper,
+            true,
+          ),
+        ]
+      : baseActions;
 
     return {
       abi: MARGIN_MODULE_ABI,
@@ -173,6 +233,7 @@ export default function useEditOrder() {
   const { data: walletClient } = useMarginWalletClient("editOrder");
   const params = useEditOrderParams();
   const publicClient = usePublicClient();
+  const { supported: lenderProtectionSupported } = useOrderLenderProtection();
   const chainId = useCurrentChainId();
 
   const { setStatus, setModifyOrderHash } = useEditOrderStatusStore();
@@ -232,27 +293,15 @@ export default function useEditOrder() {
         return;
       }
 
-      const sortedAddresses =
-        tradingTokens.inputMode === TradingTokensInputMode.AUTOLISTING
-          ? [tradingTokens.tradingTokensAutoListing!.id] // add ! here because we have check upper
-          : (sortAddresses(
-              tradingTokens.allowedTokens.flatMap((token) =>
-                tradingTokens.includeERC223Trading
-                  ? [token.wrapped.address0, token.wrapped.address1]
-                  : [token.wrapped.address0],
-              ),
-            ) as Address[]);
+      const { addresses: sortedAddresses, isAutolisting } = buildTradingWhitelist(tradingTokens);
 
       const encodedAddTokenListParams = encodeFunctionData({
         abi: MARGIN_MODULE_ABI,
         functionName: "addTokenlist",
-        args: [sortedAddresses, tradingTokens.inputMode === TradingTokensInputMode.AUTOLISTING],
+        args: [sortedAddresses, isAutolisting],
       });
 
-      const whitelistId = getWhitelistId(
-        sortedAddresses,
-        tradingTokens.inputMode === TradingTokensInputMode.AUTOLISTING,
-      );
+      const whitelistId = getWhitelistId(sortedAddresses, isAutolisting);
 
       const encodedModifyOrderParams = encodeFunctionData({
         abi: MARGIN_MODULE_ABI,
@@ -286,9 +335,21 @@ export default function useEditOrder() {
         ],
       });
 
-      const actionsToUpdate = recreateTokenList
+      const baseActions = recreateTokenList
         ? [encodedAddTokenListParams, encodedModifyOrderParams, encodedCollateralTokens]
         : [encodedModifyOrderParams, encodedCollateralTokens];
+      // Always sent when supported, so returning a field to its default clears the old setting.
+      const encodedLenderProtection = lenderProtectionSupported
+        ? encodeLenderProtection(
+            BigInt(order.id),
+            params.maintenanceMarginPercent,
+            params.liquidationKeeper,
+            true,
+          )
+        : undefined;
+      const actionsToUpdate = encodedLenderProtection
+        ? [...baseActions, encodedLenderProtection]
+        : baseActions;
 
       try {
         const modifyOrderHash = await walletClient.writeContract({
@@ -351,6 +412,7 @@ export default function useEditOrder() {
       }
     },
     [
+      lenderProtectionSupported,
       addRecentTransaction,
       address,
       chainId,
@@ -367,10 +429,8 @@ export default function useEditOrder() {
       publicClient,
       setModifyOrderHash,
       setStatus,
-      tradingTokens.allowedTokens,
-      tradingTokens.includeERC223Trading,
-      tradingTokens.inputMode,
-      tradingTokens.tradingTokensAutoListing,
+      tradingTokens,
+      collateralTokens,
       walletClient,
     ],
   );
