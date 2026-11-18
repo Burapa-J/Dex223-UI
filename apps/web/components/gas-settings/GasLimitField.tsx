@@ -42,7 +42,7 @@ export default function GasLimitField({
         colorScheme={colorScheme}
         isNumeric
         decimalScale={0}
-        placeholder={t("gas_limit")}
+        placeholder={estimatedGas > 0n ? t("gas_limit") : t("configure_automatically")}
         label={t("gas_limit")}
         name="gasLimit"
         id="gasLimit"
@@ -55,8 +55,9 @@ export default function GasLimitField({
           <div className="flex items-center gap-1">
             <button
               type="button"
+              disabled={estimatedGas <= 0n}
               onClick={(e) => {
-                setFieldValue(estimatedGas ? estimatedGas.toString() : "100000");
+                setFieldValue(estimatedGas.toString());
               }}
               className={
                 {
@@ -67,7 +68,7 @@ export default function GasLimitField({
             >
               {t("estimated")}
             </button>{" "}
-            {estimatedGas ? estimatedGas?.toString() : 100000} Gwei
+            {estimatedGas > 0n ? estimatedGas.toString() : "—"}
           </div>
         }
         inputSize={InputSize.DEFAULT}

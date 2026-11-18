@@ -71,6 +71,7 @@ interface Props {
   myTrades?: Trade[];
   onLastBar?: (bar: Bar | null) => void;
   onTrades?: (trades: Trade[]) => void;
+  alerts?: boolean;
   className?: string;
 }
 
@@ -96,6 +97,7 @@ export default function ProChart({
   myTrades,
   onLastBar,
   onTrades,
+  alerts = true,
   className,
 }: Props) {
   const t = useTranslations("TradingChart");
@@ -344,6 +346,7 @@ export default function ProChart({
               setSelectedDrawing(null);
             }}
             accent={accent}
+            alerts={alerts}
           />
         )}
         <div className="relative flex-1 min-w-0">

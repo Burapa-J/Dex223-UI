@@ -56,7 +56,22 @@ function compile(source) {
   }).outputText;
 }
 
-function load(file, mocks = {}) {
+// The deposit hooks send through #356's gas-aware wallet client. Unless a test stubs these, pass
+// straight through to the test's own wagmi wallet mock, with no gas preview or overrides.
+function withGasPassThrough(mocks) {
+  const wallet = () => mocks.wagmi?.useWalletClient?.() ?? { data: undefined };
+  return {
+    "@/app/[locale]/margin-trading/components/MarginGasSettings": {
+      useMarginWriteGas: () => undefined,
+    },
+    "@/app/[locale]/margin-trading/hooks/useMarginGasEstimate": { default: () => undefined },
+    "@/app/[locale]/margin-trading/hooks/useMarginWalletClient": { default: wallet },
+    ...mocks,
+  };
+}
+
+function load(file, rawMocks = {}) {
+  const mocks = withGasPassThrough(rawMocks);
   const filename = path.join(root, file);
   const module = { exports: {} };
   const requireReal = createRequire(filename);

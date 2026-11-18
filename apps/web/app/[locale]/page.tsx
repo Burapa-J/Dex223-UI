@@ -2,10 +2,15 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import Container from "@/components/atoms/Container";
 import Svg from "@/components/atoms/Svg";
+import {
+  ButtonColor,
+  ButtonSize,
+  ButtonVariant,
+  getButtonClassName,
+} from "@/components/buttons/Button";
 import LandingSwapPreview from "@/components/landing/LandingSwapPreview";
 import { pageMetadata } from "@/config/seo";
 import { IconName } from "@/config/types/IconName";
-import { clsxMerge } from "@/functions/clsxMerge";
 import { formatNumberKilos } from "@/functions/formatFloat";
 import { Link, type Locale } from "@/i18n/routing";
 import { GATEWAY_SUBGRAPHS } from "@/lib/subgraphTargets";
@@ -59,14 +64,21 @@ async function getProtocolStats(): Promise<ProtocolStats | null> {
   }
 }
 
-// Shared look of the in-app Button, applied to links: a <button> inside an <a> is invalid.
+// A <button> inside an <a> is invalid, so the shared button classes sit on the link.
+// inline-flex keeps each link as wide as its label.
 const linkButton = {
-  primary:
-    "inline-flex items-center justify-center gap-2 min-h-12 px-6 rounded-3 text-16 font-medium bg-green text-black hocus:bg-green-hover duration-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]",
-  outlined:
-    "inline-flex items-center justify-center gap-2 min-h-12 px-6 rounded-3 text-16 font-medium border border-green text-primary-text hocus:bg-green-bg duration-200",
-  light:
-    "inline-flex items-center justify-center gap-2 min-h-10 px-4 rounded-2 text-16 font-medium bg-green-bg text-primary-text border border-transparent hocus:border-green duration-200",
+  primary: getButtonClassName({ className: "inline-flex w-fit" }),
+  outlined: getButtonClassName({
+    variant: ButtonVariant.OUTLINED,
+    className: "inline-flex w-fit",
+  }),
+  // Figma page 21: the calculator link is 40 px high with 16 px side padding (MEDIUM uses 24 px).
+  light: getButtonClassName({
+    variant: ButtonVariant.OUTLINED,
+    colorScheme: ButtonColor.LIGHT_GREEN,
+    size: ButtonSize.MEDIUM,
+    className: "inline-flex w-fit px-4 sm:px-4 lg:px-4",
+  }),
 };
 
 const FEATURES: {
@@ -209,7 +221,7 @@ export default async function LandingPage({ params }: Props) {
               href="https://dexaran.github.io/erc20-losses/"
               target="_blank"
               rel="noopener noreferrer"
-              className={clsxMerge(linkButton.light, "self-start")}
+              className={`${linkButton.light} self-start`}
             >
               {t("why.calculator")}
               <Svg iconName="forward" size={20} />
@@ -278,7 +290,10 @@ export default async function LandingPage({ params }: Props) {
         <Container className="flex flex-col items-center text-center gap-4">
           <h2 className="text-24 lg:text-32 font-bold text-primary-text">{t("final.title")}</h2>
           <p className="text-16 text-secondary-text">{t("final.body")}</p>
-          <Link href="/swap" className={clsxMerge(linkButton.primary, "mt-2")}>
+          <Link
+            href="/swap"
+            className={getButtonClassName({ className: "mt-2 inline-flex w-fit" })}
+          >
             {t("cta.launch")}
           </Link>
         </Container>

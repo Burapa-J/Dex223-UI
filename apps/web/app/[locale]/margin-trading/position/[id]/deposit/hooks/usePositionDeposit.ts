@@ -1,8 +1,11 @@
 import { useCallback, useMemo } from "react";
 import { Address, getAbiItem, parseUnits } from "viem";
-import { useAccount, usePublicClient, useWalletClient } from "wagmi";
+import { useAccount, usePublicClient } from "wagmi";
 
+import { useMarginWriteGas } from "@/app/[locale]/margin-trading/components/MarginGasSettings";
 import { getMarginAssetAddress } from "@/app/[locale]/margin-trading/helpers/assetFunding";
+import useMarginGasEstimate from "@/app/[locale]/margin-trading/hooks/useMarginGasEstimate";
+import useMarginWalletClient from "@/app/[locale]/margin-trading/hooks/useMarginWalletClient";
 import {
   PositionDepositStatus,
   SwapError,
@@ -162,6 +165,50 @@ export function resolvePositionDepositParams(
   };
 }
 
+export function usePositionDepositGasEstimate({
+  position,
+  amount,
+  currency,
+  standard,
+}: {
+  position: MarginPosition;
+  amount: string;
+  currency: Currency | undefined;
+  standard: Standard;
+}) {
+  const chainId = useCurrentChainId();
+  useMarginGasEstimate("depositPosition", () => {
+    if (
+      !currency ||
+      currency.isNative ||
+      !amount.trim() ||
+      position.isClosed ||
+      position.isLiquidated
+    ) {
+      return;
+    }
+    let parsedAmount: bigint;
+    try {
+      parsedAmount = parseUnits(amount, currency.decimals);
+    } catch {
+      return;
+    }
+    if (parsedAmount <= 0n) return;
+    const { depositAddress, whitelistId, isAllowedAsset } = resolvePositionDepositParams(
+      position,
+      currency,
+      standard,
+    );
+    if (!isAllowedAsset) return;
+    return {
+      abi: MARGIN_MODULE_ABI,
+      address: MARGIN_TRADING_ADDRESS[chainId],
+      functionName: "positionDeposit" as const,
+      args: [BigInt(position.id), depositAddress, whitelistId, parsedAmount] as const,
+    };
+  });
+}
+
 export default function usePositionDeposit({
   position,
   amount,
@@ -176,7 +223,8 @@ export default function usePositionDeposit({
   const { setStatus, setErrorType, setDepositHash, setApproveHash, setTransferHash } =
     useDepositPositionStatusStore();
   const chainId = useCurrentChainId();
-  const { data: walletClient } = useWalletClient();
+  const gasOverrides = useMarginWriteGas("depositPosition");
+  const { data: walletClient } = useMarginWalletClient("depositPosition");
   const publicClient = usePublicClient();
   const { address } = useAccount();
   const { addRecentTransaction } = useRecentTransactionsStore();
@@ -196,6 +244,8 @@ export default function usePositionDeposit({
     contractAddress: MARGIN_TRADING_ADDRESS[chainId],
     amountToCheck: parsedAmount,
   });
+
+  usePositionDepositGasEstimate({ position, amount, currency, standard });
 
   const handlePositionDeposit = useCallback(
     async (amountToApprove: string) => {
@@ -246,6 +296,7 @@ export default function usePositionDeposit({
           setStatus(PositionDepositStatus.PENDING_APPROVE);
           const result = await writeTokenApprove({
             customAmount: approvalAmount,
+            customGasSettings: gasOverrides,
           });
           if (!result?.success) throw new Error("Approval failed");
           setApproveHash(result.hash);
@@ -264,6 +315,7 @@ export default function usePositionDeposit({
             address: depositAddress,
             functionName: "transfer",
             args: [MARGIN_TRADING_ADDRESS[chainId], parsedAmount],
+            ...gasOverrides,
             account: undefined,
           });
           setTransferHash(hash);
@@ -311,6 +363,7 @@ export default function usePositionDeposit({
         };
         const hash = await walletClient.writeContract({
           ...depositParams,
+          ...gasOverrides,
           account: undefined,
         });
         setDepositHash(hash);
@@ -359,6 +412,7 @@ export default function usePositionDeposit({
       chainId,
       depositAddress,
       existingAsset,
+      gasOverrides,
       isAllowed,
       isAllowedAsset,
       parsedAmount,
